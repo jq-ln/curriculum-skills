@@ -2,7 +2,7 @@
 
 Format version: 1
 
-This doc defines the curriculum format: the docs a Curriculum holds, the Fields in each, how IDs, filenames and links are formed, and how to parse a doc. It's the single source of truth: read and write a Curriculum from this doc alone. Terms such as Field, Generators and Context are used as the [glossary](../GLOSSARY.md) defines them.
+This doc defines the curriculum format: the docs a Curriculum holds, the Fields in each, how IDs, filenames and links are formed, and how to parse a doc. It's the single source of truth: read and write a Curriculum from this doc alone. It defines every term it uses.
 
 A Curriculum is written for two readers. An agent loads one Subsection, and nothing else from the Curriculum, as the material to teach. A human browses the doc set in an editor or on GitHub and follows links.
 
@@ -65,12 +65,14 @@ A Part, Section or Subsection's filename is its ID, a hyphen, its slug and `.md`
 
 The slug is derived from the title in the doc's H1:
 
-1. Decompose with Unicode NFKD, then drop combining marks and every character with no ASCII form.
+1. Decompose with Unicode NFKD, then drop combining marks. Step 3 turns every other non-ASCII character into a separator, so `Merging—rebasing` gives `merging-rebasing`.
 2. Lowercase.
 3. Replace each run of characters outside `[a-z0-9]` with one `-`, and trim `-` from both ends.
 4. If the result is longer than 60 characters, take its first 61 characters and cut at the last `-` among them, dropping that `-` and everything after it. With no `-` among them, keep the first 60 characters.
 
 A title whose slug is empty is invalid.
+
+A title, whether a unit's, an Appendix's or the Curriculum's name in the index H1, contains no `[`, `]`, `|`, `\`, `<` or backtick. Deriving copies titles verbatim, without escaping, into link text, the Context Field and the Parts table, and these characters would break a link or a table row there.
 
 The ID part of a filename changes only with the ID; the slug follows the title, so a title change renames the file and its inbound links are derived again. Find a unit by globbing its ID, such as `GIT-07.02.03-*`, never by its full filename.
 
@@ -78,7 +80,7 @@ An Appendix's `<description>` is authored: lowercase words of `[a-z0-9]` joined 
 
 ## Fields
 
-The tables below list each Doc type's Fields in their fixed order; [Parsing](#parsing) says how a reader finds them.
+A Field is a top-level H2 whose text is one of its Doc type's Field names, together with its content up to the next H2. The tables below list each Doc type's Fields in their fixed order; [Parsing](#parsing) says how a reader finds them.
 
 - **Required** Fields are always present.
 - **Optional** Fields are left out when empty, never written as `None`. Prereqs is the one Field that says `None`.
@@ -123,7 +125,7 @@ The Subsection is the teachable unit. Its doc is:
 
 The Curriculum line takes the name and code from the index's H1. The Target version line is left out when the index has no Target version. The Section Generators are the Section's Generators bullets, in order.
 
-**Tags** lists every tag the unit carries: the Part's and the Section's tags copied down, the unit's own tags, and every tag used inline in the unit. The own tag names are authored, one per bullet; deriving adds the rest and writes each entry as its tag link and Meaning copied from the tags doc, in the tags doc's order, each tag once:
+**Tags** lists every tag the unit carries: the Part's and the Section's Tags Field entries copied down, the unit's own tags, and every tag used inline in the unit. Tags used inline in a Part or Section aren't copied down. The own tag names are authored, one per bullet; deriving adds the rest and writes each entry as its tag link and Meaning copied from the tags doc, in the tags doc's order, each tag once:
 
 ```markdown
 ## Tags
@@ -150,9 +152,10 @@ The Curriculum line takes the name and code from the index's H1. The Target vers
 - MATH-12.01.04 Bayes' theorem: <its Goal>
 ```
 
-- Each prereq is a Subsection ID that comes before this unit in global ID order. A prereq at or after the unit is invalid.
+- A prereq with the Curriculum's own code is a Subsection ID that comes before this unit in global ID order. One at or after the unit, or naming no Subsection, is invalid.
+- A prereq with another code is a three-level ID. Nothing else about it is checked, because global ID order compares IDs of one Curriculum only.
 - An entry is the ID alone, with no qualifier such as `(preview)`.
-- A prereq in another Curriculum is plain text, never a link, because Curriculums share no root directory. Its title and Goal are copied in when that Curriculum was on disk when the doc set was built, and otherwise the entry is the ID alone.
+- A prereq in another Curriculum is plain text, never a link, because Curriculums share no root directory. Deriving looks for that Curriculum among the directories beside the doc set's own, sharing its parent: it's found when exactly one of them has an `index.md` whose H1 ends `(<CODE>)` with the prereq's code. When it's found, the entry is the ID, its title and its Goal, as in the example. When it isn't, deriving keeps the entry as it is and a validity check doesn't compare it, so a doc set built beside the other Curriculum stays valid on a machine without it.
 - A unit with no prereqs has `None` as its whole content.
 
 **Check** is exactly one question that the learner can answer only by holding the Goal. It has no answer key: the Goal is the answer key.
@@ -224,7 +227,7 @@ The H1 is `# <ID> <title>`. A Part has no Prereqs or Sources: those belong to it
 
 **Format version** holds only the integer of the format the doc set was built to, such as `1`. It's written once, when the doc set is first built, and never written or changed by deriving. A doc set is invalid for a reader when this Field is missing or differs from the reader's own Format version: the reader reports both numbers, and deriving stops with an error instead of running. A missing Field is restored from the history of `index.md`, such as `git log -p index.md`, because nothing else in the doc set records it.
 
-**Counts** gives the number of Parts, Sections and Subsections, then the number of Subsections carrying each standard tag, copied-down tags included:
+**Counts** gives the number of Parts, Sections and Subsections, then one line per standard tag, in [Standard tags](#standard-tags) order, giving the number of Subsections carrying it, copied-down tags included. A standard tag the Curriculum doesn't use still gets its line, as `0`:
 
 ```markdown
 ## Counts
@@ -286,7 +289,7 @@ The H1 is `# <CODE> Tags`. The doc holds one `## <tag>` heading per tag the Curr
 ```
 
 - **Meaning** (authored) is one line, the text copied into each Tags Field entry.
-- **Where** (authored) says where the tag is used: `doc` (in a Tags Field), `inline` (as a marker in prose) or `doc, inline`.
+- **Where** (authored) says where the tag may be used: `doc` (in a Tags Field), `inline` (as a marker in prose) or `doc, inline`. A tag named in a Tags Field when its Where lacks `doc`, or used as a marker when its Where lacks `inline`, is invalid, so a stray `{Optional}` in prose can't make a unit Optional.
 - **Uses** (derived) is the number of Subsections whose Tags Field lists the tag.
 
 The standard tags the Curriculum uses come first, in the order of [Standard tags](#standard-tags), copied from there. The Curriculum's own tags follow, in authored order. A Curriculum with no tags of its own still has a tags doc.
@@ -350,7 +353,7 @@ The H1 is `# <CODE> Notes`.
 - **Build notes**: how the Curriculum was built, how citations were verified and sources tried but not used.
 - **Open questions**: claims whose originator couldn't be traced and citations that couldn't be verified.
 
-Every H2 after the last of these Fields is free content.
+An H2 that isn't one of these Field names is free content; see [Parsing](#parsing).
 
 ## Appendix
 
@@ -365,7 +368,7 @@ An Appendix holds non-teaching reference material, such as a per-Curriculum glos
 
 **Applies to** lists the Part and Section IDs the Appendix serves, one per bullet. Each named Part or Section gets a derived Appendices Field entry, `- [Appendix: <title>](<filename>): <its Purpose>`. An Appendix with no Applies to serves the whole Curriculum and is linked from the index only.
 
-Every H2 after its Fields is free content. An Appendix has no Tags, Prereqs or Check. An Appendix may link to units, but no Subsection links to an Appendix: content a unit needs belongs in the unit or a prereq.
+An H2 that isn't one of these Field names is free content; see [Parsing](#parsing). An Appendix has no Tags, Prereqs or Check. An Appendix may link to units, but no Subsection links to an Appendix: content a unit needs belongs in the unit or a prereq.
 
 ## Links
 
@@ -386,12 +389,12 @@ A target between docs never contains `/` or `./` and is never URL-encoded. Any o
 
 In an authored Field's prose, and in the free content of the notes doc and Appendices:
 
-- **A unit** is its bare ID, matched by `\b[A-Z][A-Z0-9]*-[0-9]{2}(\.[0-9]{2}){0,2}(?![.-]?\w)`. An ID with the Curriculum's own code becomes a link with text `<ID> <title>`. An ID with another code stays plain text. An own-code ID naming no unit is invalid, and so is an own-code token that looks like an ID but doesn't match, such as `GIT-07.2` or `GIT-07.02a`.
+- **A unit** is its bare ID, matched by `\b[A-Z][A-Z0-9]*-[0-9]{2}(\.[0-9]{2}){0,2}(?![.-]?\w)`. An ID with the Curriculum's own code becomes a link with text `<ID> <title>`. An ID with another code stays plain text. An own-code ID naming no unit is invalid. An own-code token is any match of `\b<CODE>-[0-9][0-9.-]*\w*`, with `<CODE>` the Curriculum's own code; one where the marker regex doesn't match at its start is invalid, such as `GIT-7`, `GIT-07.2`, `GIT-07.02a`, `GIT-07-02` or `GIT-07.02.03.04`. An ID that ends a sentence, such as `GIT-07.02.`, is valid.
 - **A tag** is its name in braces, such as `{2.43}`, and becomes a link with the tag name as its text. In a Subsection it links to the unit's own `#tags` Field, where the tag's Meaning is copied; elsewhere it links to the tag's heading in the tags doc. Braces around anything that isn't a tag name defined in the tags doc stay as text.
 
-Prose means the text of the parsed CommonMark document outside code spans, fenced and indented code blocks, raw HTML, autolinks and link destinations. To write an ID-shaped token or braces literally, put it in a code span, such as `` `SQL-92` ``.
+Prose means the text of the parsed CommonMark document outside code spans, fenced and indented code blocks, raw HTML, autolinks and links, both their text and their destinations. To write an ID-shaped token or braces literally, put it in a code span, such as `` `SQL-92` ``.
 
-A link that deriving wrote earlier, such as `[GIT-07.02.03 Conflicts](GIT-07.02.03-conflicts.md)` or `[2.43](#tags)`, is recognized and refreshed as a whole, so a title change updates its text and target and a re-run never nests a link.
+A link with a target between docs, such as `[GIT-07.02.03 Conflicts](GIT-07.02.03-conflicts.md)` or `[2.43](#tags)`, is one deriving wrote: it's recognized and refreshed as a whole from the ID or tag name its text starts with, so a title change updates its text and target and a re-run never nests a link. A link out of the Curriculum is authored and kept as it is, so an ID in its text, such as `[GIT-07.02 discussion](https://example.com)`, is neither linked nor checked.
 
 ### Link text
 
@@ -423,8 +426,8 @@ Every reader parses a doc this way.
 4. The doc starts with exactly one H1. A Part, Section or Subsection's H1 is exactly `<ID> <title>`, and its ID must equal the ID its filename starts with. Every other Doc type's H1 is the form given in its section above.
 5. In a Subsection, the paragraph between the H1 and the first H2 is the nav line.
 6. A Field is an H2 whose text exactly matches one of its Doc type's Field names. Its content runs to the next H2 or the end of the doc, and H3 and deeper headings belong to the Field above them.
-7. Fields appear in their Doc type's order. A required Field that is missing, or a Field out of order, is invalid.
-8. In the notes doc and an Appendix, every H2 after the Doc type's last Field is free content, not a Field. In the tags doc, every H2 is a tag. In every other Doc type, an H2 that isn't one of its Field names is invalid.
+7. Fields appear in their Doc type's order, each at most once. A missing required Field, a repeated Field or a Field out of order is invalid.
+8. In the notes doc and an Appendix, an H2 that isn't one of the Doc type's Field names is free content, and every free H2 comes after the last Field present; a free H2 before a Field is invalid. An H2 titled with a Field name is always that Field, so free content can't reuse a Field name. In the tags doc, every H2 is a tag. In every other Doc type, an H2 that isn't one of its Field names is invalid.
 9. In a list Field, each top-level bullet is one entry. Take the entry's text: its first link's text when the bullet starts with a link, otherwise the whole bullet. An ID is the first word of that text; a tag name is all of it. A bullet of the form `- <key>: <value>`, as in Context, Counts and the tags doc, has the key before its first colon and the value after that colon and the space following it; nested bullets belong to the bullet above them. In the Abbreviations and Parts tables, each body row is one entry.
 
 ## Version history
