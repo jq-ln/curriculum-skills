@@ -19,10 +19,10 @@ A portion of a Section, and the teachable unit. Its doc carries everything an ag
 _Avoid_: Session, Topic, Chapter
 
 **ID**:
-The permanent identifier of a Part, Section or Subsection, such as `GIT-07`, `GIT-07.02` or `GIT-07.02.03`: the code, a hyphen, then each level padded to two digits. It takes the same form in prose, H1s, filenames, the Context Field and references from another Curriculum. A Subsection's ID always has three levels, so a flat subject gains Sections.
+The stable identifier of a Part, Section or Subsection, such as `GIT-07`, `GIT-07.02` or `GIT-07.02.03`: the code, a hyphen, then each level padded to two digits. It changes only when a split or a mid-Section insertion renumbers units. It takes the same form in prose, H1s, filenames, the Context Field and references from another Curriculum. A Subsection's ID always has three levels, so a flat subject gains Sections.
 
 **Field**:
-An H2 heading whose text matches a Field name the format doc defines, such as Goal or Sources, with its content up to the next H2. An authored Field is written by an agent or a human, and a derived Field by the build script's `derive`; a mixed Field, such as Prereqs or Tags, has authored IDs or tag names that the build script links and copies facts beside.
+An H2 heading whose text matches a Field name the format doc defines, such as Goal or Sources, with its content up to the next H2. An authored Field is written by an agent or a human, apart from the links the build script's `derive` writes around IDs and tag markers in its prose. A derived Field is written by `derive`. A mixed Field, such as Prereqs or Tags, has authored IDs or tag names that `derive` links and copies facts beside. The Format version Field is none of these: only the build script's `split` writes it.
 
 **Generators**:
 The Field holding the few base facts a Section's Subsections collapse into. A Subsection may add Generators specific to itself.

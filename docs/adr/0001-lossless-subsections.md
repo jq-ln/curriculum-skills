@@ -2,7 +2,7 @@
 
 Status: Accepted
 
-Evidence: [Field set for each doc type](https://github.com/jq-ln/curriculum-skills/issues/6#issuecomment-7011388517), building on [Doc set and file granularity](https://github.com/jq-ln/curriculum-skills/issues/5).
+Evidence: [Field set for each doc type](https://github.com/jq-ln/curriculum-skills/issues/6#issuecomment-7011388517), building on [Doc set and file granularity](https://github.com/jq-ln/curriculum-skills/issues/5) and [Pipeline from research to doc set](https://github.com/jq-ln/curriculum-skills/issues/9#issuecomment-7017961994). Review settled which part of the [Prereqs and Tags Fields](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635417418), [inherited tags](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635566528) and [links in prose](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635565950) is authored.
 
 ## Context
 
@@ -16,9 +16,10 @@ Every Subsection is lossless: loaded alone, it carries everything needed to teac
 
 - The derived Context Field copies in the Curriculum's name and code, Target version, Snapshot, Part, Section and the Section's Generators.
 - Each Prereq bullet copies in the prereq's title and Goal. The prereq's ID is authored; its link, title and Goal are derived.
-- The Tags Field copies in each tag's one-line meaning, including tags copied down from the Part and Section. The tag name is authored; its link and meaning are derived.
+- The Tags Field copies in each tag's one-line meaning, including tags copied down from the Part and Section. The Subsection's own tag names are authored; the inherited tags, and every tag's link and meaning, are derived.
+- Every link is derived. In an authored Field's prose, the author writes a bare ID or a tag marker such as `{2.43}`, and `derive` writes the link around it.
 
-Each fact is authored in one source doc. Agents and humans write only authored content: a whole authored Field, or the authored part of a mixed Field such as Prereqs or Tags. The build script's `derive` writes every copy, count, nav line and link from that source, and `check` re-derives the doc set and fails on any word-for-word difference.
+Each fact is authored in one source doc. Agents and humans write only authored content: an authored Field apart from the links in its prose, or the authored part of a mixed Field such as Prereqs or Tags. The build script's `derive` writes every copy, count, nav line and link from that source, and `check` re-derives the doc set and fails on any word-for-word difference.
 
 ## Consequences
 

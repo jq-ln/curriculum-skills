@@ -2,7 +2,7 @@
 
 Status: Accepted
 
-Evidence: [Front matter on generated docs](https://github.com/jq-ln/curriculum-skills/issues/11#issuecomment-7018628248), building on [Pipeline from research to doc set](https://github.com/jq-ln/curriculum-skills/issues/9#issuecomment-7017961994). The rules for [fenced code and setext headings](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635495777) and for [the filename's ID](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635495805) were added in review.
+Evidence: [Front matter on generated docs](https://github.com/jq-ln/curriculum-skills/issues/11#issuecomment-7018628248), building on [Pipeline from research to doc set](https://github.com/jq-ln/curriculum-skills/issues/9#issuecomment-7017961994). The rules for [fenced code and setext headings](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635495777) and for [the filename's ID](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635495805) were added in review, and review limited headings to [top-level ones](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635566342) and [set front matter aside](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635565594).
 
 ## Context
 
@@ -16,7 +16,8 @@ No generated doc has YAML front matter. The ID lives in the H1 and the filename,
 
 The format doc gets a normative Parsing section, which every reader follows:
 
-- A heading is a CommonMark ATX heading, such as `## Goal`, outside a fenced code block, so a heading-like line inside a fence is content. A setext heading (text over `===` or `---`) is a `check` error, so every heading a renderer shows is one the parser sees.
+- A YAML front matter block, from a `---` on line 1 to the next `---` line, is set aside before parsing. CommonMark alone would read its closing `---` as making its last line a setext heading.
+- A heading is a top-level CommonMark ATX heading, such as `## Goal`: a direct child of the document. A heading-like line inside a code block, blockquote or list item is content. A top-level setext heading (text over `===` or `---`) is a `check` error, so every top-level heading a renderer shows is one the parser sees.
 - A Part, Section or Subsection doc's H1 is exactly `<ID> <title>`, and `check` fails when that ID differs from the one its filename starts with. The other Doc types' H1s are set by the format doc.
 - A Field is an H2 whose text exactly matches a Field name the format doc defines. Its content runs to the next H2 or the end of the file.
 - Field order is fixed for each Doc type.
