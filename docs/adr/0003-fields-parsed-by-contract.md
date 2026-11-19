@@ -28,5 +28,5 @@ An Appendix and the notes doc start with their required Fields, and every H2 aft
 
 - A later skill reads a Curriculum through the Parsing section, without reading the build script.
 - The Markdown layout is an interface: changing how the Parsing section reads a doc changes the Format version ([ADR 0004](0004-integer-format-version.md)).
-- Because an unknown H2 is an error, even an added optional Field breaks an older `check`.
+- Because an unknown H2 is an error in a Doc type whose whole Field set is fixed, even an optional Field added to one breaks an older `check`.
 - The Format version can't be recorded in front matter, so it's a Field in `index.md`.

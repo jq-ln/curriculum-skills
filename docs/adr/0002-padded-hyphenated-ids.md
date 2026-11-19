@@ -2,7 +2,7 @@
 
 Status: Accepted
 
-Evidence: [Link and path conventions](https://github.com/jq-ln/curriculum-skills/issues/8#issuecomment-7014855610), building on [Wiki-link tooling for plain Markdown in LazyVim](https://github.com/jq-ln/curriculum-skills/issues/4).
+Evidence: [Link and path conventions](https://github.com/jq-ln/curriculum-skills/issues/8#issuecomment-7014855610), building on [Wiki-link tooling for plain Markdown in LazyVim](https://github.com/jq-ln/curriculum-skills/issues/4) and [Pipeline from research to doc set](https://github.com/jq-ln/curriculum-skills/issues/9#issuecomment-7017961994). The link marker's end anchor was [amended in review](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635417208).
 
 ## Context
 
@@ -23,5 +23,6 @@ An ID is `<CODE>-PP.SS.UU`, such as `GIT-07.02.03`: the Curriculum's code, a hyp
 
 - A plain `ls` lists a Curriculum in teaching order, and a filename starts with its ID verbatim.
 - Each level holds at most 99 entries. Widening later would change every ID and filename in every existing Curriculum, so it's ruled out.
-- The link marker the build script recognizes in authored Fields, `\b[A-Z][A-Z0-9]*-\d{2}(\.\d{2}){0,2}\b`, depends on this form.
+- The link marker the build script recognizes in authored Fields, `\b[A-Z][A-Z0-9]*-\d{2}(\.\d{2}){0,2}(?!\.?\d)`, depends on this form. A match with the Curriculum's own code becomes a link, and an unknown one is a `check` error; a match with another code stays plain text.
+- The end anchor stops a malformed ID from matching as its valid prefix, so `GIT-07.2` and `GIT-07.02.031` don't link to `GIT-07` and `GIT-07.02`. It still matches an ID that ends a sentence. `check` reports any token with the Curriculum's own code that looks like an ID but doesn't match the marker.
 - A reference into another Curriculum uses the same form as plain text, such as `MATH-12.01.04`, never a link: Curriculums share no root directory, so a path such as `../MATH/…` would break whenever they aren't siblings.

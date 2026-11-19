@@ -15,10 +15,10 @@ Copying the facts into every Subsection fixes that, but a fact copied by hand in
 Every Subsection is lossless: loaded alone, it carries everything needed to teach it.
 
 - The derived Context Field copies in the Curriculum's name and code, Target version, Snapshot, Part, Section and the Section's Generators.
-- Each Prereq bullet copies in the prereq's title and Goal.
-- The Tags Field copies in each tag's one-line meaning, including tags copied down from the Part and Section.
+- Each Prereq bullet copies in the prereq's title and Goal. The prereq's ID is authored; its link, title and Goal are derived.
+- The Tags Field copies in each tag's one-line meaning, including tags copied down from the Part and Section. The tag name is authored; its link and meaning are derived.
 
-Each fact is authored in one source doc. Agents and humans write only authored Fields. The build script's `derive` writes every copy, count, nav line and link from that source, and `check` re-derives the doc set and fails on any word-for-word difference.
+Each fact is authored in one source doc. Agents and humans write only authored content: a whole authored Field, or the authored part of a mixed Field such as Prereqs or Tags. The build script's `derive` writes every copy, count, nav line and link from that source, and `check` re-derives the doc set and fails on any word-for-word difference.
 
 ## Consequences
 
