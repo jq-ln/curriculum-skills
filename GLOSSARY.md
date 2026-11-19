@@ -19,7 +19,7 @@ A portion of a Section, and the teachable unit. Its doc carries everything an ag
 _Avoid_: Session, Topic, Chapter
 
 **ID**:
-The permanent identifier of a Part, Section or Subsection, such as `GIT-07`, `GIT-07.02` or `GIT-07.02.03`: the code, a hyphen, then each level padded to two digits. It takes the same form in prose, H1s, filenames and references to another Curriculum. A Subsection's ID always has three levels, so a flat subject gains Sections.
+The permanent identifier of a Part, Section or Subsection, such as `GIT-07`, `GIT-07.02` or `GIT-07.02.03`: the code, a hyphen, then each level padded to two digits. It takes the same form in prose, H1s, filenames, the Context Field and references from another Curriculum. A Subsection's ID always has three levels, so a flat subject gains Sections.
 
 **Field**:
 An H2 heading inside a doc, such as Goal or Sources, with its content up to the next H2. An authored Field is written by an agent or a human; a derived Field is written by the build script.

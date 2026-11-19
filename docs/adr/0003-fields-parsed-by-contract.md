@@ -16,7 +16,7 @@ No generated doc has YAML front matter. The ID lives in the H1 and the filename,
 
 The format doc gets a normative Parsing section, which every reader follows:
 
-- The H1 is exactly `<ID> <title>`.
+- A Part, Section or Subsection doc's H1 is exactly `<ID> <title>`. The other Doc types' H1s are set by the format doc.
 - A Field is an H2 whose text exactly matches a Field name the format doc defines. Its content runs to the next H2 or the end of the file.
 - Field order is fixed for each Doc type.
 - H3 and deeper headings belong to the Field above them.

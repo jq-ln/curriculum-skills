@@ -8,7 +8,7 @@ Evidence: [Field set for each doc type](https://github.com/jq-ln/curriculum-skil
 
 A Subsection becomes the teaching prompt for a tool that sees no other doc from its Curriculum, only a record of the Subsections the learner has already taken. To teach it, that tool needs the Subsection's surrounding facts: which Curriculum and release it belongs to, its Section's Generators, what each prereq established and what each tag means. Linking to those facts would make the agent load the Section, Part, prereq and tags docs, which defeats one file per Subsection (about 470 tokens instead of a whole Section or Part).
 
-Copying the facts into every Subsection fixes that, but a copy written by hand drifts from its source. The existing corpus already shows that drift: field legends differ between files, and `[…]` means both a status tag and a source key ([inventory](https://github.com/jq-ln/curriculum-skills/issues/3)).
+Copying the facts into every Subsection fixes that, but a fact copied by hand into hundreds of docs drifts from its source as soon as one copy is edited.
 
 ## Decision
 
@@ -26,4 +26,3 @@ Each fact is authored in one source doc. Agents and humans write only authored F
 - A valid doc set can't be produced or maintained without the script, so `derive` runs in place and is idempotent, and a human can edit authored Fields and re-derive.
 - An edit to one source fans out: changing a Section's Generators rewrites the Context of every Subsection under it.
 - Subsections are longer than a linked design would make them, in exchange for never needing a second doc.
-- The format doc has to mark every Field as authored or derived.
