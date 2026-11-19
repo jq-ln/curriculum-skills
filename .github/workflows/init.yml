@@ -1,0 +1,39 @@
+name: init
+
+# The first push to a Derived repo's main, which "Use this template" makes. Init
+# deletes this file, so it runs once.
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+# A second push before init's commit lands queues a second run, which finds init
+# already done and exits.
+concurrency:
+  group: init
+  cancel-in-progress: false
+
+jobs:
+  init:
+    # Keeps init off the Template, which must be marked as a template repository
+    # in its settings before this file reaches its main branch, and off its forks,
+    # which keep the Template-own content for PRs to the Template.
+    if: github.event.repository.is_template == false && !github.event.repository.fork
+    runs-on: ubuntu-latest
+    permissions:
+      # Enough to push init's commit: GITHUB_TOKEN may delete a workflow file, such
+      # as this one, but may not create or edit one, so init leaves ci.yml alone.
+      contents: write
+      issues: write # open the "Set up this repo" issue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Credentials persist so init can push its commit.
+      - name: Remove the Template-own content and open the setup issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: .github/scripts/init

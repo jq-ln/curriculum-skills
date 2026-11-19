@@ -1,0 +1,25 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+# An in-progress run is never cancelled; a newer push replaces any pending one.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the Release PR branch, tag and publish the GitHub Release
+      issues: write # create the autorelease labels
+      pull-requests: write # open, update and label the Release PR
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          # GITHUB_TOKEN's Release PR runs no checks; see docs/workflow/releases.md#optional-release_please_token.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}

@@ -1,0 +1,8 @@
+{
+  // Merged over the root config for files under .github/. The PR template must
+  // start with `Closes #` and hold no comments, so MD041 (first line is a
+  // heading) can't pass and can't be disabled inline.
+  "config": {
+    "MD041": false
+  }
+}

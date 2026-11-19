@@ -1,0 +1,24 @@
+name: Bug
+description: Something doesn't work as it should.
+type: Bug
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The steps, commands or input that show the bug.
+    validations:
+      required: true

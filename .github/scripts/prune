@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# Removes the local branches and worktrees of finished Issue branches, and the
+# reviewer worktrees of closed PRs. Run it at the start of every session;
+# docs/workflow/branches.md#pruning says what it removes and what it keeps.
+# Written for Bash 3.2, macOS's /bin/bash.
+set -euo pipefail
+
+# Where each branch's remote branch was last seen, as "<branch> <sha>" lines,
+# read before the fetch deletes the remote-tracking refs.
+pushed=$(awk 'NR == FNR { sha[$1] = $2; next } $2 in sha { print $1, sha[$2] }' \
+  <(git for-each-ref --format='%(refname) %(objectname)' refs/remotes) \
+  <(git for-each-ref --format='%(refname:short) %(upstream)' refs/heads))
+
+if ! git fetch --prune --quiet; then
+  echo "prune: fetch failed, nothing pruned; carry on and run prune again later"
+  exit 0
+fi
+
+# Set gh's default repo to origin if none is set, so plain gh calls, this
+# script's among them, don't prefer an `upstream` remote. Why is in
+# docs/workflow/issues.md#tracker-operations. It runs here because every
+# session runs prune, while setup runs once, in the admin's clone. A default
+# already set is left alone, and a failure leaves it unset. A fork's clone is
+# skipped too: there `upstream` is the repo the work targets, which gh prefers.
+if [[ -z $(gh repo set-default --view 2>/dev/null) ]] \
+  && origin=$(git remote get-url origin 2>/dev/null) \
+  && [[ $(gh repo view "$origin" --json isFork --jq .isFork 2>/dev/null) == false ]] \
+  && gh repo set-default origin >/dev/null 2>&1; then
+  echo "prune: set gh's default repo to $(gh repo set-default --view)"
+fi
+
+# resolve <dir>: the path with symlinks resolved, so paths from git and from
+# the shell compare equal. Empty if the directory is missing.
+resolve() {
+  (cd "$1" 2>/dev/null && pwd -P) || true
+}
+
+worktrees=$(git worktree list --porcelain)
+# The first worktree listed is the main checkout.
+main=$(resolve "$(sed -n '1s/^worktree //p' <<<"$worktrees")")
+current=$(resolve "$(git rev-parse --show-toplevel)")
+
+# keep <branch or worktree> <reason>
+keep() {
+  echo "prune: kept    $1 ($2)"
+}
+
+# covers <branch> <sha>...: exits 0 if one of the commits contains the branch's
+# tip, 1 if none does, and 2 if none of them exists locally to check.
+covers() {
+  local branch=$1 sha status=2
+  shift
+  for sha in "$@"; do
+    git cat-file -e "$sha^{commit}" 2>/dev/null || continue
+    status=1
+    if git merge-base --is-ancestor "refs/heads/$branch" "$sha"; then
+      return 0
+    fi
+  done
+  return "$status"
+}
+
+# This repo's PRs, as "<number> <state> <head branch> <head sha> <cross-repo>"
+# lines, read once on first use. Empty if gh fails; prs_error says why.
+prs=""
+prs_error=""
+prs_loaded=""
+load_prs() {
+  if [[ -n $prs_loaded ]]; then
+    return
+  fi
+  prs_loaded=1
+  if ! prs=$(gh pr list --state all --limit 200 \
+    --json number,state,headRefName,headRefOid,isCrossRepository \
+    --jq '.[] | "\(.number) \(.state) \(.headRefName) \(.headRefOid) \(.isCrossRepository)"' 2>&1); then
+    prs_error=$prs
+    prs=""
+  fi
+}
+
+# push_state <branch>: "pushed" if every commit on the branch reached GitHub,
+# "unpushed" if some didn't, "unknown" if nothing says where it was pushed.
+# Squash merges leave a branch's commits off main, so where the branch was
+# last pushed is the only way to tell finished work from unpushed work. The
+# remote-tracking ref is gone if anything ran git fetch --prune before this
+# run, so the heads of the branch's PRs, which GitHub keeps, back it up.
+# Needs load_prs first.
+push_state() {
+  local tracked heads
+  # shellcheck disable=SC2046,SC2086 # one SHA per word
+  covers "$1" $(awk -v b="$1" '$1 == b { print $2 }' <<<"$pushed") && tracked=0 || tracked=$?
+  if [[ $tracked == 0 ]]; then
+    echo pushed
+    return
+  fi
+  # shellcheck disable=SC2046,SC2086 # one SHA per word
+  covers "$1" $(awk -v b="$1" '$3 == b && $5 == "false" { print $4 }' <<<"$prs") && heads=0 || heads=$?
+  if [[ $heads == 0 ]]; then
+    echo pushed
+  elif [[ $tracked == 1 || $heads == 1 ]]; then
+    echo unpushed
+  else
+    echo unknown
+  fi
+}
+
+# remove_cmd <branch> <worktree>: the commands that remove both by hand.
+remove_cmd() {
+  if [[ -n $2 ]]; then
+    printf 'git worktree remove %q && ' "$2"
+  fi
+  printf 'git branch -D %q' "$1"
+}
+
+while read -r branch track; do
+  if [[ $track != '[gone]' ]]; then
+    continue
+  fi
+  worktree=$(awk -v ref="refs/heads/$branch" \
+    '/^worktree / { sub(/^worktree /, ""); path = $0 } $0 == "branch " ref { print path }' <<<"$worktrees")
+  here=""
+  if [[ -n $worktree ]]; then
+    here=$(resolve "$worktree")
+  fi
+  if [[ -n $here && $here == "$main" ]]; then
+    keep "$branch" "it's checked out in the main checkout; switch to main and run prune again"
+    continue
+  fi
+  if [[ -n $here && $here == "$current" ]]; then
+    keep "$branch" "prune is running in its worktree; run prune from the main checkout"
+    continue
+  fi
+  load_prs
+  case $(push_state "$branch") in
+    unpushed)
+      keep "$branch" "it has commits that were never pushed; push or discard them"
+      continue
+      ;;
+    unknown)
+      keep "$branch" "prune can't find where it was last pushed, so it can't tell whether it has unpushed commits; check it, then run: $(remove_cmd "$branch" "$worktree")"
+      continue
+      ;;
+  esac
+  # Without --force, git refuses to remove a worktree with modified or
+  # untracked files, so uncommitted work survives.
+  if [[ -n $worktree ]] && ! reason=$(git worktree remove "$worktree" 2>&1); then
+    keep "$branch" "${reason#fatal: }"
+    continue
+  fi
+  if ! reason=$(git branch --quiet -D "$branch" 2>&1); then
+    keep "$branch" "${reason#error: }"
+    continue
+  fi
+  echo "prune: removed $branch"
+done < <(git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads)
+
+# Reviewer worktrees are detached at .worktrees/pr-<n>/. A reviewer removes its
+# own when its round ends; this catches those left by a session that died.
+while read -r worktree; do
+  n=${worktree##*/pr-}
+  load_prs
+  if [[ -n $prs_error ]]; then
+    keep "$worktree" "prune can't read the state of PR #$n: $prs_error"
+    continue
+  fi
+  state=$(awk -v n="$n" '$1 == n { print $2 }' <<<"$prs")
+  if [[ -z $state ]]; then
+    keep "$worktree" "PR #$n isn't among the 200 most recent PRs; check it, then run: git worktree remove $(printf %q "$worktree")"
+    continue
+  fi
+  if [[ $state == OPEN ]]; then
+    continue
+  fi
+  if [[ $(resolve "$worktree") == "$current" ]]; then
+    keep "$worktree" "prune is running in it; run prune from the main checkout"
+    continue
+  fi
+  if ! reason=$(git worktree remove "$worktree" 2>&1); then
+    keep "$worktree" "${reason#fatal: }"
+    continue
+  fi
+  echo "prune: removed $worktree"
+done < <(awk '/^worktree / { sub(/^worktree /, ""); path = $0 }
+  $0 == "detached" && path ~ /\/\.worktrees\/pr-[0-9]+$/ { print path }' <<<"$worktrees")

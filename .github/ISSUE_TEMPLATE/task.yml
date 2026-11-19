@@ -1,0 +1,11 @@
+name: Task
+description: Work that's neither a bug nor a feature, such as docs, CI or cleanup.
+type: Task
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: what-and-why
+    attributes:
+      label: What and why
+    validations:
+      required: true

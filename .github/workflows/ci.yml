@@ -1,0 +1,171 @@
+name: ci
+
+on:
+  pull_request:
+    # `edited` re-runs ci when the PR title or body changes.
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+# Each push or PR edit cancels the PR's older run, so only the newest one reports.
+# A cancelled run's `ci` still runs (`always()`) and fails, which is what keeps a
+# cancelled run from leaving a skipped, merge-allowing `ci` behind.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Check the PR title is a Conventional Commit
+        uses: amannn/action-semantic-pull-request@2252a14e810aa9b85c2d560bd7070c802206ecf6 # v6.1.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          # The ten types in docs/workflow/commits.md. A `!` before the colon is allowed.
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+      - name: Check the PR title is at most 64 characters
+        # Dependabot writes its own titles (`ci: bump <action> from X to Y`), which can run past 64.
+        if: ${{ !cancelled() && github.event.pull_request.user.login != 'dependabot[bot]' }}
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          MAX_LENGTH: 64 # the squash subject stays within 72 once GitHub appends ' (#<PR>)', up to PR #9999
+          LC_ALL: C.UTF-8 # count characters, not bytes
+        run: |
+          length=${#TITLE}
+          if (( length > MAX_LENGTH )); then
+            echo "::error title=PR title too long::The PR title is ${length} characters. The limit is ${MAX_LENGTH}; see docs/workflow/commits.md."
+            exit 1
+          fi
+          echo "The PR title is ${length} characters (limit ${MAX_LENGTH})."
+
+  issue-link:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # check out the script
+      issues: read # read the issues the PR closes
+      pull-requests: read # read the PR's base, body and closingIssuesReferences
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the PR closes exactly one open issue
+        # The script skips Dependabot and the Release PR, and passes.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          # The account that opens the Release PR with RELEASE_PLEASE_TOKEN. Unset, the Release PR is checked like any other.
+          RELEASE_PLEASE_AUTHOR: ${{ vars.RELEASE_PLEASE_AUTHOR }}
+        run: .github/scripts/check-pr-issue
+
+  markdownlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25.0.0
+        with:
+          globs: '**/*.md'
+
+  lychee:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Pinned so a Dependabot bump of lychee-action doesn't change lychee itself.
+      LYCHEE_VERSION: v0.24.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          lycheeVersion: ${{ env.LYCHEE_VERSION }}
+          args: --offline --no-progress --hidden --extensions md .
+
+  actionlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Bump both together: the checksum is linux_amd64's line in the release's checksums.txt.
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint
+        working-directory: ${{ runner.temp }}
+        run: |
+          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfLO "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
+          echo "${ACTIONLINT_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" actionlint
+      - name: Run actionlint
+        run: '"$RUNNER_TEMP/actionlint" -color'
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run shellcheck on every tracked shell script
+        shell: bash # -o pipefail, so a failing git ls-files or awk fails the job
+        # Keep this pipeline identical to the local command in docs/workflow/ci.md.
+        run: |
+          shellcheck --version
+          git ls-files -z \
+            | xargs -0 -r awk 'FNR == 1 { if (FILENAME ~ /\.(ba)?sh$/ || /^#!.*[\/ ](ba|da|k)?sh( |$)/) print FILENAME; nextfile }' \
+            | xargs -r -d '\n' shellcheck
+
+  init-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test init on a scratch copy
+        # Init can't remove this job, because GITHUB_TOKEN can't edit ci.yml. It
+        # deletes the test instead, so once init has run the job passes doing nothing.
+        run: |
+          if [[ -e .template/test-init ]]; then
+            .template/test-init
+          else
+            echo "No .template/test-init: init has already run here, so there's nothing to test."
+          fi
+
+  # The only required check. Add new jobs to `needs:`; leave the ruleset alone.
+  ci:
+    if: always()
+    needs: [pr-title, issue-link, markdownlint, lychee, actionlint, shellcheck, init-test]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      # A skipped need fails the gate too, so a job-level `if:` can't turn it green.
+      - name: Fail unless every needed job succeeded
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: exit 1

@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Checks that a PR closes exactly one open issue of this repo, as
+# docs/workflow/issues.md#one-issue-per-pr defines it.
+#
+# Run by the `issue-link` job in ci.yml on the PR events in its `types:` list;
+# issues.md#one-issue-per-pr says what leaves a passing result stale. Reads the
+# PR from the environment: PR_NUMBER, PR_AUTHOR, PR_HEAD_REF,
+# RELEASE_PLEASE_AUTHOR (may be empty) and GITHUB_REPOSITORY (owner/name).
+# Reads what can change after the event from the API. Needs gh.
+set -euo pipefail
+
+fail() {
+  # A workflow command ends at the first newline, so a multi-line gh error
+  # would lose its tail from the annotation. Encode the characters the runner
+  # decodes, % first so the others' escapes survive.
+  local msg="$1 See docs/workflow/issues.md#one-issue-per-pr."
+  msg=${msg//'%'/%25}
+  msg=${msg//$'\r'/%0D}
+  msg=${msg//$'\n'/%0A}
+  echo "::error title=PR must close one open issue::$msg"
+  exit 1
+}
+
+# Only Dependabot's PRs and the Release PR close no issue. Every other bot or
+# app is checked, so agents can't skip the rule by opening PRs through an app.
+# With RELEASE_PLEASE_TOKEN the Release PR's author is a machine user, so it's
+# skipped only when both its head branch and its author match: a branch name
+# alone is something anyone can pick.
+author_lc=${PR_AUTHOR:-}
+author_lc=${author_lc,,}
+release_author_lc=${RELEASE_PLEASE_AUTHOR:-}
+release_author_lc=${release_author_lc,,}
+if [[ $author_lc == 'dependabot[bot]' ]] \
+  || [[ ${PR_HEAD_REF:-} == release-please--* && -n $release_author_lc && $author_lc == "$release_author_lc" ]]; then
+  echo "Skipped: ${PR_AUTHOR:-the author}'s PR on ${PR_HEAD_REF:-its branch} closes no issue."
+  exit 0
+fi
+
+repo=${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be owner/name}
+number=${PR_NUMBER:?PR_NUMBER must be set}
+
+# GitHub's own list of the issues merging this PR closes: closing keywords in
+# the body, as GitHub's Markdown parses them, plus issues linked from the
+# sidebar. Reading it avoids re-implementing that parse. The body and base branch
+# come from the same query, not the event payload, because a re-run replays the
+# original event and would check them as they were then.
+# shellcheck disable=SC2016 # GraphQL variables, not shell expansions.
+query='query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    defaultBranchRef { name }
+    pullRequest(number: $number) {
+      baseRefName
+      body
+      closingIssuesReferences(first: 100) {
+        nodes { number state repository { nameWithOwner } }
+      }
+    }
+  }
+}'
+# Prints the base branch, the default branch and the closing refs
+# (owner/name#N:STATE, space-separated) one per line, then the body, which may
+# span lines, so it goes last. Branch names and refs hold no spaces or newlines.
+# -f keeps owner and name strings: -F would send an all-digit name as an Int.
+# stdout and stderr go to files, so a gh warning on success can't add a line.
+out=$(mktemp)
+err=$(mktemp)
+trap 'rm -f "$out" "$err"' EXIT
+# shellcheck disable=SC2016 # jq variables, not shell expansions.
+if ! gh api graphql -f query="$query" -f owner="${repo%/*}" -f name="${repo#*/}" -F number="$number" \
+  --jq '.data.repository as $r | ($r.pullRequest // error("the response has no such PR")) as $pr
+    | $pr.baseRefName, $r.defaultBranchRef.name,
+      ([$pr.closingIssuesReferences.nodes[] | "\(.repository.nameWithOwner)#\(.number):\(.state)"] | join(" ")),
+      ($pr.body // "")' >"$out" 2>"$err"; then
+  fail "Couldn't read PR #$number's base, body and closing issues: $(<"$err")"
+fi
+{ read -r base; read -r default_branch; read -r -a refs; body=$(cat); } <"$out"
+
+# GitHub acts on closing keywords only in PRs into the default branch.
+if [[ $base != "$default_branch" ]]; then
+  fail "The PR targets $base, so GitHub won't close its issue. Target $default_branch; a stacked PR passes once its base merges and GitHub retargets it."
+fi
+
+case ${#refs[@]} in
+  0) fail "The PR closes no issue. Add a line like 'Closes #123' to the body, naming the issue this PR closes." ;;
+  1) ;;
+  *) fail "The PR closes ${#refs[@]} issues (${refs[*]%:*}). A PR closes exactly one; split the PR, or drop the extra closing keywords and sidebar links." ;;
+esac
+
+target=${refs[0]%:*}
+state=${refs[0]##*:}
+target_repo=${target%#*}
+if [[ ${target_repo,,} != "${repo,,}" ]]; then
+  fail "The PR closes $target, which is in another repo. Close an issue of $repo."
+fi
+issue=${target##*#}
+if [[ $state != OPEN ]]; then
+  fail "#$issue is ${state,,}. Close an open issue, or reopen #$issue if its work isn't done."
+fi
+
+# A sidebar link closes the issue too, but only the body lands in the squash
+# commit, so the body must name it for main's history to record it. A plain
+# text match is enough here: GitHub has already decided that #N closes.
+keyword='(^|[^[:alnum:]_])(close[sd]?|fix(e[sd])?|resolve[sd]?):?[[:space:]]+'
+repo_re=${repo//./\\.} # a repo name may contain dots, which ERE reads as any character
+ref="(#|${repo_re}#|https://github\\.com/${repo_re}/issues/)${issue}([^[:alnum:]_]|$)"
+if ! grep -Eiq -- "$keyword$ref" <<<"$body"; then
+  fail "#$issue is linked only from the PR's sidebar. Add 'Closes #$issue' to the body, so the squash commit records it."
+fi
+echo "The PR closes #$issue, an open issue."

@@ -1,0 +1,13 @@
+{
+  "config": {
+    // Body lines aren't wrapped, so line length isn't linted.
+    "MD013": false
+  },
+  "gitignore": true,
+  "ignores": [
+    // release-please writes the changelog, and repeats headings such as "Features" per release.
+    "CHANGELOG.md",
+    // The README's Claude Code symlink to .agents/skills, whose files are linted already.
+    ".claude/skills/**"
+  ]
+}

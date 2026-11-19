@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+# Lists, replies to, edits and resolves a PR's review threads, and checks that
+# every thread ends with a final reply. docs/workflow/review.md is the protocol
+# it serves; it's the only tool for thread operations, because gh has no
+# command to resolve a thread and hand-written GraphQL loops fail silently.
+#
+# <thread> is a thread id (PRRT_...) and <comment> a comment URL, both as
+# `list` prints them. list and check target the repo behind the `origin`
+# remote, or $GH_REPO (owner/name) if set. Needs gh and jq. Written for
+# Bash 3.2, macOS's /bin/bash.
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+usage: threads list <pr>                         every thread, resolved ones included
+       threads reply <thread> <text>
+       threads edit <comment> <text>             replaces an earlier reply
+       threads resolve [--accept-decline] <thread>
+       threads check <pr>                        exits 1 while a thread lacks a final reply
+EOF
+  exit 2
+}
+
+die() {
+  echo "threads: $1" >&2
+  exit 1
+}
+
+for tool in gh jq; do
+  command -v "$tool" >/dev/null || die "$tool is required"
+done
+
+# The GraphQL fields read for a thread, and the jq that turns them into the
+# thread object every command uses: `first` and `last` (its first and latest
+# comment), `count` (its number of comments) and `all` (its first 100).
+thread_fields='
+  id isResolved isOutdated path line originalLine
+  comments(first: 100) { totalCount nodes { author { login } body url } }
+  last: comments(last: 1) { nodes { author { login } body } }'
+thread_shape='{id, isResolved, isOutdated, path, line, originalLine,
+  count: .comments.totalCount, all: .comments.nodes,
+  first: .comments.nodes[0], last: .last.nodes[0]}'
+
+# jq definitions shared by every command, applied to a thread object.
+# shellcheck disable=SC2016 # jq variables, not shell ones
+defs='
+  def line1: (. // "") | sub("^\\s+"; "") | split("\n")[0];
+  # The final replies from docs/workflow/review.md#final-replies.
+  def final_kind:
+    line1 as $l
+    | if $l | test("^Fixed in [0-9a-f]{7,40}\\b") then "fixed"
+      elif $l | test("^Moved to #[0-9]+\\b") then "moved"
+      elif $l | test("^Declined: *\\S") then "declined"
+      else null end;
+  # A reply only counts when it is the latest comment and not the opener.
+  def final: if .count > 1 then .last.body | final_kind else null end;
+  # Unmarked comments count as blocking.
+  def marker: .first.body | line1 | if test("^nit:") then "nit" else "blocking" end;
+  def state: if .isResolved then "resolved" else "open" end;
+  def where: "\(.path):\(.line // .originalLine // "file")";
+'
+
+# shellcheck source=.github/scripts/repo.bash
+source "$(dirname "$0")/repo.bash"
+
+# fetch_threads <pr>: prints a JSON array of every thread on the PR.
+fetch_threads() {
+  [[ $1 =~ ^[0-9]+$ ]] || die "PR must be a number, not '$1'"
+  local repo
+  repo=$(resolve_repo threads) || exit 1
+  # shellcheck disable=SC2016 # GraphQL variables, not shell ones
+  gh api graphql --paginate -f owner="${repo%%/*}" -f name="${repo#*/}" -F pr="$1" -f query='
+    query($owner: String!, $name: String!, $pr: Int!, $endCursor: String) {
+      repository(owner: $owner, name: $name) {
+        pullRequest(number: $pr) {
+          reviewThreads(first: 100, after: $endCursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes { '"$thread_fields"' }
+          }
+        }
+      }
+    }' \
+    | jq -s "[.[].data.repository.pullRequest.reviewThreads.nodes[] | $thread_shape]"
+}
+
+# fetch_thread <id>: prints one thread object, or nothing if <id> is another
+# kind of node.
+fetch_thread() {
+  # shellcheck disable=SC2016 # GraphQL variables, not shell ones
+  gh api graphql -f id="$1" -f query='
+    query($id: ID!) {
+      node(id: $id) { ... on PullRequestReviewThread { '"$thread_fields"' } }
+    }' \
+    | jq ".data.node | select(.id != null) | $thread_shape"
+}
+
+cmd_list() {
+  [[ $# -eq 1 ]] || usage
+  fetch_threads "$1" | jq -r "$defs"'
+    if length == 0 then "No review threads." else .[] |
+      "\(.id)  \(state)  \(marker)  \(where)\(if .isOutdated then "  (outdated)" else "" end)",
+      "  final reply: \(final // "none")",
+      (.all[] | "  --- \(.author.login // "ghost") \(.url)", (.body | split("\n")[] | "    \(.)")),
+      (if .count > (.all | length) then "  --- \(.count - (.all | length)) more comments; open the thread to read them" else empty end),
+      ""
+    end'
+}
+
+cmd_reply() {
+  [[ $# -eq 2 && -n $2 ]] || usage
+  local url
+  # shellcheck disable=SC2016 # GraphQL variables, not shell ones
+  url=$(gh api graphql -f id="$1" -f body="$2" -f query='
+    mutation($id: ID!, $body: String!) {
+      addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: $id, body: $body}) {
+        comment { url }
+      }
+    }' --jq '.data.addPullRequestReviewThreadReply.comment.url // empty')
+  [[ -n $url ]] || die "GitHub returned no comment for the reply to $1; run list to see whether it posted"
+  echo "Replied: $url"
+}
+
+cmd_edit() {
+  [[ $# -eq 2 && -n $2 ]] || usage
+  # https://github.com/<owner>/<name>/pull/<pr>#discussion_r<id>
+  [[ $1 =~ ^https://github\.com/([^/]+/[^/]+)/pull/[0-9]+#discussion_r([0-9]+)$ ]] \
+    || die "'$1' isn't a review comment URL as list prints it"
+  local url
+  url=$(gh api --method PATCH "repos/${BASH_REMATCH[1]}/pulls/comments/${BASH_REMATCH[2]}" \
+    -f body="$2" --jq '.html_url // empty')
+  [[ -n $url ]] || die "GitHub returned no comment for the edit of $1; run list to see whether it changed"
+  echo "Edited: $url"
+}
+
+cmd_resolve() {
+  local accept=""
+  if [[ ${1:-} == --accept-decline ]]; then
+    accept=1
+    shift
+  fi
+  [[ $# -eq 1 ]] || usage
+  local thread fields resolved kind mark
+  thread=$(fetch_thread "$1")
+  [[ -n $thread ]] || die "$1 isn't a review thread id; run list to see the ids"
+  # A plain assignment, so a jq failure stops the script instead of leaving the guards below empty.
+  fields=$(jq -r "$defs"'"\(.isResolved) \(final // "none") \(marker)"' <<<"$thread")
+  read -r resolved kind mark <<<"$fields"
+  if [[ $resolved == true ]]; then
+    echo "Already resolved: $1"
+    return
+  fi
+  if [[ $kind == none ]]; then
+    die "$1 has no final reply, so it stays open; reply first (docs/workflow/review.md#final-replies)"
+  fi
+  if [[ $kind == declined && $mark == blocking && -z $accept ]]; then
+    die "$1 is a declined blocker: only its opener or the maintainer resolves it, with --accept-decline (docs/workflow/review.md#who-resolves)"
+  fi
+  # shellcheck disable=SC2016 # GraphQL variables, not shell ones
+  resolved=$(gh api graphql -f id="$1" -f query='
+    mutation($id: ID!) {
+      resolveReviewThread(input: {threadId: $id}) { thread { isResolved } }
+    }' --jq '.data.resolveReviewThread.thread.isResolved')
+  [[ $resolved == true ]] || die "GitHub didn't resolve $1; run list to see its state"
+  echo "Resolved: $1"
+}
+
+cmd_check() {
+  [[ $# -eq 1 ]] || usage
+  local report
+  report=$(fetch_threads "$1" | jq -r --arg pr "$1" "$defs"'
+    map(select(final == null)) as $lacking
+    | "PR #\($pr): \(length) threads, \(length - ($lacking | length)) with a final reply, \($lacking | length) without; \(map(select(.isResolved)) | length) resolved, \(map(select(.isResolved | not)) | length) open.",
+      ($lacking[] | "  no final reply: \(.first.url) (\(marker), \(state))"),
+      if ($lacking | length) > 0 then "FAIL" else "PASS" end')
+  sed '$d' <<<"$report"
+  [[ $(tail -n 1 <<<"$report") == PASS ]]
+}
+
+[[ $# -ge 1 ]] || usage
+command=$1
+shift
+case $command in
+  # ${1+"$@"}: Bash 3.2 treats a bare "$@" with no arguments as unbound under set -u.
+  list | reply | edit | resolve | check) "cmd_$command" ${1+"$@"} ;;
+  *) usage ;;
+esac
