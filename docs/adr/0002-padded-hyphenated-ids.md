@@ -1,6 +1,6 @@
 # 0002: Padded, hyphenated IDs
 
-Status: Accepted
+Status: Accepted. The bullets on what counts as prose and on the links `derive` wrote are superseded by [ADR 0005](0005-every-link-between-docs-is-derived.md).
 
 Evidence: [Link and path conventions](https://github.com/jq-ln/curriculum-skills/issues/8#issuecomment-7014855610), building on [Wiki-link tooling for plain Markdown in LazyVim](https://github.com/jq-ln/curriculum-skills/issues/4) and [Pipeline from research to doc set](https://github.com/jq-ln/curriculum-skills/issues/9#issuecomment-7017961994). The link marker's end anchor was amended in review, [first](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635417208) and [again](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635495783), and [limited to prose](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635495787), [skipping code and raw HTML](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635566133) and [the links `derive` wrote](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635565767). Review also [scoped ID stability to renumbering](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635565433) and [`ls` order to the C locale](https://github.com/jq-ln/curriculum-skills/pull/25#discussion_r4635565286).
 
