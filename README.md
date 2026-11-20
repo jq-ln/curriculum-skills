@@ -6,15 +6,7 @@ One or two sentences on what this project does and who it's for.
 
 The repo is one plugin, `curriculum-skills`, whose skills live in [`skills/`](skills/). Each skill holds a copy of [`docs/curriculum-format.md`](docs/curriculum-format.md) in its `references/`, so a skill directory works on its own wherever it's installed.
 
-In Claude Code 2.1.275 or later:
-
-```text
-/plugin install curriculum-skills --marketplace jq-ln/curriculum-skills
-```
-
-### Install locally for testing
-
-Both routes load the working tree in place, so an edit shows up without a release.
+Both local routes load the working tree in place, so an edit shows up without a release.
 
 - **Claude Code, one session:** run `claude --plugin-dir /path/to/curriculum-skills`. After an edit, run `/reload-plugins`.
 - **Any agent:** symlink each skill into `~/.agents/skills`, which Codex, Cursor, Gemini CLI and Copilot read, and into `~/.claude/skills`, which Claude Code reads. From the repo root:

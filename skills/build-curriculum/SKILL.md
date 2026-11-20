@@ -1,6 +1,6 @@
 ---
 name: build-curriculum
-description: Research a subject and write it as a Curriculum, a flat directory of linked Markdown docs. Use when the user wants a curriculum, syllabus or structured learning path built for a subject.
+description: Research a subject and write it as a Curriculum, a flat directory of linked Markdown docs. Use when the user wants a curriculum built for a subject.
 ---
 
 # Build a Curriculum

@@ -8,9 +8,7 @@
   "plugins": [
     {
       "name": "curriculum-skills",
-      "source": "./",
-      "description": "Skills that research a subject and write it as a Curriculum: a flat directory of wiki-linked Markdown docs built to a versioned format.",
-      "keywords": ["curriculum", "learning", "research", "markdown"]
+      "source": "./"
     }
   ]
 }

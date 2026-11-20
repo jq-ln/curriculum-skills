@@ -28,8 +28,9 @@ done
 
 scripts=0
 for script in skills/*/scripts/*.py; do
-  # Only a module-level `FORMAT_VERSION = <n>` counts; a script without one isn't checked.
-  defined=$(sed -n 's/^FORMAT_VERSION *= *\([0-9][0-9]*\) *\(#.*\)\{0,1\}$/\1/p' "$script" | head -n 1)
+  # A script without the constant, such as a helper, doesn't read or write the format.
+  # The value may be annotated (`: int`) or quoted, so a restyled constant is still checked.
+  defined=$(sed -n "s/^FORMAT_VERSION *\(: *int *\)\{0,1\}= *[\"']\{0,1\}\([0-9][0-9]*\)[\"']\{0,1\} *\(#.*\)\{0,1\}$/\2/p" "$script" | head -n 1)
   [[ -n $defined ]] || continue
   scripts=$((scripts + 1))
   if [[ $defined != "$version" ]]; then
