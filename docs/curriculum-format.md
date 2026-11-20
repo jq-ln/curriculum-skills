@@ -15,7 +15,7 @@ Every piece of a doc is one of these:
 - A **mixed** Field, such as Prereqs or Tags, holds authored IDs or tag names with derived links and copies beside them.
 - The index's **Format version** Field is written once, when the doc set is first built, and is neither authored nor derived.
 
-To change a copy, edit its source and derive again. A doc set is invalid when any derived content differs, word for word, from what deriving it from its sources gives.
+To change a copy, edit its source and derive again. A doc set is invalid when any derived content differs, word for word, from what deriving it from its sources gives. The one exception is a Prereqs entry naming another Curriculum, whose copy depends on the machine; see [Subsection](#subsection).
 
 Deriving is idempotent and runs in place over the doc set. It rewrites only derived content, renames a file when its title changes, and keeps everything authored as it is.
 
@@ -63,7 +63,7 @@ A unit is a Part, Section or Subsection. An ID names a unit: the code, a hyphen,
 
 A Part, Section or Subsection's filename is its ID, a hyphen, its slug and `.md`, such as `GIT-07.02.03-conflicts-stages-markers-and-styles.md`.
 
-The slug is derived from the title in the doc's H1:
+The slug is derived from the title: the raw text of the doc's H1 line after the ID and the space following it, as written in the file, not as parsed.
 
 1. Decompose with Unicode NFKD, then drop combining marks. Step 3 turns every other non-ASCII character into a separator, so `Merging—rebasing` gives `merging-rebasing`.
 2. Lowercase.
@@ -72,7 +72,7 @@ The slug is derived from the title in the doc's H1:
 
 A title whose slug is empty is invalid.
 
-A title, whether a unit's, an Appendix's or the Curriculum's name in the index H1, contains no `[`, `]`, `|`, `\`, `<` or backtick. Deriving copies titles verbatim, without escaping, into link text, the Context Field and the Parts table, and these characters would break a link or a table row there.
+A title, whether a unit's, an Appendix's or the Curriculum's name in the index H1, contains no `[`, `]`, `|`, `\`, `<`, `&` or backtick. Deriving copies titles verbatim, without escaping, into link text, the Context Field and the Parts table, and these characters would break a link or a table row there. `&` could start an entity reference, such as `&amp;`, whose parsed text differs from the raw title.
 
 The ID part of a filename changes only with the ID; the slug follows the title, so a title change renames the file and its inbound links are derived again. Find a unit by globbing its ID, such as `GIT-07.02.03-*`, never by its full filename.
 
@@ -155,7 +155,9 @@ The Curriculum line takes the name and code from the index's H1. The Target vers
 - A prereq with the Curriculum's own code is a Subsection ID that comes before this unit in global ID order. One at or after the unit, or naming no Subsection, is invalid.
 - A prereq with another code is a three-level ID. Nothing else about it is checked, because global ID order compares IDs of one Curriculum only.
 - An entry is the ID alone, with no qualifier such as `(preview)`.
-- A prereq in another Curriculum is plain text, never a link, because Curriculums share no root directory. Deriving looks for that Curriculum among the directories beside the doc set's own, sharing its parent: it's found when exactly one of them has an `index.md` whose H1 ends `(<CODE>)` with the prereq's code. When it's found, the entry is the ID, its title and its Goal, as in the example. When it isn't, deriving keeps the entry as it is and a validity check doesn't compare it, so a doc set built beside the other Curriculum stays valid on a machine without it.
+- A prereq in another Curriculum is plain text, never a link, because Curriculums share no root directory. Deriving looks for that Curriculum among the directories beside the doc set's own, sharing its parent: it's found when exactly one of them has an `index.md` whose H1 ends `(<CODE>)` with the prereq's code. When it's found and the ID names a Subsection in it, the entry is the ID, its title and its Goal, as in the example. Otherwise deriving keeps the entry as it is.
+- Whether the other Curriculum is found depends on the machine, so a validity check never compares an entry with another code, bare or copied, and a doc set is valid or invalid alike wherever it's checked.
+- The copied Goal follows [Copied text](#copied-text).
 - A unit with no prereqs has `None` as its whole content.
 
 **Check** is exactly one question that the learner can answer only by holding the Goal. It has no answer key: the Goal is the answer key.
@@ -289,7 +291,7 @@ The H1 is `# <CODE> Tags`. The doc holds one `## <tag>` heading per tag the Curr
 ```
 
 - **Meaning** (authored) is one line, the text copied into each Tags Field entry.
-- **Where** (authored) says where the tag may be used: `doc` (in a Tags Field), `inline` (as a marker in prose) or `doc, inline`. A tag named in a Tags Field when its Where lacks `doc`, or used as a marker when its Where lacks `inline`, is invalid, so a stray `{Optional}` in prose can't make a unit Optional.
+- **Where** (authored) says where the tag may be used: `doc` (named in a Tags Field) or `inline` (as a marker in prose), or `doc, inline`. A tag used as a marker when its Where lacks `inline` is invalid, so a stray `{Optional}` in prose can't make a unit Optional. A Tags Field entry for a tag whose Where lacks `doc` is invalid unless the unit uses that tag inline, since deriving adds every inline tag to the unit's Tags Field.
 - **Uses** (derived) is the number of Subsections whose Tags Field lists the tag.
 
 The standard tags the Curriculum uses come first, in the order of [Standard tags](#standard-tags), copied from there. The Curriculum's own tags follow, in authored order. A Curriculum with no tags of its own still has a tags doc.
@@ -390,11 +392,20 @@ A target between docs never contains `/` or `./` and is never URL-encoded. Any o
 In an authored Field's prose, and in the free content of the notes doc and Appendices:
 
 - **A unit** is its bare ID, matched by `\b[A-Z][A-Z0-9]*-[0-9]{2}(\.[0-9]{2}){0,2}(?![.-]?\w)`. An ID with the Curriculum's own code becomes a link with text `<ID> <title>`. An ID with another code stays plain text. An own-code ID naming no unit is invalid. An own-code token is any match of `\b<CODE>-[0-9][0-9.-]*\w*`, with `<CODE>` the Curriculum's own code; one where the marker regex doesn't match at its start is invalid, such as `GIT-7`, `GIT-07.2`, `GIT-07.02a`, `GIT-07-02` or `GIT-07.02.03.04`. An ID that ends a sentence, such as `GIT-07.02.`, is valid.
-- **A tag** is its name in braces, such as `{2.43}`, and becomes a link with the tag name as its text. In a Subsection it links to the unit's own `#tags` Field, where the tag's Meaning is copied; elsewhere it links to the tag's heading in the tags doc. Braces around anything that isn't a tag name defined in the tags doc stay as text.
+- **A tag** is its name in braces, such as `{2.43}`, and becomes a link with the tag name as its text. In a Subsection it links to the unit's own `#tags` Field, where the tag's Meaning is copied; elsewhere it links to the tag's heading in the tags doc. A copy of a Subsection's text rewrites that link; see [Copied text](#copied-text). Braces around anything that isn't a tag name defined in the tags doc stay as text.
 
 Prose means the text of the parsed CommonMark document outside code spans, fenced and indented code blocks, raw HTML, autolinks and links, both their text and their destinations. To write an ID-shaped token or braces literally, put it in a code span, such as `` `SQL-92` ``.
 
-A link with a target between docs, such as `[GIT-07.02.03 Conflicts](GIT-07.02.03-conflicts.md)` or `[2.43](#tags)`, is one deriving wrote: it's recognized and refreshed as a whole from the ID or tag name its text starts with, so a title change updates its text and target and a re-run never nests a link. A link out of the Curriculum is authored and kept as it is, so an ID in its text, such as `[GIT-07.02 discussion](https://example.com)`, is neither linked nor checked.
+In an authored Field or free content, a link with a target between docs, such as `[GIT-07.02.03 Conflicts](GIT-07.02.03-conflicts.md)` or `[2.43](#tags)`, is one deriving wrote. Deriving identifies it from its text: a tag when the whole text is a tag name in the tags doc, otherwise a unit when the text's first word is an own-code ID naming a unit. It refreshes the link as a whole from that tag or unit, so a title change updates its text and target and a re-run never nests a link. A link whose text names neither is invalid, and deriving leaves it unchanged, such as a hand-written `[the overview](GIT-overview.md)` or a link whose ID a renumber removed.
+
+A link out of the Curriculum is authored and kept as it is, so an ID in its text, such as `[GIT-07.02 discussion](https://example.com)`, is neither linked nor checked.
+
+### Copied text
+
+Deriving copies authored text, such as a Goal into a Prereqs entry or a Section's Subsections Field, as Markdown, verbatim except for links, so every link still resolves where the copy lands:
+
+- A tag link to `#tags` becomes a link to the tag's heading in the tags doc, such as `[2.43](GIT-tags.md#243)`, because the doc the copy lands in may not list the tag in a Tags Field.
+- Text copied from another Curriculum has every link replaced by its link text, because that Curriculum's files aren't in this doc set.
 
 ### Link text
 
