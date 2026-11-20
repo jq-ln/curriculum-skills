@@ -1,0 +1,15 @@
+{
+  "name": "curriculum-skills",
+  "description": "Skills that research a subject and write it as a Curriculum: a flat directory of wiki-linked Markdown docs built to a versioned format.",
+  "author": {
+    "name": "jq-ln",
+    "url": "https://github.com/jq-ln"
+  },
+  "repository": "https://github.com/jq-ln/curriculum-skills",
+  "keywords": [
+    "curriculum",
+    "learning",
+    "research",
+    "markdown"
+  ]
+}

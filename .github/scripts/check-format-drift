@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Fails when a shipped skill disagrees with docs/curriculum-format.md: a
+# skills/*/references/curriculum-format.md copy that differs from it, or a
+# skills/*/scripts/*.py whose FORMAT_VERSION differs from its Format version.
+# Run from the repo root. Written for Bash 3.2, macOS's /bin/bash.
+set -euo pipefail
+shopt -s nullglob
+
+doc=docs/curriculum-format.md
+status=0
+
+# The doc's version is its first `Format version: <n>` line, under the H1.
+version=$(sed -n 's/^Format version: \([0-9][0-9]*\)$/\1/p' "$doc" | head -n 1)
+if [[ -z $version ]]; then
+  echo "check-format-drift: $doc has no 'Format version: <n>' line" >&2
+  exit 1
+fi
+
+copies=0
+for copy in skills/*/references/curriculum-format.md; do
+  copies=$((copies + 1))
+  if ! cmp -s "$doc" "$copy"; then
+    echo "check-format-drift: $copy differs from $doc; run: cp $doc $copy" >&2
+    diff -u "$doc" "$copy" >&2 || true
+    status=1
+  fi
+done
+
+scripts=0
+for script in skills/*/scripts/*.py; do
+  # Only a module-level `FORMAT_VERSION = <n>` counts; a script without one isn't checked.
+  defined=$(sed -n 's/^FORMAT_VERSION *= *\([0-9][0-9]*\) *\(#.*\)\{0,1\}$/\1/p' "$script" | head -n 1)
+  [[ -n $defined ]] || continue
+  scripts=$((scripts + 1))
+  if [[ $defined != "$version" ]]; then
+    echo "check-format-drift: $script has FORMAT_VERSION = $defined, but $doc has Format version: $version" >&2
+    status=1
+  fi
+done
+
+if ((status == 0)); then
+  echo "check-format-drift: Format version $version; $copies copies match $doc, $scripts scripts define a matching FORMAT_VERSION"
+fi
+exit "$status"

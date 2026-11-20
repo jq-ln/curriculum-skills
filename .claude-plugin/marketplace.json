@@ -1,0 +1,16 @@
+{
+  "name": "curriculum-skills",
+  "owner": {
+    "name": "jq-ln",
+    "url": "https://github.com/jq-ln"
+  },
+  "description": "The curriculum-skills plugin, installable from this repo.",
+  "plugins": [
+    {
+      "name": "curriculum-skills",
+      "source": "./",
+      "description": "Skills that research a subject and write it as a Curriculum: a flat directory of wiki-linked Markdown docs built to a versioned format.",
+      "keywords": ["curriculum", "learning", "research", "markdown"]
+    }
+  ]
+}
