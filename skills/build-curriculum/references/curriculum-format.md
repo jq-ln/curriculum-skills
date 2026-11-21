@@ -1,6 +1,6 @@
 # Curriculum format
 
-Format version: 2
+Format version: 1
 
 This doc defines the curriculum format: the docs a Curriculum holds, the Fields in each, how IDs, filenames and links are formed, and how to parse a doc. It's the single source of truth: read and write a Curriculum from this doc alone. It defines every term it uses.
 
