@@ -15,7 +15,7 @@ import argparse
 import re
 import sys
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dataclass_field
 from pathlib import Path
 
 FORMAT_VERSION = 1
@@ -60,8 +60,11 @@ FIELDS = {
         ("Sources", True),
     ],
 }
-# Doc types whose H2s needn't be Field names: free content in the notes doc, tags in the tags doc.
-FREE_H2 = {NOTES, TAGS}
+# Fields derive writes. A missing one isn't a Field error: derive adds it, and check reports it
+# as derived content that differs from what derive writes.
+DERIVED_FIELDS = {"Context"}
+# Doc types whose H2s after their Fields are free content. In the tags doc every H2 is a tag.
+FREE_H2 = {NOTES}
 
 CODE = r"[A-Z][A-Z0-9]*"
 ID_RE = re.compile(rf"({CODE})-(\d{{2}})(?:\.(\d{{2}}))?(?:\.(\d{{2}}))?")
@@ -94,7 +97,7 @@ def heading(line):
     return len(m.group(1)), m.group(2) or ""
 
 
-def blocks(lines):
+def scan_lines(lines):
     """Yield (line, heading-or-None), skipping headings inside fenced code."""
     fence = None
     for line in lines:
@@ -123,9 +126,9 @@ class Block:
 
 @dataclass
 class Doc:
-    front: list = field(default_factory=list)  # front matter, delimiters included
-    head: list = field(default_factory=list)  # the H1 line, then any content before the first H2
-    blocks: list = field(default_factory=list)  # one Block per H2
+    front: list = dataclass_field(default_factory=list)  # front matter, delimiters included
+    head: list = dataclass_field(default_factory=list)  # the H1 line, then any content before the first H2
+    blocks: list = dataclass_field(default_factory=list)  # one Block per H2
 
     @property
     def h1(self):
@@ -149,7 +152,7 @@ def parse(text):
             doc.front, lines = lines[: end + 1], lines[end + 1 :]
     while lines and not lines[0].strip():
         lines = lines[1:]
-    for line, h in blocks(lines):
+    for line, h in scan_lines(lines):
         if not doc.head:
             if not h or h[0] != 1:
                 raise BuildError("doesn't start with an H1")
@@ -170,7 +173,7 @@ def parse(text):
 def split_draft(text):
     """Split a Draft file into one Doc per top-level H1."""
     docs, chunk = [], []
-    for line, h in blocks(text.splitlines(keepends=True)):
+    for line, h in scan_lines(text.splitlines(keepends=True)):
         if h and h[0] == 1 and chunk:
             docs.append(parse("".join(chunk)))
             chunk = []
@@ -223,6 +226,17 @@ def slug(title):
         cut = head.rfind("-")
         s = head[:cut] if cut >= 0 else s[:60]
     return s
+
+
+def title_errors(title, what="title"):
+    """Why a unit title, or the Curriculum's name, can't be used, if it can't."""
+    errors = []
+    bad = sorted(set(title) & set(FORBIDDEN_IN_TITLE))
+    if bad:
+        errors.append(f"{what} contains {' '.join(bad)}, which would break a link or table copying it")
+    if what == "title" and not slug(title):
+        errors.append("title has an empty slug")
+    return errors
 
 
 def unit_filename(uid, title):
@@ -278,6 +292,10 @@ def split(draft_dir, out_dir):
             if not kind:
                 raise BuildError(f"{where}: not the H1 of any Doc type")
             doc_type, doc_code, uid = kind
+            if "".join(doc.head[1:]).strip():
+                raise BuildError(f"{where}: has content before its first Field")
+            for error in title_errors(split_unit_h1(doc.h1)[1]) if uid else []:
+                raise BuildError(f"{where}: {error}")
             if doc_type == INDEX:
                 code = code or doc_code
             key = str(uid) if uid else doc_type
@@ -326,20 +344,19 @@ def render(doc_type, doc):
 class DocSet:
     root: Path
     code: str = None
-    docs: dict = field(default_factory=dict)  # filename -> Doc
-    types: dict = field(default_factory=dict)  # filename -> doc type
-    units: dict = field(default_factory=dict)  # UnitId -> filename
-    errors: list = field(default_factory=list)  # (filename, message)
+    docs: dict = dataclass_field(default_factory=dict)  # filename -> Doc
+    types: dict = dataclass_field(default_factory=dict)  # filename -> doc type
+    units: dict = dataclass_field(default_factory=dict)  # UnitId -> filename
+    errors: list = dataclass_field(default_factory=list)  # (filename, message)
 
     def error(self, name, message):
         self.errors.append((name, message))
 
-    def unit(self, uid):
-        name = self.units.get(uid)
-        return name, self.docs[name] if name else None
+    def doc(self, uid):
+        return self.docs[self.units[uid]]
 
     def title(self, uid):
-        return split_unit_h1(self.docs[self.units[uid]].h1)[1]
+        return split_unit_h1(self.doc(uid).h1)[1]
 
 
 def load(root):
@@ -360,6 +377,8 @@ def load(root):
         ds.error("index.md", f"H1 `# {doc.h1}` isn't `# <name> (<CODE>)`")
         return ds
     ds.code = m.group(2)
+    for error in title_errors(m.group(1), "name"):
+        ds.error("index.md", error)
     ds.docs["index.md"], ds.types["index.md"] = doc, INDEX
 
     named = {f"{ds.code}-{w.lower()}.md": (t, f"{ds.code} {w}") for w, t in NAMED_TYPES.items()}
@@ -389,7 +408,7 @@ def load(root):
             ds.error(name, str(e))
             continue
         if uid and not unit_h1_ok(ds, name, uid, doc):
-            continue
+            continue  # without a readable H1 the unit can't be placed or copied from
         if not uid and doc.h1 != h1:
             ds.error(name, f"H1 `# {doc.h1}` isn't `# {h1}`")
             continue
@@ -415,16 +434,11 @@ def unit_h1_ok(ds, name, uid, doc):
     if h1_id != uid:
         ds.error(name, f"H1 ID {h1_id} differs from the filename's ID {uid}")
         return False
-    bad = sorted(set(title) & set(FORBIDDEN_IN_TITLE))
-    if bad:
-        ds.error(name, f"title contains {' '.join(bad)}, which would break a link or table copying it")
-        return False
-    if not slug(title):
-        ds.error(name, "title has an empty slug")
-        return False
-    if name != unit_filename(uid, title):
+    errors = title_errors(title)
+    for error in errors:
+        ds.error(name, error)
+    if not errors and name != unit_filename(uid, title):
         ds.error(name, f"filename should be {unit_filename(uid, title)}, from its title")
-        return False
     return True
 
 
@@ -465,7 +479,7 @@ def set_field(doc, doc_type, name, body):
         len(doc.blocks),
     )
     doc.blocks.insert(at, Block(name, lines))
-    if not doc.head[-1].strip() == "":
+    if doc.head[-1].strip():
         doc.head.append("\n")
 
 
@@ -481,18 +495,16 @@ def context(ds, doc):
     lines.append(f"- Part: [{part} {ds.title(part)}]({ds.units[part]})")
     lines.append(f"- Section: [{section} {ds.title(section)}]({ds.units[section]})")
     lines.append("- Section Generators:")
-    generators = ds.unit(section)[1].field("Generators").body()
+    generators = ds.doc(section).field("Generators").body()
     lines += ["  " + line if line.strip() else line for line in generators.split("\n")]
     return "\n".join(lines)
 
 
 def derive(root):
     ds = load(root)
-    if ds.code:
-        ds.errors += [("index.md", e) for e in format_version_errors(ds)]
-    ds.errors += structure_errors(ds)
-    if ds.errors:
-        raise BuildError("\n".join(f"{n}: {m}" for n, m in ds.errors))
+    errors = errors_before_derive(ds)
+    if errors:
+        raise BuildError("\n".join(f"{n}: {m}" for n, m in errors))
     for name, text in derived(ds).items():
         path = ds.root / name
         if path.read_text(encoding="utf-8") != text:
@@ -500,38 +512,40 @@ def derive(root):
 
 
 def structure_errors(ds):
-    """Errors that stop derive: a unit whose parent is missing, or a missing Field derive reads."""
+    """A unit whose parent is missing."""
     errors = []
     for uid, name in sorted(ds.units.items(), key=lambda kv: kv[0].levels):
         if len(uid.levels) > 1 and uid.parent() not in ds.units:
             errors.append((name, f"{uid} has no {UNIT_TYPES[len(uid.levels) - 1]} {uid.parent()}"))
-    reads = [("index.md", "Snapshot")] + [(n, "Generators") for n, t in ds.types.items() if t == SECTION]
-    for name, field_name in reads:
-        if name in ds.docs and not ds.docs[name].field(field_name):
-            errors.append((name, f"required Field {field_name} is missing"))
     return errors
 
 
 # --- check -------------------------------------------------------------------
 
 
-def check(root):
-    """Every error in the doc set at root, as (filename, message)."""
-    ds = load(root)
+def errors_before_derive(ds):
+    """Every error check reports except edited derived content; derive runs only without them."""
     if not ds.code:
         return ds.errors
     version = format_version_errors(ds)
     if version:
         # The rest of the doc set may follow another format, which this script can't read.
         return [("index.md", e) for e in version]
-    errors = ds.errors + structure_errors(ds) + field_errors(ds)
-    if not errors:
-        # Derived content is compared only once derive could run, so its errors come first.
-        before = {name: doc.text() for name, doc in ds.docs.items()}
-        for name, text in derived(ds).items():
-            if text != before[name]:
-                errors.append((name, "derived content differs from what derive writes; edit its source and run derive"))
-    return list(dict.fromkeys(errors))  # structure_errors and field_errors can both name a missing Field
+    return ds.errors + structure_errors(ds) + field_errors(ds)
+
+
+def check(root):
+    """Every error in the doc set at root, as (filename, message)."""
+    ds = load(root)
+    errors = errors_before_derive(ds)
+    if errors:
+        return errors
+    before = {name: doc.text() for name, doc in ds.docs.items()}
+    return [
+        (name, "derived content differs from what derive writes; edit its source and run derive")
+        for name, text in derived(ds).items()
+        if text != before[name]
+    ]
 
 
 def field_errors(ds):
@@ -559,7 +573,7 @@ def field_errors(ds):
                 errors.append((name, f"Field {block.name} is out of order"))
             last = max(last, i)
         for field_name, required in FIELDS[doc_type]:
-            if required and not doc.field(field_name):
+            if required and field_name not in DERIVED_FIELDS and not doc.field(field_name):
                 errors.append((name, f"required Field {field_name} is missing"))
     return errors
 

@@ -13,9 +13,14 @@ REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "skills" / "build-curriculum" / "scripts" / "build.py"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 MINIMAL = FIXTURES / "minimal"
+DRAFT = MINIMAL / "draft"
+GOLDEN = MINIMAL / "golden"
 INVALID = FIXTURES / "check"
+SUBSECTION_TITLE = "Content-addressed objects — blobs, trees, commits and the naïve view of a snapshot"
 SUBSECTION_SLUG = "content-addressed-objects-blobs-trees-commits-and-the-naive"
-SUBSECTION = f"GIT-01.01.01-{SUBSECTION_SLUG}.md"  # the fixtures' one Subsection
+SUBSECTION_FILE = f"GIT-01.01.01-{SUBSECTION_SLUG}.md"  # the fixtures' one Subsection
+PART_FILE = "GIT-01-repository-internals.md"
+SECTION_FILE = "GIT-01.01-objects.md"
 
 
 def run(*args):
@@ -36,6 +41,12 @@ def tree(root):
     )
 
 
+def replace(path, old, new):
+    text = path.read_text(encoding="utf-8")
+    assert text.count(old) == 1, f"{old!r} isn't in {path.name} exactly once"
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
 class TempDirTestCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -45,103 +56,194 @@ class TempDirTestCase(unittest.TestCase):
         self._tmp.cleanup()
 
     def copy(self, src):
-        dst = self.tmp / "doc-set"
+        dst = self.tmp / src.name
         shutil.copytree(src, dst)
         return dst
 
 
-class SplitThenDerive(TempDirTestCase):
-    def test_reproduces_the_golden_doc_set_byte_for_byte(self):
+class Split(TempDirTestCase):
+    def test_then_derive_reproduces_the_golden_doc_set_byte_for_byte(self):
         out = self.tmp / "git"
-        split = run("split", MINIMAL / "draft", out)
+        split = run("split", DRAFT, out)
         self.assertEqual(split.returncode, 0, split.stderr)
         derive = run("derive", out)
         self.assertEqual(derive.returncode, 0, derive.stderr)
 
-        golden = MINIMAL / "golden"
-        self.assertEqual(tree(out), tree(golden))
-        for name in tree(golden):
+        self.assertEqual(tree(out), tree(GOLDEN))
+        for name in tree(GOLDEN):
             with self.subTest(file=name):
                 self.assertTrue(
-                    filecmp.cmp(out / name, golden / name, shallow=False),
+                    filecmp.cmp(out / name, GOLDEN / name, shallow=False),
                     f"{name} differs from the golden copy",
                 )
 
+    def assertStops(self, draft, line):
+        """split exits 1 with this error and writes nothing."""
+        out = self.tmp / "git"
+        result = run("split", draft, out)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(line, result.stderr.splitlines())
+        self.assertFalse(out.exists())
+
+    def test_stops_on_content_before_a_docs_first_field(self):
+        draft = self.copy(DRAFT)
+        h1 = f"# GIT-01.01.01 {SUBSECTION_TITLE}\n"
+        replace(draft / "part-01.md", h1, h1 + "\nLead prose here.\n")
+        self.assertStops(draft, f"split: part-01.md: # GIT-01.01.01 {SUBSECTION_TITLE}: has content before its first Field")
+
+    def test_stops_on_a_title_with_an_empty_slug(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "outline.md", "# GIT-01 Repository internals", "# GIT-01 ———")
+        self.assertStops(draft, "split: outline.md: # GIT-01 ———: title has an empty slug")
+
 
 class Check(TempDirTestCase):
-    def assertErrors(self, fixture, *lines):
+    def assertErrors(self, doc_set, *lines):
         """check exits 1 and prints exactly these error lines, in any order."""
-        result = run("check", INVALID / fixture)
+        result = run("check", doc_set)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertCountEqual(result.stdout.splitlines(), lines)
 
     def test_passes_the_golden_doc_set(self):
-        result = run("check", MINIMAL / "golden")
+        result = run("check", GOLDEN)
         self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
+    # One fixture per rule #18 names.
 
     def test_reports_a_missing_format_version(self):
         self.assertErrors(
-            "format-version-missing",
+            INVALID / "format-version-missing",
             "index.md: Format version is missing; this script reads Format version 1. "
             "Restore it from the history of index.md, such as `git log -p index.md`",
         )
 
     def test_names_both_numbers_when_the_format_version_differs(self):
         self.assertErrors(
-            "format-version-mismatch",
+            INVALID / "format-version-mismatch",
             "index.md: Format version is 2, but this script reads Format version 1",
         )
 
     def test_reports_a_missing_required_field(self):
-        self.assertErrors("field-missing", f"{SUBSECTION}: required Field Goal is missing")
+        self.assertErrors(INVALID / "field-missing", f"{SUBSECTION_FILE}: required Field Goal is missing")
 
     def test_reports_an_h1_id_that_differs_from_the_filename(self):
         self.assertErrors(
-            "id-mismatch",
-            f"{SUBSECTION}: H1 ID GIT-01.01.02 differs from the filename's ID GIT-01.01.01",
+            INVALID / "id-mismatch",
+            f"{SUBSECTION_FILE}: H1 ID GIT-01.01.02 differs from the filename's ID GIT-01.01.01",
         )
 
     def test_reports_an_id_with_an_unpadded_level(self):
         self.assertErrors(
-            "id-malformed",
+            INVALID / "id-malformed",
             f"GIT-01.01.1-{SUBSECTION_SLUG}.md: GIT-01.01.1 isn't an ID: each level is two digits from 01 to 99",
         )
 
     def test_reports_a_filename_whose_slug_differs_from_the_title(self):
         self.assertErrors(
-            "filename-slug",
-            f"GIT-01.01.01-objects.md: filename should be {SUBSECTION}, from its title",
+            INVALID / "filename-slug",
+            f"GIT-01.01.01-objects.md: filename should be {SUBSECTION_FILE}, from its title",
         )
 
     def test_reports_a_hand_edit_to_derived_content(self):
         self.assertErrors(
-            "context-edited",
-            f"{SUBSECTION}: derived content differs from what derive writes; edit its source and run derive",
+            INVALID / "context-edited",
+            f"{SUBSECTION_FILE}: derived content differs from what derive writes; edit its source and run derive",
         )
 
+    # The other rules check enforces, each on a copy of the golden doc set.
+
+    def test_reports_an_unknown_field(self):
+        doc_set = self.copy(GOLDEN)
+        with open(doc_set / PART_FILE, "a", encoding="utf-8") as f:
+            f.write("\n## Summary\n\nNot a Part Field.\n")
+        self.assertErrors(doc_set, f"{PART_FILE}: unknown Field Summary")
+
+    def test_reports_a_repeated_field(self):
+        doc_set = self.copy(GOLDEN)
+        with open(doc_set / PART_FILE, "a", encoding="utf-8") as f:
+            f.write("\n## Intro\n\nA second intro.\n")
+        self.assertErrors(doc_set, f"{PART_FILE}: Field Intro appears more than once")
+
+    def test_reports_a_field_out_of_order(self):
+        doc_set = self.copy(GOLDEN)
+        overview = doc_set / "GIT-overview.md"
+        text = overview.read_text(encoding="utf-8")
+        methodology, ordering = text.split("\n## Ordering rationale\n")
+        head, methodology = methodology.split("## Methodology\n")
+        overview.write_text(f"{head}## Ordering rationale\n{ordering}\n## Methodology\n{methodology}", encoding="utf-8")
+        self.assertErrors(doc_set, "GIT-overview.md: Field Methodology is out of order")
+
+    def test_reports_free_content_before_a_notes_field(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-notes.md", "## Build notes", "## Aside\n\nA free H2.\n\n## Build notes")
+        self.assertErrors(doc_set, "GIT-notes.md: Field Build notes comes after free content Aside")
+
+    def test_reports_a_unit_title_with_a_character_that_breaks_links(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_FILE, "# GIT-01 Repository internals", "# GIT-01 Repository & internals")
+        self.assertErrors(doc_set, f"{PART_FILE}: title contains &, which would break a link or table copying it")
+
+    def test_reports_a_curriculum_name_with_a_character_that_breaks_links(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "index.md", "# Git (GIT)", "# Git [core] (GIT)")
+        self.assertErrors(doc_set, "index.md: name contains [ ], which would break a link or table copying it")
+
+    def test_reports_a_unit_title_with_an_empty_slug(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / PART_FILE).rename(doc_set / "GIT-01-x.md")
+        replace(doc_set / "GIT-01-x.md", "# GIT-01 Repository internals", "# GIT-01 ———")
+        self.assertErrors(doc_set, "GIT-01-x.md: title has an empty slug")
+
+    def test_reports_a_subdirectory(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "extra").mkdir()
+        self.assertErrors(doc_set, "extra: is a subdirectory; a doc set is flat")
+
+    def test_reports_a_file_outside_the_doc_set(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "todo.txt").write_text("", encoding="utf-8")
+        self.assertErrors(doc_set, "todo.txt: isn't a doc set filename")
+
+    def test_reports_two_files_with_one_id(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "GIT-01-other.md").write_text("# GIT-01 Other\n\n## Intro\n\nA second Part 1.\n", encoding="utf-8")
+        self.assertErrors(doc_set, f"{PART_FILE}: GIT-01 also names GIT-01-other.md")
+
+    def test_reports_a_missing_standard_doc(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "GIT-notes.md").unlink()
+        self.assertErrors(doc_set, "GIT-notes.md: is missing")
+
+    def test_reports_a_unit_whose_parent_is_missing(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / SECTION_FILE).unlink()
+        self.assertErrors(doc_set, f"{SUBSECTION_FILE}: GIT-01.01.01 has no Section GIT-01.01")
 
 
 class Derive(TempDirTestCase):
     def assertStops(self, fixture, line):
         """derive exits 1 with this error and leaves the doc set untouched."""
-        doc_set = self.copy(INVALID / fixture)
+        doc_set = self.copy(fixture)
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn(line, result.stderr.splitlines())
-        self.assertEqual(filecmp.dircmp(doc_set, INVALID / fixture).diff_files, [])
+        self.assertEqual(filecmp.dircmp(doc_set, fixture).diff_files, [])
 
     def test_stops_when_the_format_version_differs(self):
         self.assertStops(
-            "format-version-mismatch",
+            INVALID / "format-version-mismatch",
             "derive: index.md: Format version is 2, but this script reads Format version 1",
         )
 
     def test_stops_when_the_format_version_is_missing(self):
         self.assertStops(
-            "format-version-missing",
+            INVALID / "format-version-missing",
             "derive: index.md: Format version is missing; this script reads Format version 1. "
             "Restore it from the history of index.md, such as `git log -p index.md`",
         )
+
+    def test_stops_on_an_error_check_reports(self):
+        self.assertStops(INVALID / "field-missing", f"derive: {SUBSECTION_FILE}: required Field Goal is missing")
 
 
 if __name__ == "__main__":
