@@ -21,6 +21,8 @@ SUBSECTION_SLUG = "content-addressed-objects-blobs-trees-commits-and-the-naive"
 SUBSECTION_FILE = f"GIT-01.01.01-{SUBSECTION_SLUG}.md"  # the first Subsection
 PART_FILE = "GIT-01-repository-internals.md"
 REFS_FILE = "GIT-01.01.02-refs.md"
+# A paragraph after the nav line, a line right after it, and a line right before it
+NAV_LINE_EXTRA = ["nav-line-extra-content", "nav-line-extra-line", "nav-line-after-note"]
 ANCESTRY_FILE = "GIT-02.01.01-ancestry.md"
 PART_2_FILE = "GIT-02-history.md"
 INDEX_SECTION_FILE = "GIT-01.02-the-index.md"
@@ -312,12 +314,14 @@ class Check(TempDirTestCase):
             doc_set, f"{ANCESTRY_FILE}: derived content differs from what derive writes; edit its source and run derive"
         )
 
-    def test_reports_content_after_a_nav_line(self):
-        self.assertErrors(
-            INVALID / "nav-line-extra-content",
-            f"{REFS_FILE}: has content between its H1 and first Field other than one paragraph, the nav line; "
-            "move it into a Field",
-        )
+    def test_reports_content_beside_a_nav_line(self):
+        for fixture in NAV_LINE_EXTRA:
+            with self.subTest(fixture):
+                self.assertErrors(
+                    INVALID / fixture,
+                    f"{REFS_FILE}: has content between its H1 and first Field other than one paragraph, the nav line; "
+                    "move it into a Field",
+                )
 
     def test_reports_an_own_code_token_between_backticks_in_two_paragraphs(self):
         doc_set = self.copy(GOLDEN)
@@ -568,12 +572,14 @@ class Derive(TempDirTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(f"- two [GIT-01.01.01 {SUBSECTION_TITLE}]({SUBSECTION_FILE}) here\n", (doc_set / REFS_FILE).read_text(encoding="utf-8"))
 
-    def test_stops_on_content_after_a_nav_line(self):
-        self.assertStops(
-            INVALID / "nav-line-extra-content",
-            f"derive: {REFS_FILE}: has content between its H1 and first Field other than one paragraph, the nav line; "
-            "move it into a Field",
-        )
+    def test_stops_on_content_beside_a_nav_line(self):
+        for fixture in NAV_LINE_EXTRA:
+            with self.subTest(fixture):
+                self.assertStops(
+                    INVALID / fixture,
+                    f"derive: {REFS_FILE}: has content between its H1 and first Field other than one paragraph, the nav line; "
+                    "move it into a Field",
+                )
 
     def test_refreshes_a_unit_link_whose_target_is_stale(self):
         doc_set = self.copy(GOLDEN)

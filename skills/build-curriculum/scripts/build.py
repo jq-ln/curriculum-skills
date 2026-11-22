@@ -1082,7 +1082,7 @@ def head_errors(ds):
         lines = "".join(doc.head[1:]).strip("\n").split("\n")
         if lines == [""]:
             continue
-        if any(not line.strip() for line in lines) or lines[0][0] in " \t" or heading(lines[0]) or FENCE_RE.match(lines[0]) or NON_PARAGRAPH_RE.match(lines[0]):
+        if len(lines) > 1 or not lines[0].startswith("[Index](index.md)"):  # derive always writes the nav line as one line
             errors.append((name, "has content between its H1 and first Field other than one paragraph, the nav line; move it into a Field"))
     return errors
 
