@@ -1,6 +1,6 @@
-# Project name
+# curriculum-skills
 
-One or two sentences on what this project does and who it's for.
+A Claude Code plugin of skills for building curriculums. Its first skill, [`build-curriculum`](skills/build-curriculum/), researches a subject and writes it as a [Curriculum](GLOSSARY.md#curriculums) in the format of [`docs/curriculum-format.md`](docs/curriculum-format.md).
 
 ## Install
 
