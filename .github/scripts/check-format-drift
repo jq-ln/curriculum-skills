@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Fails when a shipped skill disagrees with docs/curriculum-format.md: a skill
+# (skills/*/SKILL.md) without references/curriculum-format.md, a copy that
+# differs from the doc, a .py under skills/*/scripts/ whose FORMAT_VERSION
+# differs from its Format version, or a skills/*/scripts/ whose .py files don't
+# define it.
+# Run from the repo root. Written for Bash 3.2, macOS's /bin/bash.
+set -euo pipefail
+shopt -s nullglob
+
+doc=docs/curriculum-format.md
+status=0
+
+# The doc's version is its first `Format version: <n>` line, under the H1.
+version=$(sed -n 's/^Format version: \([0-9][0-9]*\)$/\1/p' "$doc" | head -n 1)
+if [[ -z $version ]]; then
+  echo "check-format-drift: $doc has no 'Format version: <n>' line" >&2
+  exit 1
+fi
+
+skills=0
+for skill in skills/*/SKILL.md; do
+  skills=$((skills + 1))
+  copy=${skill%SKILL.md}references/curriculum-format.md
+  if [[ ! -f $copy ]]; then
+    echo "check-format-drift: $copy is missing; run: mkdir -p ${copy%/*} && cp $doc $copy" >&2
+    status=1
+  elif ! cmp -s "$doc" "$copy"; then
+    echo "check-format-drift: $copy differs from $doc; run: cp $doc $copy" >&2
+    diff -u "$doc" "$copy" >&2 || true
+    status=1
+  fi
+done
+if ((skills == 0)); then
+  echo "check-format-drift: no skills/*/SKILL.md found; run from the repo root" >&2
+  exit 1
+fi
+
+# The constant is the top-level FORMAT_VERSION. Any other assignment to the name, in
+# another case, without the underscore or indented, fails instead of being skipped,
+# and so does one whose value can't be parsed. The annotation (`: int`, `: Final`,
+# `: typing.Final[int]`) holds no `=`.
+assignment="^FORMAT_VERSION[[:space:]]*(:[^=]*)?=[[:space:]]*[\"']?([0-9]+)[\"']?[[:space:]]*;?[[:space:]]*(#.*)?$"
+candidate='^[[:space:]]*format_?version[[:space:]]*(:[^=]*)?=([^=]|$)'
+indented='^[[:space:]]'
+exact='^[[:space:]]*FORMAT_VERSION[^A-Za-z0-9_]'
+scripts=0
+for dir in skills/*/scripts; do
+  # Each skill with scripts reads the format, so one of them must define the constant.
+  pys=0
+  defined=0
+  while IFS= read -r -d '' script; do
+    pys=$((pys + 1))
+    while IFS= read -r line; do
+      if [[ $line =~ $assignment ]]; then
+        defined=1
+        scripts=$((scripts + 1))
+        if [[ ${BASH_REMATCH[2]} != "$version" ]]; then
+          echo "check-format-drift: $script has FORMAT_VERSION = ${BASH_REMATCH[2]}, but $doc has Format version: $version" >&2
+          status=1
+        fi
+      elif [[ ! $line =~ $indented || $line =~ $exact ]]; then
+        # An indented lowercase format_version is a local variable, not the constant.
+        echo "check-format-drift: $script: can't read FORMAT_VERSION from: $line" >&2
+        status=1
+      fi
+    done < <(grep -iE "$candidate" "$script" || true)
+  done < <(find "$dir" -type f -name '*.py' -print0)
+  if ((pys > 0 && defined == 0)); then
+    echo "check-format-drift: no .py under $dir defines a top-level FORMAT_VERSION = $version" >&2
+    status=1
+  fi
+done
+
+if ((status == 0)); then
+  echo "check-format-drift: Format version $version; $skills skills carry a matching copy of $doc, $scripts scripts define a matching FORMAT_VERSION"
+fi
+exit "$status"

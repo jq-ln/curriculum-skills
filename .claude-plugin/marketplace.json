@@ -1,0 +1,16 @@
+{
+  "name": "curriculum-skills",
+  "owner": {
+    "name": "jq-ln",
+    "url": "https://github.com/jq-ln"
+  },
+  "metadata": {
+    "description": "The curriculum-skills plugin, installable from this repo."
+  },
+  "plugins": [
+    {
+      "name": "curriculum-skills",
+      "source": "./"
+    }
+  ]
+}

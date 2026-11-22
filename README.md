@@ -2,6 +2,23 @@
 
 One or two sentences on what this project does and who it's for.
 
+## Install
+
+The repo is one plugin, `curriculum-skills`, whose skills live in [`skills/`](skills/). Each skill holds a copy of [`docs/curriculum-format.md`](docs/curriculum-format.md) in its `references/`, so a skill directory works on its own wherever it's installed.
+
+Both local routes load the working tree in place, so an edit shows up without a release.
+
+- **Claude Code, one session:** run `claude --plugin-dir /path/to/curriculum-skills`. After an edit, run `/reload-plugins`.
+- **Any agent:** symlink each skill into `~/.agents/skills`, which Codex, Cursor, Gemini CLI and Copilot read, and into `~/.claude/skills`, which Claude Code reads. From the repo root:
+
+  ```sh
+  mkdir -p ~/.agents/skills ~/.claude/skills
+  ln -s "$PWD/skills/build-curriculum" ~/.agents/skills/build-curriculum
+  ln -s "$PWD/skills/build-curriculum" ~/.claude/skills/build-curriculum
+  ```
+
+  In Claude Code, use one route at a time, so the skill loads once.
+
 ## Working in this repo
 
 Humans and agents follow the same docs. Agents start from [`AGENTS.md`](AGENTS.md), which says when to read each of these:
@@ -20,7 +37,7 @@ Humans and agents follow the same docs. Agents start from [`AGENTS.md`](AGENTS.m
 
 The repo commits one instruction file, [`AGENTS.md`](AGENTS.md), and no provider config. Each developer wires their agent per clone, using the row for their provider below:
 
-- Shared skills go in `.agents/skills/<name>/SKILL.md`, created when the repo needs its first one.
+- Shared skills for working on this repo go in `.agents/skills/<name>/SKILL.md`, created when the repo needs its first one. Skills the plugin ships go in `skills/<name>/` instead; see [Install](#install).
 - Agents in every provider create worktrees with the commands in [`branches.md`](docs/workflow/branches.md#worktrees), so `prune` can remove them. A provider's own worktree command, such as Claude Code's `--worktree`, makes a branch that isn't an Issue branch, so `prune` never removes it.
 - Create the table's per-clone files again in each worktree an agent runs in: `git worktree add` checks out tracked files only. `.git/info/exclude` is shared by every worktree, so its entries go in once.
 - Provider-local state goes in `.git/info/exclude`, never in `.gitignore`, so the committed `.gitignore` stays provider-neutral.

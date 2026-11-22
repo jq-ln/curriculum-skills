@@ -15,6 +15,7 @@ Each check except `pr-title` and `issue-link` runs over the whole repo, not just
 | `actionlint` | Workflow syntax, expressions and `run:` scripts (through shellcheck). |
 | `shellcheck` | Every tracked `.sh` or `.bash` file, and every file with an `sh`, `bash`, `dash` or `ksh` shebang. |
 | `init-test` | That `.github/scripts/init` still removes the content this repo was created without, using `.template/test-init`. Init deletes both when it runs, so from then on the job passes without checking anything. |
+| `format-drift` | Every `skills/*/references/curriculum-format.md` is identical to `docs/curriculum-format.md`, each skill with `.py` files under `scripts/` defines a top-level `FORMAT_VERSION`, and every `FORMAT_VERSION` in any `.py` under `skills/*/scripts/` is a top-level assignment of the doc's `Format version`, using [`check-format-drift`](../../.github/scripts/check-format-drift). |
 
 To reproduce a check locally, run its command from the repo root with the version CI uses:
 
@@ -34,6 +35,9 @@ lychee --offline --no-progress --hidden --extensions md .
 
 # actionlint
 actionlint
+
+# format-drift
+.github/scripts/check-format-drift
 
 # shellcheck (needs GNU xargs; the same pipeline as in ci.yml)
 git ls-files -z \

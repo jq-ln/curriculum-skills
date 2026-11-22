@@ -158,10 +158,21 @@ jobs:
             echo "No .template/test-init: init has already run here, so there's nothing to test."
           fi
 
+  format-drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check each skill's format copy and FORMAT_VERSION match docs/curriculum-format.md
+        run: .github/scripts/check-format-drift
+
   # The only required check. Add new jobs to `needs:`; leave the ruleset alone.
   ci:
     if: always()
-    needs: [pr-title, issue-link, markdownlint, lychee, actionlint, shellcheck, init-test]
+    needs: [pr-title, issue-link, markdownlint, lychee, actionlint, shellcheck, init-test, format-drift]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
