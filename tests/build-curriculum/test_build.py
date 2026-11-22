@@ -130,6 +130,34 @@ class Split(TempDirTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("## Target version\n\n## Format version\n", (out / "index.md").read_text(encoding="utf-8"))
 
+    def test_stops_on_a_curriculum_name_with_a_character_that_breaks_links(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "outline.md", "# Git (GIT)", "# Git [core] (GIT)")
+        self.assertStops(
+            draft, "split: outline.md: # Git [core] (GIT): name contains [ ], which would break a link or table copying it"
+        )
+
+    def test_ignores_a_unit_inside_an_html_comment(self):
+        draft = self.copy(DRAFT)
+        with (draft / "part-01.md").open("a", encoding="utf-8") as f:
+            f.write("\n<!--\n# GIT-02 Later\n\n## Intro\n-->\n")
+        out = self.tmp / "git"
+        result = run("split", draft, out)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(tree(out), tree(GOLDEN))
+
+    def test_stops_on_a_draft_file_that_isnt_utf_8(self):
+        draft = self.copy(DRAFT)
+        (draft / "part-01.md").write_bytes(b"# GIT-01.01.01 \xff\n")
+        self.assertStops(draft, "split: part-01.md: isn't valid UTF-8")
+
+    def test_stops_on_an_output_path_that_is_a_file(self):
+        out = self.tmp / "git"
+        out.write_text("", encoding="utf-8")
+        result = run("split", DRAFT, out)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stderr.splitlines(), [f"split: {out}: already exists and isn't a directory"])
+
 
 class Check(TempDirTestCase):
     def assertErrors(self, doc_set, *lines):
@@ -307,6 +335,53 @@ class Check(TempDirTestCase):
             f"{PART_FILE}: GIT-01 has no Section",
         )
 
+    def assertPasses(self, doc_set):
+        result = run("check", doc_set)
+        self.assertEqual((result.returncode, result.stdout), (0, ""))
+
+    def test_passes_a_field_inside_an_html_comment(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_FILE, "changes it.\n", "changes it.\n\n<!--\n## Intro\n\nAn older intro.\n-->\n")
+        self.assertPasses(doc_set)
+
+    def test_passes_a_setext_heading_inside_a_list_item(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_FILE, "changes it.\n", "changes it.\n\n- item\n\n  More text\n  ---\n")
+        self.assertPasses(doc_set)
+
+    def test_reports_a_missing_marksman_file(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / ".marksman.toml").unlink()
+        self.assertErrors(doc_set, ".marksman.toml: is missing")
+
+    def test_reports_a_marksman_file_that_isnt_empty(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / ".marksman.toml").write_text("[core]\n", encoding="utf-8")
+        self.assertErrors(doc_set, ".marksman.toml: isn't empty")
+
+    def test_reports_an_id_with_non_ascii_digits(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_FILE, "# GIT-01 ", "# GIT-０１ ")
+        self.assertErrors(doc_set, f"{PART_FILE}: H1 `# GIT-０１ Repository internals` isn't `# <ID> <title>`")
+
+    def test_reports_a_doc_that_isnt_utf_8(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "GIT-overview.md").write_bytes(b"# GIT Overview \xff\n")
+        self.assertErrors(doc_set, "GIT-overview.md: isn't valid UTF-8")
+
+    def test_reports_a_doc_with_a_byte_order_mark(self):
+        doc_set = self.copy(GOLDEN)
+        path = doc_set / "GIT-overview.md"
+        path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
+        self.assertErrors(doc_set, "GIT-overview.md: starts with a byte order mark; save it as UTF-8 without one")
+
+    def test_reports_a_multi_line_format_version_on_one_line(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "index.md", "## Format version\n\n1\n", "## Format version\n\n1\n\nSet by split.\n")
+        self.assertErrors(
+            doc_set, "index.md: Format version is '1\\n\\nSet by split.', but this script reads Format version 1"
+        )
+
 
 class Derive(TempDirTestCase):
     def assertStops(self, fixture, line):
@@ -332,6 +407,19 @@ class Derive(TempDirTestCase):
 
     def test_stops_on_an_error_check_reports(self):
         self.assertStops(INVALID / "field-missing", f"derive: {SUBSECTION_FILE}: required Field Goal is missing")
+
+    def test_leaves_alone_docs_with_nothing_to_derive(self):
+        doc_set = self.copy(GOLDEN)
+        overview = doc_set / "GIT-overview.md"
+        overview.write_text(overview.read_text(encoding="utf-8") + "\n\n", encoding="utf-8")
+        appendix = doc_set / "GIT-appendix-glossary.md"
+        appendix.write_text("---\naliases: [Glossary]\n---\n\n# GIT Appendix: Glossary\n", encoding="utf-8")
+        before = {name: (doc_set / name).read_bytes() for name in tree(doc_set)}
+        check = run("check", doc_set)
+        self.assertEqual((check.returncode, check.stdout), (0, ""))
+        derive = run("derive", doc_set)
+        self.assertEqual(derive.returncode, 0, derive.stderr)
+        self.assertEqual({name: (doc_set / name).read_bytes() for name in tree(doc_set)}, before)
 
 
 if __name__ == "__main__":

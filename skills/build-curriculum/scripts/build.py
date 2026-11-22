@@ -72,7 +72,7 @@ DERIVED_FIELDS = {"Context"}
 FREE_H2 = {NOTES, APPENDIX}
 
 CODE = r"[A-Z][A-Z0-9]*"
-ID_RE = re.compile(rf"({CODE})-(\d{{2}})(?:\.(\d{{2}}))?(?:\.(\d{{2}}))?")
+ID_RE = re.compile(rf"({CODE})-([0-9]{{2}})(?:\.([0-9]{{2}}))?(?:\.([0-9]{{2}}))?")
 INDEX_H1_RE = re.compile(rf"(.+) \(({CODE})\)")
 NAMED_H1_RE = re.compile(rf"({CODE}) (Overview|Tags|Sources|Notes)")
 NAMED_TYPES = {"Overview": OVERVIEW, "Tags": TAGS, "Sources": SOURCES, "Notes": NOTES}
@@ -82,7 +82,16 @@ HEADING_RE = re.compile(r"(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*")
 FENCE_RE = re.compile(r" {0,3}(`{3,}|~{3,})")
 SETEXT_RE = re.compile(r" {0,3}(=+|-+)[ \t]*")
 # Lines that start a block other than a paragraph, so a `---` under them is a thematic break.
-NON_PARAGRAPH_RE = re.compile(r" {0,3}([-+*]|\d{1,9}[.)])([ \t]|$)| {0,3}[>|<]")
+NON_PARAGRAPH_RE = re.compile(r" {0,3}([-+*]|[0-9]{1,9}[.)])([ \t]|$)| {0,3}[>|<]")
+# HTML blocks of CommonMark types 1-5, which run to their end marker, blank lines included:
+# (start pattern, end pattern).
+HTML_BLOCKS = [
+    (re.compile(r" {0,3}<(pre|script|style|textarea)([ \t>]|$)", re.I), re.compile(r"</(pre|script|style|textarea)>", re.I)),
+    (re.compile(r" {0,3}<!--"), re.compile(r"-->")),
+    (re.compile(r" {0,3}<\?"), re.compile(r"\?>")),
+    (re.compile(r" {0,3}<![A-Za-z]"), re.compile(r">")),
+    (re.compile(r" {0,3}<!\[CDATA\["), re.compile(r"\]\]>")),
+]
 MARKSMAN = ".marksman.toml"
 # Deriving copies titles unescaped into link text and table rows, which these would break.
 FORBIDDEN_IN_TITLE = "[]|\\<&`"
@@ -108,15 +117,23 @@ def heading(line):
 
 
 def scan_lines(lines):
-    """Yield (line, heading-or-None), skipping headings inside fenced code.
+    """Yield (line, heading-or-None), skipping headings inside fenced code and HTML blocks.
 
     Raises BuildError on a setext heading. A paragraph is approximated as a run of
-    non-blank lines that starts in column 0-3 and holds no list item, blockquote,
-    table row, HTML or heading.
+    non-blank lines that starts in column 0 and holds no list item, blockquote,
+    table row, HTML or heading. Starting in column 0 keeps a list item's
+    continuation paragraph out, but, as with heading(), misses a top-level
+    paragraph indented 1-3 spaces.
     """
     fence = None
+    html_end = None  # the end marker of the open HTML block, if any
     paragraph = None  # the current run of non-blank lines, while it can be a paragraph
     for line in lines:
+        if html_end:
+            if html_end.search(line):
+                html_end = None
+            yield line, None
+            continue
         m = FENCE_RE.match(line)
         if fence:
             if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not line[m.end():].strip():
@@ -125,6 +142,14 @@ def scan_lines(lines):
             continue
         if m and not (m.group(1)[0] == "`" and "`" in line[m.end():]):
             fence, paragraph = m.group(1), None
+            yield line, None
+            continue
+        html = next(((start, end) for start, end in HTML_BLOCKS if start.match(line)), None)
+        if html:
+            start, end = html
+            paragraph = None
+            if not end.search(line, start.match(line).end()):
+                html_end = end
             yield line, None
             continue
         h = heading(line)
@@ -136,6 +161,8 @@ def scan_lines(lines):
             paragraph = None  # a thematic break, which ends the block
         elif h or NON_PARAGRAPH_RE.match(line) or (paragraph is None and line.startswith(("    ", "\t"))):
             paragraph = False
+        elif paragraph is None and line[0] in " \t":
+            paragraph = False  # a list item's continuation, or a paragraph indented 1-3 spaces
         elif paragraph is not False:
             paragraph = (paragraph or []) + [line]
         yield line, h
@@ -154,7 +181,7 @@ class Block:
 
 @dataclass
 class Doc:
-    front: list = dataclass_field(default_factory=list)  # front matter, delimiters included
+    front: list = dataclass_field(default_factory=list)  # front matter, delimiters included, and blank lines before the H1
     head: list = dataclass_field(default_factory=list)  # the H1 line, then any content before the first H2
     blocks: list = dataclass_field(default_factory=list)  # one Block per H2
 
@@ -179,6 +206,7 @@ def parse(text):
         if end is not None:
             doc.front, lines = lines[: end + 1], lines[end + 1 :]
     while lines and not lines[0].strip():
+        doc.front.append(lines[0])
         lines = lines[1:]
     for line, h in scan_lines(lines):
         if not doc.head:
@@ -196,6 +224,17 @@ def parse(text):
     if not doc.head:
         raise BuildError("doesn't start with an H1")
     return doc
+
+
+def read(path):
+    """A file's text. Raises BuildError when it isn't UTF-8 or starts with a byte order mark."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise BuildError("isn't valid UTF-8") from None
+    if text.startswith("\ufeff"):
+        raise BuildError("starts with a byte order mark; save it as UTF-8 without one")
+    return text
 
 
 def split_draft(text):
@@ -311,6 +350,8 @@ def split(draft_dir, out_dir):
     draft_dir, out_dir = Path(draft_dir), Path(out_dir)
     if not (draft_dir / "outline.md").is_file():
         raise BuildError(f"{draft_dir}: no outline.md")
+    if out_dir.exists() and not out_dir.is_dir():
+        raise BuildError(f"{out_dir}: already exists and isn't a directory")
     if out_dir.exists() and any(out_dir.iterdir()):
         raise BuildError(f"{out_dir}: already exists and isn't empty")
 
@@ -320,7 +361,7 @@ def split(draft_dir, out_dir):
     code = None
     for path in files:
         try:
-            docs = split_draft(path.read_text(encoding="utf-8"))
+            docs = split_draft(read(path))
         except BuildError as e:
             raise BuildError(f"{path.name}: {e}") from None
         for doc in docs:
@@ -334,7 +375,13 @@ def split(draft_dir, out_dir):
             doc_type, doc_code, uid = kind
             if "".join(doc.head[1:]).strip():
                 raise BuildError(f"{where}: has content before its first Field")
-            for error in title_errors(split_unit_h1(doc.h1)[1]) if uid else []:
+            if uid:
+                errors = title_errors(split_unit_h1(doc.h1)[1])
+            elif doc_type == INDEX:
+                errors = title_errors(INDEX_H1_RE.fullmatch(doc.h1).group(1), "name")
+            else:
+                errors = []
+            for error in errors:
                 raise BuildError(f"{where}: {error}")
             if doc_type == INDEX:
                 code = code or doc_code
@@ -410,7 +457,7 @@ def load(root):
         ds.error("index.md", "is missing")
         return ds
     try:
-        doc = parse(index.read_text(encoding="utf-8"))
+        doc = parse(read(index))
     except BuildError as e:
         ds.error("index.md", str(e))
         return ds
@@ -450,7 +497,7 @@ def load(root):
             ds.error(name, "isn't a doc set filename")
             continue
         try:
-            doc = parse(path.read_text(encoding="utf-8"))
+            doc = parse(read(path))
         except BuildError as e:
             ds.error(name, str(e))
             continue
@@ -470,6 +517,13 @@ def load(root):
     for name in named:
         if not (root / name).exists():
             ds.error(name, "is missing")
+    marksman = root / MARKSMAN
+    if not marksman.exists():
+        ds.error(MARKSMAN, "is missing")
+    elif not marksman.is_file():
+        ds.error(MARKSMAN, "isn't a file")
+    elif marksman.stat().st_size:
+        ds.error(MARKSMAN, "isn't empty")
     return ds
 
 
@@ -510,8 +564,10 @@ def format_version_errors(ds):
             f"Format version is missing; this script reads Format version {FORMAT_VERSION}. "
             "Restore it from the history of index.md, such as `git log -p index.md`"
         ]
-    if f.body() != str(FORMAT_VERSION):
-        return [f"Format version is {f.body()}, but this script reads Format version {FORMAT_VERSION}"]
+    body = f.body()
+    if body != str(FORMAT_VERSION):
+        shown = repr(body) if "\n" in body else body  # one line per error
+        return [f"Format version is {shown}, but this script reads Format version {FORMAT_VERSION}"]
     return []
 
 
@@ -519,12 +575,18 @@ def format_version_errors(ds):
 
 
 def derived(ds):
-    """Every doc's text with its derived content rewritten, by filename."""
+    """The new text of every doc whose derived content differs from what derive writes, by filename.
+
+    Compares parsed text before and after, so a doc derive has nothing to change
+    in is left alone, whitespace and all.
+    """
     out = {}
     for name, doc in ds.docs.items():
+        before = doc.text()
         if ds.types[name] == SUBSECTION:
             set_field(doc, SUBSECTION, "Context", context(ds, doc))
-        out[name] = doc.text()
+        if doc.text() != before:
+            out[name] = doc.text()
     return out
 
 
@@ -566,9 +628,7 @@ def derive(root):
     if errors:
         raise BuildError("\n".join(f"{n}: {m}" for n, m in errors))
     for name, text in derived(ds).items():
-        path = ds.root / name
-        if path.read_text(encoding="utf-8") != text:
-            path.write_text(text, encoding="utf-8")
+        (ds.root / name).write_text(text, encoding="utf-8")
 
 
 def structure_errors(ds):
@@ -611,11 +671,9 @@ def check(root):
     errors = errors_before_derive(ds)
     if errors:
         return errors
-    before = {name: doc.text() for name, doc in ds.docs.items()}
     return [
         (name, "derived content differs from what derive writes; edit its source and run derive")
-        for name, text in derived(ds).items()
-        if text != before[name]
+        for name in derived(ds)
     ]
 
 
@@ -687,6 +745,9 @@ def main(argv=None):
     except BuildError as e:
         for line in str(e).split("\n"):
             print(f"{args.command}: {line}", file=sys.stderr)
+        return 1
+    except OSError as e:
+        print(f"{args.command}: {e}", file=sys.stderr)
         return 1
     return 0
 
