@@ -169,10 +169,21 @@ jobs:
       - name: Check each skill's format copy and FORMAT_VERSION match docs/curriculum-format.md
         run: .github/scripts/check-format-drift
 
+  script-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the build script's tests
+        run: python3 -m unittest discover -s tests/build-curriculum -v
+
   # The only required check. Add new jobs to `needs:`; leave the ruleset alone.
   ci:
     if: always()
-    needs: [pr-title, issue-link, markdownlint, lychee, actionlint, shellcheck, init-test, format-drift]
+    needs: [pr-title, issue-link, markdownlint, lychee, actionlint, shellcheck, init-test, format-drift, script-test]
     runs-on: ubuntu-latest
     permissions: {}
     steps:

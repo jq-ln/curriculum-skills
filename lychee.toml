@@ -1,0 +1,4 @@
+# Read by lychee from the repo root, in CI and locally.
+
+# Doc sets the build script's tests break on purpose, one check rule each.
+exclude_path = ["tests/build-curriculum/fixtures/check"]
