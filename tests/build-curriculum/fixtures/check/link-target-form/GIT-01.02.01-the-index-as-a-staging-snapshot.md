@@ -14,7 +14,7 @@
 
 ## Tags
 
-- [2.43](GIT-tags.md#243): Checked against the release notes of Git 2.43.
+- [2.43](GIT-tags.md#243): Checked against the release notes of Git 2.43. (from GIT-01.02)
 
 ## Goal
 

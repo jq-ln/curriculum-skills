@@ -112,7 +112,8 @@ STANDARD_TAGS = [
 ]
 OPTIONAL = "Optional"
 WHERE = {"doc": {"doc"}, "inline": {"inline"}, "doc, inline": {"doc", "inline"}}
-TAG_KEYS = ["Meaning", "Where", "Uses"]  # the bullets under a tag's heading, in order
+TAG_KEYS = ["Meaning", "Where", "Uses"]
+ORIGIN_RE = re.compile(r" \((?:from \S+|inline)\)$")  # ends a Tags entry derive added  # the bullets under a tag's heading, in order
 FORBIDDEN_IN_TAG = "{}[]`"
 # Deriving copies titles unescaped into link text and table rows, which these would break.
 FORBIDDEN_IN_TITLE = "[]|\\<&`"
@@ -1038,7 +1039,10 @@ def tags_doc_errors(ds):
 
 
 def tag_entries(ds, name):
-    """(the tag names a unit's Tags Field lists, in its order, each once; the errors in it)."""
+    """(the unit's own tags its Tags Field lists, in its order, each once; the errors in it).
+
+    An entry ending in an origin mark is one derive added, so it's left out: derive works it out again.
+    """
     f = ds.docs[name].field("Tags")
     if not f:
         return [], []
@@ -1047,6 +1051,8 @@ def tag_entries(ds, name):
         return [], [(name, "Field Tags holds content other than bullets")]
     out, errors = [], []
     for item in items:
+        if ORIGIN_RE.search(item):
+            continue
         tag = entry_text(item)
         if tag not in ds.tags:
             errors.append((name, f"Tags entry {tag} names no tag in {ds.tags_file}"))
@@ -1063,39 +1069,41 @@ def tag_entry_errors(ds):
     return [e for name in unit_names(ds, PART, SECTION, SUBSECTION) for e in tag_entries(ds, name)[1]]
 
 
-def tag_where_errors(ds, used):
-    """A Tags entry whose Where lacks doc, unless it's in a Subsection that uses the tag inline."""
+def tag_where_errors(ds):
+    """An own Tags entry whose Where lacks doc."""
     errors = []
     for name in unit_names(ds, PART, SECTION, SUBSECTION):
         for tag in tag_entries(ds, name)[0]:
-            inline = ds.types[name] == SUBSECTION and tag in used[name]
-            if "doc" not in ds.tags[tag].places and not inline:
-                errors.append((name, f"Tags entry {tag}: its Where in {ds.tags_file} lacks doc, and the unit doesn't use it inline"))
+            if "doc" not in ds.tags[tag].places:
+                errors.append((name, f"Tags entry {tag}: its Where in {ds.tags_file} lacks doc"))
     return errors
 
 
 def unit_tags(ds, used):
-    """Each unit's tags by filename, in tags doc order: a Part's and Section's own; a Subsection's own,
-    its Part's and Section's, and those it uses inline."""
+    """Each unit's Tags entries by filename, as (tag, origin mark or ""), in tags doc order.
+
+    A Part's and Section's are their own. A Subsection's are its own, then its Part's
+    and Section's marked with that unit's ID, then those it uses inline marked inline.
+    """
     own = {name: tag_entries(ds, name)[0] for name in unit_names(ds, PART, SECTION, SUBSECTION)}
     out = {}
     for name, tags in own.items():
+        origins = dict.fromkeys(tags, "")
         if ds.types[name] == SUBSECTION:
             uid = ds.uid(name)
-            section, part = uid.parent(), uid.parent().parent()
-            tags = set(tags) | set(own[ds.units[section]]) | set(own[ds.units[part]]) | used[name]
-        out[name] = [tag for tag in ds.tags if tag in tags]
+            for unit in (uid.parent().parent(), uid.parent()):  # the Part first, so it names a tag both carry
+                for tag in own[ds.units[unit]]:
+                    origins.setdefault(tag, f" (from {unit})")
+            for tag in used[name]:
+                origins.setdefault(tag, " (inline)")
+        out[name] = [(tag, origins[tag]) for tag in ds.tags if tag in origins]
     return out
 
 
 def optional_errors(ds):
     """A Subsection with a Prereq inside an Optional unit that the Subsection is outside."""
     own = {ds.uid(n): tag_entries(ds, n)[0] for n in unit_names(ds, PART, SECTION, SUBSECTION)}
-    # A Subsection's Tags Field also lists the tags copied down, so only one its Part and Section lack is its own.
-    optional = sorted(
-        (uid for uid, tags in own.items() if OPTIONAL in tags and not any(OPTIONAL in own.get(a, ()) for a in ancestors(uid))),
-        key=lambda u: u.levels,
-    )
+    optional = sorted((uid for uid, tags in own.items() if OPTIONAL in tags), key=lambda u: u.levels)
     errors = []
     for name in unit_names(ds, SUBSECTION):
         uid = ds.uid(name)
@@ -1110,12 +1118,8 @@ def optional_errors(ds):
     return errors
 
 
-def ancestors(uid):
-    return [UnitId(uid.code, uid.levels[:i]) for i in range(1, len(uid.levels))]
-
-
-def tags_field(ds, tags):
-    return "\n".join(f"- {tag_link(ds, None, tag)}: {ds.tags[tag].meaning}" for tag in tags)
+def tags_field(ds, entries):
+    return "\n".join(f"- {tag_link(ds, None, tag)}: {ds.tags[tag].meaning}{origin}" for tag, origin in entries)
 
 
 def write_tags_doc(ds, uses, carried):
@@ -1150,10 +1154,10 @@ def derived(ds, other=lambda code: None):
     uses = {}
     for name, unit in tags.items():
         if ds.types[name] == SUBSECTION:
-            for tag in unit:
+            for tag, _ in unit:
                 uses[tag] = uses.get(tag, 0) + 1
         set_field(ds.docs[name], ds.types[name], "Tags", tags_field(ds, unit) if unit else None)
-    write_tags_doc(ds, uses, {tag for unit in tags.values() for tag in unit})
+    write_tags_doc(ds, uses, {tag for unit in tags.values() for tag, _ in unit})
     subsections = sorted((uid for uid in ds.units if len(uid.levels) == 3), key=lambda u: u.levels)
     for name, doc in ds.docs.items():
         doc_type = ds.types[name]
@@ -1302,8 +1306,7 @@ def errors_before_derive(ds):
     if errors:
         # A missing or misnamed unit or tag already reported would also break every link and Prereq naming it.
         return errors
-    link_errors, _, used = link_prose_everywhere(load(ds.root))
-    return link_errors + prereq_errors(ds) + tag_where_errors(ds, used) + optional_errors(ds)
+    return link_prose_everywhere(load(ds.root))[0] + prereq_errors(ds) + tag_where_errors(ds) + optional_errors(ds)
 
 
 def check(root):

@@ -28,6 +28,7 @@ PART_2_FILE = "GIT-02-history.md"
 INDEX_SECTION_FILE = "GIT-01.02-the-index.md"
 INDEX_SUBSECTION_FILE = "GIT-01.02.01-the-index-as-a-staging-snapshot.md"
 SECTION_FILE = "GIT-01.01-objects.md"
+CAT_FILE = "GIT-03.01.01-cat-file.md"  # in the Optional Part, using a tag inline
 
 
 def run(*args):
@@ -311,7 +312,7 @@ class Check(TempDirTestCase):
     def test_reports_a_tags_entry_whose_where_lacks_doc(self):
         self.assertErrors(
             INVALID / "tag-entry-not-doc",
-            f"{SECTION_FILE}: Tags entry 2.46: its Where in GIT-tags.md lacks doc, and the unit doesn't use it inline",
+            f"{SECTION_FILE}: Tags entry 2.46: its Where in GIT-tags.md lacks doc",
         )
 
     # The other tag rules, each on a copy of the golden doc set.
@@ -358,10 +359,10 @@ class Check(TempDirTestCase):
         replace(doc_set / REFS_FILE, "ref; branch; HEAD\n", "ref; branch; HEAD; {not a tag}; `{2.43}`\n")
         self.assertPasses(doc_set)
 
-    def test_passes_a_tags_entry_whose_where_lacks_doc_in_a_subsection_using_it_inline(self):
+    def test_passes_an_entry_derive_added_naming_a_tag_no_longer_in_the_tags_doc(self):
         doc_set = self.copy(GOLDEN)
-        self.assertIn("- [2.46](GIT-tags.md#246)", (doc_set / "GIT-03.01.01-cat-file.md").read_text(encoding="utf-8"))
-        self.assertPasses(doc_set)
+        replace(doc_set / CAT_FILE, "(inline)\n", "(inline)\n- [2.44](GIT-tags.md#244): Gone. (from GIT-03)\n")
+        self.assertErrors(doc_set, f"{CAT_FILE}: derived content differs from what derive writes; edit its source and run derive")
 
     # The other rules check enforces, each on a copy of the golden doc set.
 
@@ -663,7 +664,7 @@ class Derive(TempDirTestCase):
         self.assertIn("Checked against [2.43](#tags). Stops before history,", refs)
         self.assertIn(
             "  - A commit names one tree and its parent commits.\n\n"
-            "## Tags\n\n- [2.43](GIT-tags.md#243): Checked against the release notes of Git 2.43.\n\n## Goal\n",
+            "## Tags\n\n- [2.43](GIT-tags.md#243): Checked against the release notes of Git 2.43. (inline)\n\n## Goal\n",
             refs,
         )
         self.assertIn("None so far, beyond [2.43](GIT-tags.md#243).", (doc_set / "GIT-notes.md").read_text(encoding="utf-8"))
@@ -673,14 +674,44 @@ class Derive(TempDirTestCase):
 
     def test_keeps_a_tag_link_in_a_code_span_when_copying_a_goal(self):
         doc_set = self.copy(GOLDEN)
-        cat_file = doc_set / "GIT-03.01.01-cat-file.md"
-        replace(cat_file, "as checked against [2.46](#tags).", "as checked against [2.46](#tags), not `[2.46](#tags)`.")
+        replace(doc_set / CAT_FILE, "as checked against [2.46](#tags).", "as checked against [2.46](#tags), not `[2.46](#tags)`.")
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(
             "as checked against [2.46](GIT-tags.md#246), not `[2.46](#tags)`.\n",
             (doc_set / "GIT-03.01-reading-objects.md").read_text(encoding="utf-8"),
         )
+
+    def test_drops_a_tag_its_part_no_longer_carries(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-03-plumbing.md", "## Tags\n\n- [Optional](GIT-tags.md#optional): No unit outside it depends on it, so a learner may skip it.\n\n", "")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "## Tags\n\n- [2.46](GIT-tags.md#246): Checked against the release notes of Git 2.46. (inline)\n\n## Goal",
+            (doc_set / CAT_FILE).read_text(encoding="utf-8"),
+        )
+        self.assertIn("- Synthesis: 1\n- Optional: 0\n", (doc_set / "index.md").read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
+
+    def test_drops_a_tag_whose_marker_was_removed(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / CAT_FILE, "by its ID, as checked against [2.46](#tags).", "by its ID.")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("[2.46]", (doc_set / CAT_FILE).read_text(encoding="utf-8"))
+        self.assertIn("## 2.46\n\n- Meaning: Checked against the release notes of Git 2.46.\n- Where: inline\n- Uses: 0\n",
+                      (doc_set / "GIT-tags.md").read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
+
+    def test_keeps_an_own_tag_its_part_also_carries(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / CAT_FILE, "skip it. (from GIT-03)\n", "skip it.\n")
+        replace(doc_set / "GIT-03-plumbing.md", "## Tags\n\n- [Optional](GIT-tags.md#optional): No unit outside it depends on it, so a learner may skip it.\n\n", "")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("so a learner may skip it.\n- [2.46]", (doc_set / CAT_FILE).read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
 
     def test_drops_a_standard_tag_no_unit_carries_any_more(self):
         doc_set = self.copy(GOLDEN)
@@ -702,7 +733,7 @@ class Derive(TempDirTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         for name in (INDEX_SECTION_FILE, INDEX_SUBSECTION_FILE):
             with self.subTest(name):
-                self.assertIn("- [2.43](GIT-tags.md#243): Checked against Git 2.43.\n", (doc_set / name).read_text(encoding="utf-8"))
+                self.assertIn("- [2.43](GIT-tags.md#243): Checked against Git 2.43.", (doc_set / name).read_text(encoding="utf-8"))
         self.assertPasses(doc_set)
 
     def test_stops_on_content_beside_a_nav_line(self):

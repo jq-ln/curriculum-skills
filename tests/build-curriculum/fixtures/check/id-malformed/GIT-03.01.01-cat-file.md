@@ -14,8 +14,8 @@
 
 ## Tags
 
-- [Optional](GIT-tags.md#optional): No unit outside it depends on it, so a learner may skip it.
-- [2.46](GIT-tags.md#246): Checked against the release notes of Git 2.46.
+- [Optional](GIT-tags.md#optional): No unit outside it depends on it, so a learner may skip it. (from GIT-03)
+- [2.46](GIT-tags.md#246): Checked against the release notes of Git 2.46. (inline)
 
 ## Goal
 
