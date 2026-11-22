@@ -631,10 +631,16 @@ class Check(TempDirTestCase):
         replace(doc_set / REFS_FILE, "## Scope\n", "## Generators\n\nNone\n\n## Scope\n")
         replace(doc_set / "index.md", "## Target version\n\n2.47.1\n", "## Target version\n\nNone\n")
         replace(doc_set / SECTION_FILE, "## Subsections\n", "## Tags\n\nNone\n\n## Subsections\n")
+        replace(doc_set / CAT_FILE, "## Scope\n", "## Foundations\n\nnone.\n\n## Scope\n")
         self.assertErrors(
             doc_set,
-            *(f"{name}: Optional Field {field} is `None`; leave it out when empty"
-              for name, field in ((REFS_FILE, "Generators"), ("index.md", "Target version"), (SECTION_FILE, "Tags"))),
+            *(f"{name}: Optional Field {field} is `{text}`; leave it out when empty"
+              for name, field, text in (
+                  (REFS_FILE, "Generators", "None"),
+                  ("index.md", "Target version", "None"),
+                  (SECTION_FILE, "Tags", "None"),
+                  (CAT_FILE, "Foundations", "none."),
+              )),
         )
 
     def test_reports_an_id_level_above_99(self):

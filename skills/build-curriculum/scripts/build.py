@@ -1661,8 +1661,8 @@ def field_errors(ds):
             f = doc.field(field_name)
             if required and field_name not in DERIVED_FIELDS and not f:
                 errors.append((name, f"required Field {field_name} is missing"))
-            elif not required and field_name not in DERIVED_FIELDS and f and f.body() == "None":
-                errors.append((name, f"Optional Field {field_name} is `None`; leave it out when empty"))
+            elif not required and field_name not in DERIVED_FIELDS and f and f.body().lower().rstrip(".") == "none":
+                errors.append((name, f"Optional Field {field_name} is `{f.body()}`; leave it out when empty"))
     return errors
 
 
