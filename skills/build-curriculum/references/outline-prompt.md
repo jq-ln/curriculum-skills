@@ -2,7 +2,7 @@
 
 # Outline: {{subject}}
 
-Write a structured, progressive topic list for learning {{subject}} in depth: the table of contents of an exhaustive textbook on the subject. Cover the subject as fully as that textbook would, within the Brief; there's no target number of units.
+Write a structured, progressive topic list for learning {{subject}} in depth: the table of contents of an exhaustive textbook on the subject. Cover the subject as fully as that textbook would, within the Brief, and let the subject set the number of units.
 
 You write the Outline, the skeleton of a Curriculum that later agents fill in, one Part each and in parallel. They can't change what you fix here: the units, their IDs, titles, Goals and Prereqs, and the tags.
 
@@ -16,7 +16,7 @@ You write the Outline, the skeleton of a Curriculum that later agents fill in, o
 - Draft format: `{{draft_format}}`
 - Curriculum format: `{{curriculum_format}}`
 
-The Brief, verbatim from the user. It scopes the Curriculum, and it wins over anything below:
+The Brief, verbatim from the user. It sets the Curriculum's scope, environment and learner, and on those it wins over anything below:
 
 ```text
 {{brief}}
@@ -24,7 +24,7 @@ The Brief, verbatim from the user. It scopes the Curriculum, and it wins over an
 
 ## What to write
 
-Read the Draft format, then the Curriculum format's sections for the docs and Fields it names. Write `outline.md` exactly as the Draft format's `outline.md` section lays it out, with each Field's meaning and form as the Curriculum format gives it. The index H1 is `# {{subject}} ({{code}})`, unless a shorter, plainer name for the subject reads better as a title.
+Read the Draft format, then the Curriculum format's sections for the docs and Fields it names. Write `outline.md` exactly as the Draft format's `outline.md` section lays it out, with each Field's meaning and form as the Curriculum format gives it. The index H1 is `# {{subject}} ({{code}})`.
 
 ## Sources
 
@@ -45,14 +45,13 @@ Every claim the Curriculum makes is traced to the source that owns it:
 
 ## Units
 
-- Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a topic that needs more into several Subsections. Merge a topic too thin to carry its own Goal into its neighbour.
-- Write each Goal as one proposition the unit installs, a fact that feels obviously true once taught.
-- Give each Section the few Generators its Subsections collapse into.
-- Add a Synthesis Subsection where loose facts collapse into a structure, such as at the end of a Section, and tag it `Synthesis`.
-- Teaching material a textbook would put in an appendix becomes a Part tagged `Optional`, which no unit outside it lists as a Prereq. Reference material that teaches nothing, such as a coverage table, stays out of the Outline.
-- Prereqs list only direct prerequisites, each an earlier Subsection's ID; transitive ones are implied. A unit with none has `None`.
-- Number every level from `01` in teaching order. A level that would reach 100 is split instead.
-- Fix the tag vocabulary now: the standard tags you use, copied from the Curriculum format, then the Curriculum's own. Fill agents can't add tags.
+Goals, Generators, Prereqs, IDs and tags follow the Curriculum format's [Subsection](curriculum-format.md#subsection), [IDs](curriculum-format.md#ids) and [Standard tags](curriculum-format.md#standard-tags) sections. On top of those:
+
+- Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a unit that needs more into several Subsections. Merge a unit too thin to carry its own Goal into its neighbour.
+- Add a Synthesis Subsection wherever loose facts collapse into a structure, such as at the end of a Section.
+- Teaching material a textbook would put in an appendix becomes a Part tagged `Optional`. Reference material that teaches nothing, such as a coverage table, stays out of the Outline.
+- Keep Prereqs direct and backward-only, so the fill agents inherit a sound dependency graph.
+- Fix the tag vocabulary now, because fill agents can't add tags.
 
 ## Notes
 
@@ -60,7 +59,7 @@ Write the first notes in the notes doc:
 
 - Scope decisions: what the Curriculum covers and leaves out, and why, including how you read the Brief.
 - Ordering and granularity choices: the units you merged, split or placed against the obvious order, and why.
-- Judgement calls and Build notes: what you have so far, or `None so far.`
+- Judgement calls and Build notes: what you have so far.
 
 ## Done
 
