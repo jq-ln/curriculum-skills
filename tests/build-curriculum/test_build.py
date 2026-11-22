@@ -12,14 +12,17 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "skills" / "build-curriculum" / "scripts" / "build.py"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-MINIMAL = FIXTURES / "minimal"
-DRAFT = MINIMAL / "draft"
-GOLDEN = MINIMAL / "golden"
+GIT = FIXTURES / "git"
+DRAFT = GIT / "draft"
+GOLDEN = GIT / "golden"
 INVALID = FIXTURES / "check"
 SUBSECTION_TITLE = "Content-addressed objects — blobs, trees, commits and the naïve view of a snapshot"
 SUBSECTION_SLUG = "content-addressed-objects-blobs-trees-commits-and-the-naive"
-SUBSECTION_FILE = f"GIT-01.01.01-{SUBSECTION_SLUG}.md"  # the fixtures' one Subsection
+SUBSECTION_FILE = f"GIT-01.01.01-{SUBSECTION_SLUG}.md"  # the first Subsection
 PART_FILE = "GIT-01-repository-internals.md"
+REFS_FILE = "GIT-01.01.02-refs.md"
+ANCESTRY_FILE = "GIT-02.01.01-ancestry.md"
+PART_2_FILE = "GIT-02-history.md"
 SECTION_FILE = "GIT-01.01-objects.md"
 
 
@@ -120,6 +123,8 @@ class Split(TempDirTestCase):
         out = self.tmp / "git"
         result = run("split", draft, out)
         self.assertEqual(result.returncode, 0, result.stderr)
+        result = run("derive", out)
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(filecmp.cmp(out / "index.md", GOLDEN / "index.md", shallow=False))
 
     def test_writes_an_empty_field_with_one_blank_line_after_it(self):
@@ -212,7 +217,92 @@ class Check(TempDirTestCase):
             f"{SUBSECTION_FILE}: derived content differs from what derive writes; edit its source and run derive",
         )
 
+    # One fixture per rule #19 names.
+
+    def test_reports_an_own_code_id_naming_no_unit(self):
+        self.assertErrors(INVALID / "id-unknown", f"{REFS_FILE}: GIT-09.01 names no unit")
+
+    def test_reports_a_link_target_that_isnt_a_bare_sibling_filename(self):
+        self.assertErrors(
+            INVALID / "link-target-form",
+            "GIT-overview.md: link target ./GIT-02-history.md isn't a bare sibling filename or a same-file anchor",
+        )
+
+    def test_reports_a_link_target_naming_a_missing_file(self):
+        self.assertErrors(
+            INVALID / "link-target-missing", "GIT-overview.md: link target GIT-02-commits.md names no file in the doc set"
+        )
+
+    def test_reports_a_prereq_that_points_forward(self):
+        self.assertErrors(INVALID / "prereq-forward", f"{REFS_FILE}: Prereq GIT-02.01.01 doesn't come before GIT-01.01.02")
+
     # The other rules check enforces, each on a copy of the golden doc set.
+
+    def test_reports_an_own_code_token_that_isnt_an_id(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "Stops before history,", "Stops before history and GIT-7,")
+        self.assertErrors(doc_set, f"{REFS_FILE}: GIT-7 isn't an ID: each level is two digits from 01 to 99")
+
+    def test_passes_ids_in_code_and_in_links_out_of_the_curriculum(self):
+        doc_set = self.copy(GOLDEN)
+        replace(
+            doc_set / REFS_FILE,
+            "Stops before history,",
+            "Stops before history, `GIT-99`, [GIT-7 notes](https://example.com/GIT-99) and\n\n    GIT-98\n\nthen",
+        )
+        self.assertPasses(doc_set)
+
+    def test_reports_a_link_between_docs_naming_no_unit(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-notes.md", "None so far.", "None so far; see [the overview](GIT-overview.md).")
+        self.assertErrors(
+            doc_set,
+            "GIT-notes.md: link [the overview](GIT-overview.md) names no unit; write the unit's bare ID instead",
+        )
+
+    def test_reports_a_link_target_naming_a_missing_heading(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-overview.md", "(GIT-02-history.md)", "(GIT-02-history.md#merges)")
+        self.assertErrors(doc_set, f"GIT-overview.md: link target GIT-02-history.md#merges names no heading in {PART_2_FILE}")
+
+    def test_reports_a_url_encoded_link_target(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-overview.md", "(GIT-02-history.md)", "(GIT%2D02-history.md)")
+        self.assertErrors(
+            doc_set, "GIT-overview.md: link target GIT%2D02-history.md isn't a bare sibling filename or a same-file anchor"
+        )
+
+    def test_reports_a_prereq_naming_a_section(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "## Prereqs\n\n", "## Prereqs\n\n- GIT-01.01\n")
+        self.assertErrors(doc_set, f"{REFS_FILE}: Prereq GIT-01.01 names no Subsection")
+
+    def test_reports_a_prereq_naming_its_own_unit(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "## Prereqs\n\n", "## Prereqs\n\n- GIT-01.01.02\n")
+        self.assertErrors(doc_set, f"{REFS_FILE}: Prereq GIT-01.01.02 doesn't come before GIT-01.01.02")
+
+    def test_reports_a_prereq_with_a_qualifier(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / ANCESTRY_FILE, "- MATH-03.01.02\n", "- MATH-03.01.02\n- GIT-01.01.01 (preview)\n")
+        self.assertErrors(doc_set, f"{ANCESTRY_FILE}: Prereqs entry `GIT-01.01.01 (preview)` isn't an ID alone")
+
+    def test_reports_a_prereq_in_another_curriculum_that_isnt_a_subsection_id(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / ANCESTRY_FILE, "- MATH-03.01.02\n", "- MATH-03.01\n")
+        self.assertErrors(doc_set, f"{ANCESTRY_FILE}: Prereq MATH-03.01 isn't a Subsection ID")
+
+    def test_reports_prereqs_that_arent_bullets(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / ANCESTRY_FILE, "- MATH-03.01.02\n", "- MATH-03.01.02\n\nAnd some prose.\n")
+        self.assertErrors(doc_set, f"{ANCESTRY_FILE}: Field Prereqs holds content other than bullets, or None alone")
+
+    def test_reports_a_hand_edit_to_a_nav_line(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / ANCESTRY_FILE, " · Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md)", "")
+        self.assertErrors(
+            doc_set, f"{ANCESTRY_FILE}: derived content differs from what derive writes; edit its source and run derive"
+        )
 
     def test_reports_an_unknown_field(self):
         doc_set = self.copy(GOLDEN)
@@ -283,13 +373,13 @@ class Check(TempDirTestCase):
 
     def test_reports_a_section_with_no_subsection(self):
         doc_set = self.copy(GOLDEN)
-        (doc_set / SUBSECTION_FILE).unlink()
-        self.assertErrors(doc_set, f"{SECTION_FILE}: GIT-01.01 has no Subsection")
+        (doc_set / "GIT-01.02.01-the-index-as-a-staging-snapshot.md").unlink()
+        self.assertErrors(doc_set, "GIT-01.02-the-index.md: GIT-01.02 has no Subsection")
 
     def test_reports_a_doc_set_with_no_part(self):
         doc_set = self.copy(GOLDEN)
-        for name in (PART_FILE, SECTION_FILE, SUBSECTION_FILE):
-            (doc_set / name).unlink()
+        for path in doc_set.glob("GIT-0*.md"):
+            path.unlink()
         self.assertErrors(doc_set, "index.md: the doc set has no Part")
 
     def test_reports_only_the_bad_h1_of_a_unit_with_children(self):
@@ -332,7 +422,7 @@ class Check(TempDirTestCase):
         self.assertErrors(
             doc_set,
             f"{SUBSECTION_FILE}: GIT-01.01.01 has no Section GIT-01.01",
-            f"{PART_FILE}: GIT-01 has no Section",
+            "GIT-01.01.02-refs.md: GIT-01.01.02 has no Section GIT-01.01",
         )
 
     def assertPasses(self, doc_set):
@@ -407,6 +497,62 @@ class Derive(TempDirTestCase):
 
     def test_stops_on_an_error_check_reports(self):
         self.assertStops(INVALID / "field-missing", f"derive: {SUBSECTION_FILE}: required Field Goal is missing")
+
+    def test_stops_on_a_link_error(self):
+        self.assertStops(INVALID / "id-unknown", f"derive: {REFS_FILE}: GIT-09.01 names no unit")
+
+    def test_links_a_bare_id_and_refreshes_a_link_it_wrote(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_2_FILE, "[GIT-01.01 Objects](GIT-01.01-objects.md)", "[GIT-01.01 Old title](GIT-01.01-objects.md)")
+        replace(doc_set / "GIT-notes.md", "None so far.", "None so far, beyond GIT-01.02.")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(filecmp.cmp(doc_set / PART_2_FILE, GOLDEN / PART_2_FILE, shallow=False))
+        self.assertIn(
+            "None so far, beyond [GIT-01.02 The index](GIT-01.02-the-index.md).\n",
+            (doc_set / "GIT-notes.md").read_text(encoding="utf-8"),
+        )
+        self.assertPasses(doc_set)
+
+    def test_twice_gives_no_diff(self):
+        doc_set = self.copy(GOLDEN)
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(filecmp.dircmp(doc_set, GOLDEN).diff_files, [])
+
+    def write_math(self, name="math"):
+        """A second Curriculum beside the copied doc set, holding the Subsection its Prereq names."""
+        math = self.tmp / name
+        math.mkdir()
+        (math / "index.md").write_text("# Mathematics (MATH)\n", encoding="utf-8")
+        (math / "MATH-03.01.02-reachability.md").write_text(
+            "# MATH-03.01.02 Reachability\n\n## Goal\n\nA vertex reaches another when a path joins them, "
+            "as in [MATH-03.01.01 Paths](MATH-03.01.01-paths.md).\n",
+            encoding="utf-8",
+        )
+
+    def test_copies_a_prereq_from_another_curriculum_beside_the_doc_set(self):
+        doc_set = self.copy(GOLDEN)
+        self.write_math()
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "- MATH-03.01.02 Reachability: A vertex reaches another when a path joins them, as in MATH-03.01.01 Paths.\n",
+            (doc_set / ANCESTRY_FILE).read_text(encoding="utf-8"),
+        )
+        self.assertPasses(doc_set)
+
+    def test_keeps_a_prereq_whose_code_two_curricula_beside_it_share(self):
+        doc_set = self.copy(GOLDEN)
+        self.write_math("math")
+        self.write_math("math-old")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(filecmp.dircmp(doc_set, GOLDEN).diff_files, [])
+
+    def assertPasses(self, doc_set):
+        result = run("check", doc_set)
+        self.assertEqual((result.returncode, result.stdout), (0, ""))
 
     def test_leaves_alone_docs_with_nothing_to_derive(self):
         doc_set = self.copy(GOLDEN)

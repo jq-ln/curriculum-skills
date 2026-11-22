@@ -11,7 +11,8 @@ script never reads: FORMAT_VERSION and the rules below are kept in step with it,
 and CI fails when FORMAT_VERSION drifts. Standard library only.
 
 Appendices are recognised by filename and H1 only: split doesn't take them from
-a Draft, check doesn't check their Fields, and derive leaves them as they are.
+a Draft, check doesn't check their Fields, and derive only links the unit IDs in
+their prose.
 """
 
 import argparse
@@ -39,7 +40,14 @@ UNIT_TYPES = {1: PART, 2: SECTION, 3: SUBSECTION}
 # Fields this script doesn't derive yet are left out, so writing one by hand is
 # an unknown-Field error rather than content the script silently ignores.
 FIELDS = {
-    INDEX: [("Intro", True), ("Snapshot", True), ("Target version", False), ("Format version", True)],
+    INDEX: [
+        ("Intro", True),
+        ("Snapshot", True),
+        ("Target version", False),
+        ("Format version", True),
+        ("Counts", True),
+        ("Parts", True),
+    ],
     OVERVIEW: [("Methodology", True), ("Ordering rationale", True)],
     TAGS: [],
     SOURCES: [("Families", True), ("Abbreviations", True)],
@@ -50,8 +58,8 @@ FIELDS = {
         ("Build notes", True),
         ("Open questions", False),
     ],
-    PART: [("Intro", True)],
-    SECTION: [("Generators", True)],
+    PART: [("Intro", True), ("Sections", True)],
+    SECTION: [("Generators", True), ("Subsections", True)],
     SUBSECTION: [
         ("Context", True),
         ("Goal", True),
@@ -67,7 +75,10 @@ FIELDS = {
 }
 # Fields derive writes. A missing one isn't a Field error: derive adds it, and check reports it
 # as derived content that differs from what derive writes.
-DERIVED_FIELDS = {"Context"}
+DERIVED_FIELDS = {"Context", "Counts", "Parts", "Sections", "Subsections"}
+# Fields whose content isn't authored prose, so markers in them aren't linked: the derived ones,
+# Prereqs, whose IDs derive links as entries, and Format version.
+NOT_PROSE = DERIVED_FIELDS | {"Prereqs", "Format version"}
 # Doc types whose H2s after their Fields are free content. In the tags doc every H2 is a tag.
 FREE_H2 = {NOTES, APPENDIX}
 
@@ -571,23 +582,359 @@ def format_version_errors(ds):
     return []
 
 
+# --- Links -------------------------------------------------------------------
+
+# The format doc's unit marker, and an own-code token: an ID-shaped run the marker must match at its start.
+MARKER_RE = re.compile(rf"\b{CODE}-[0-9]{{2}}(?:\.[0-9]{{2}}){{0,2}}(?![.-]?\w)")
+# Inline spans in a paragraph, tried in this order at each position. Only `id` matches are
+# prose; a code span, autolink, raw HTML or link (text and destination) is kept as it is.
+INLINE_RE = re.compile(
+    r"""
+    (?P<code>(?P<ticks>`+).*?(?<!`)(?P=ticks)(?!`))
+    | `+  # a backtick run with no closing run is literal text
+    | <[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*>  # autolink
+    | <[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>  # email autolink
+    | <!--.*?--> | </?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>  # raw HTML
+    | (?P<link>(?P<bang>!?)\[(?P<text>(?:[^\[\]\\]|\\.)*)\]\(\s*(?P<dest><[^<>\n]*>|[^\s()]*)(?:\s+(?:"[^"]*"|'[^']*'))?\s*\))
+    | \\.  # an escaped character
+    | (?P<id>\b[A-Z][A-Z0-9]*-[0-9][0-9.-]*\w*)
+    """,
+    re.S | re.X,
+)
+SCHEME_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
+LIST_ITEM_RE = re.compile(r" {0,3}([-+*]|[0-9]{1,9}[.)])([ \t]|$)")
+
+
+def prose_chunks(text):
+    """Split a Field's content into (is_prose, text) runs, so code blocks and HTML blocks stay out.
+
+    Indented code is a run indented 4+ spaces after a blank line, outside a list,
+    which approximates CommonMark as scan_lines() does.
+    """
+    chunks = []  # [is_prose, text]
+    fence, html_end, blank, in_list = None, None, True, False
+    for line in text.splitlines(keepends=True):
+        prose = False
+        m = FENCE_RE.match(line)
+        if html_end:
+            if html_end.search(line):
+                html_end = None
+        elif fence:
+            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not line[m.end():].strip():
+                fence = None
+        elif m and not (m.group(1)[0] == "`" and "`" in line[m.end():]):
+            fence = m.group(1)
+        elif any(start.match(line) for start, _ in HTML_BLOCKS):
+            start, end = next((s, e) for s, e in HTML_BLOCKS if s.match(line))
+            if not end.search(line, start.match(line).end()):
+                html_end = end
+        elif blank and not in_list and line.startswith(("    ", "\t")) and line.strip():
+            pass  # indented code
+        else:
+            prose = True
+        if line.strip() and line[0] not in " \t":
+            in_list = bool(LIST_ITEM_RE.match(line))
+        blank = not line.strip()
+        if chunks and chunks[-1][0] == prose:
+            chunks[-1][1] += line
+        else:
+            chunks.append([prose, line])
+    return chunks
+
+
+def own_unit(ds, word):
+    """The UnitId an own-code word names, if it names a unit in the doc set."""
+    uid = parse_id(word)
+    return uid if uid and uid.code == ds.code and uid in ds.units else None
+
+
+def unit_link(ds, uid):
+    return f"[{uid} {ds.title(uid)}]({ds.units[uid]})"
+
+
+def link_prose(ds, name, text, errors):
+    """text with every own-code marker linked and every unit link refreshed.
+
+    Appends (name, message) to errors for a malformed own-code token, an own-code ID
+    naming no unit, and a link between docs that's malformed, broken or names no unit.
+    """
+
+    def replace(m):
+        if m.group("id"):
+            token = m.group("id")
+            if not token.startswith(f"{ds.code}-"):
+                return token  # another Curriculum's code stays plain text
+            marker = MARKER_RE.match(text, m.start())
+            uid = parse_id(marker.group()) if marker else None
+            if not uid:
+                errors.append((name, not_an_id(token.rstrip(".-"))))
+                return token
+            if uid not in ds.unit_ids:
+                if not ds.bad_unit_id:  # a filename whose ID doesn't parse could be this unit
+                    errors.append((name, f"{uid} names no unit"))
+                return token
+            # Link the ID only; the rest of the token, such as a sentence's full stop, stays.
+            return (unit_link(ds, uid) if uid in ds.units else marker.group()) + token[marker.end() - m.start():]
+        if m.group("link") and not m.group("bang"):
+            dest = m.group("dest").strip("<>")
+            if SCHEME_RE.match(dest):
+                return m.group()  # a link out of the Curriculum is authored
+            problem = target_error(ds, name, dest)
+            words = m.group("text").split()
+            uid = own_unit(ds, words[0]) if words else None
+            if problem:
+                errors.append((name, problem))
+            elif not uid:
+                errors.append((name, f"link {m.group()} names no unit; write the unit's bare ID instead"))
+            else:
+                return unit_link(ds, uid)
+        return m.group()
+
+    return "".join(INLINE_RE.sub(replace, chunk) if prose else chunk for prose, chunk in prose_chunks(text))
+
+
+def target_error(ds, name, dest):
+    """Why a link target between docs is invalid, or None."""
+    file, _, anchor = dest.partition("#")
+    if not dest or "/" in file or "%" in dest or "\\" in dest or (not file and not anchor):
+        return f"link target {dest or '(empty)'} isn't a bare sibling filename or a same-file anchor"
+    target = file or name
+    if file and not (ds.root / file).is_file():
+        return f"link target {dest} names no file in the doc set"
+    if anchor and target in ds.docs and anchor not in anchors(ds.docs[target]):
+        return f"link target {dest} names no heading in {target}"
+    return None
+
+
+def anchors(doc):
+    """GitHub's anchor for each heading in a doc, with -1, -2, … for repeats."""
+    out, seen = set(), {}
+    for _, h in scan_lines(doc.head + [line for b in doc.blocks for line in b.lines]):
+        if not h:
+            continue
+        text = re.sub(r"!?\[((?:[^\[\]\\]|\\.)*)\]\([^)]*\)", r"\1", h[1])  # a link's text only
+        a = re.sub(r"[^\w\- ]", "", text.lower()).replace(" ", "-")
+        n = seen.get(a, 0)
+        seen[a] = n + 1
+        out.add(f"{a}-{n}" if n else a)
+    return out
+
+
+def prose_blocks(ds, name):
+    """The blocks of a doc whose content is authored prose."""
+    doc = ds.docs[name]
+    if ds.types[name] == TAGS:
+        return doc.blocks
+    return [b for b in doc.blocks if b.name not in NOT_PROSE]
+
+
+def link_errors(ds):
+    errors = []
+    for name in ds.docs:
+        for block in prose_blocks(ds, name):
+            link_prose(ds, name, "".join(block.lines[1:]), errors)
+    return errors
+
+
+# --- Prereqs -----------------------------------------------------------------
+
+
+def entries(body):
+    """A list Field's top-level bullets, each with the lines nested under it joined to it.
+
+    None when the body holds anything else, apart from blank lines.
+    """
+    out = []
+    for line in body.split("\n"):
+        if re.match(r"[-+*] ", line):
+            out.append(line[2:])
+        elif line.strip() and line[0] in " \t" and out:
+            out[-1] += "\n" + line
+        elif line.strip():
+            return None
+    return out
+
+
+def entry_text(entry):
+    """The format doc's entry text: the first link's text when the bullet starts with a link."""
+    m = INLINE_RE.match(entry)
+    return m.group("text") if m and m.group("link") and not m.group("bang") else entry
+
+
+def prereq_ids(ds, name):
+    """[(entry, UnitId or None)] for a Subsection's Prereqs, and the errors in it."""
+    doc = ds.docs[name]
+    uid = split_unit_h1(doc.h1)[0]
+    body = doc.field("Prereqs").body() if doc.field("Prereqs") else "None"
+    if body == "None":
+        return [], []
+    items = entries(body)
+    if items is None:
+        return [], [(name, "Field Prereqs holds content other than bullets, or None alone")]
+    out, errors = [], []
+    for entry in items:
+        text = entry_text(entry)
+        word = text.split()[0] if text.split() else ""
+        prereq = parse_id(word)
+        if not prereq:
+            errors.append((name, f"Prereqs entry `{entry}` doesn't start with an ID"))
+        elif prereq.code != ds.code:
+            if len(prereq.levels) != 3:
+                errors.append((name, f"Prereq {prereq} isn't a Subsection ID"))
+        elif entry == text and text != word:
+            errors.append((name, f"Prereqs entry `{entry}` isn't an ID alone"))
+        elif prereq not in ds.unit_ids or len(prereq.levels) != 3:
+            if not ds.bad_unit_id:
+                errors.append((name, f"Prereq {prereq} names no Subsection"))
+        elif prereq.levels >= uid.levels:
+            errors.append((name, f"Prereq {prereq} doesn't come before {uid}"))
+        out.append((entry, prereq))
+    return out, errors
+
+
+def prereq_errors(ds):
+    return [e for name, t in ds.types.items() if t == SUBSECTION for e in prereq_ids(ds, name)[1]]
+
+
+def one_line(body):
+    """A one-paragraph Field's content on one line."""
+    return " ".join(line.strip() for line in body.split("\n") if line.strip())
+
+
+def prereqs(ds, name, other):
+    """The Prereqs Field's content. other(code) finds another Curriculum's directory, or None."""
+    lines = []
+    for entry, uid in prereq_ids(ds, name)[0]:
+        if uid.code == ds.code:
+            lines.append(f"- {unit_link(ds, uid)}: {one_line(ds.doc(uid).field('Goal').body())}")
+        else:
+            lines.append(f"- {other_prereq(other(uid.code), uid) or entry}")
+    return "\n".join(lines) or "None"
+
+
+def other_prereq(root, uid):
+    """`<ID> <title>: <Goal>` for a Subsection of another Curriculum, links replaced by their text, or None."""
+    if root is None:
+        return None
+    files = list(root.glob(f"{uid}-*.md"))
+    if len(files) != 1:
+        return None
+    try:
+        doc = parse(read(files[0]))
+    except (BuildError, OSError):
+        return None
+    unit, goal = split_unit_h1(doc.h1), doc.field("Goal")
+    if not unit or unit[0] != uid or not goal or not goal.body():
+        return None
+    text = re.sub(r"!?\[((?:[^\[\]\\]|\\.)*)\]\([^)]*\)", r"\1", one_line(goal.body()))
+    return f"{uid} {unit[1]}: {text}"
+
+
+def other_curricula(root):
+    """A function from a code to the one directory beside root whose index.md H1 ends `(<CODE>)`."""
+    found = {}
+
+    def find(code):
+        if code not in found:
+            matches = []
+            for d in sorted(Path(root).resolve().parent.iterdir()):
+                if d == Path(root).resolve() or not (d / "index.md").is_file():
+                    continue
+                try:
+                    m = INDEX_H1_RE.fullmatch(parse(read(d / "index.md")).h1)
+                except (BuildError, OSError):
+                    continue
+                if m and m.group(2) == code:
+                    matches.append(d)
+            found[code] = matches[0] if len(matches) == 1 else None
+        return found[code]
+
+    return find
+
+
 # --- derive ------------------------------------------------------------------
 
 
-def derived(ds):
+def derived(ds, other=lambda code: None):
     """The new text of every doc whose derived content differs from what derive writes, by filename.
 
     Compares parsed text before and after, so a doc derive has nothing to change
-    in is left alone, whitespace and all.
+    in is left alone, whitespace and all. other(code) finds another Curriculum's
+    directory for a Prereq naming it; check passes none, so a Prereq with another
+    code is kept as it is and never compared.
     """
-    out = {}
+    before = {name: doc.text() for name, doc in ds.docs.items()}
+    # Link prose first, so every copy below takes the linked text.
+    for name in ds.docs:
+        for block in prose_blocks(ds, name):
+            new = link_prose(ds, name, "".join(block.lines[1:]), [])
+            if new != "".join(block.lines[1:]):
+                block.lines[1:] = new.splitlines(keepends=True)
+    subsections = sorted((uid for uid in ds.units if len(uid.levels) == 3), key=lambda u: u.levels)
     for name, doc in ds.docs.items():
-        before = doc.text()
-        if ds.types[name] == SUBSECTION:
+        doc_type = ds.types[name]
+        if doc_type == SUBSECTION:
+            uid = split_unit_h1(doc.h1)[0]
+            i = subsections.index(uid)
+            neighbours = (subsections[i - 1] if i else None, subsections[i + 1] if i + 1 < len(subsections) else None)
+            doc.head[1:] = ["\n", nav(ds, uid, *neighbours) + "\n", "\n"]
             set_field(doc, SUBSECTION, "Context", context(ds, doc))
-        if doc.text() != before:
-            out[name] = doc.text()
-    return out
+            set_field(doc, SUBSECTION, "Prereqs", prereqs(ds, name, other))
+        elif doc_type == SECTION:
+            set_field(doc, SECTION, "Subsections", subsection_list(ds, split_unit_h1(doc.h1)[0]))
+        elif doc_type == PART:
+            set_field(doc, PART, "Sections", section_list(ds, split_unit_h1(doc.h1)[0]))
+        elif doc_type == INDEX:
+            set_field(doc, INDEX, "Counts", counts(ds))
+            set_field(doc, INDEX, "Parts", parts_table(ds))
+    return {name: doc.text() for name, doc in ds.docs.items() if doc.text() != before[name]}
+
+
+def children(ds, uid):
+    return sorted((u for u in ds.units if u.levels[:-1] == uid.levels and len(u.levels) == len(uid.levels) + 1), key=lambda u: u.levels)
+
+
+def nav(ds, uid, prev, next_):
+    section, part = uid.parent(), uid.parent().parent()
+    slots = ["[Index](index.md)", f"[{part}]({ds.units[part]})", f"[{section}]({ds.units[section]})"]
+    if prev:
+        slots.append(f"Prev [{prev}]({ds.units[prev]})")
+    if next_:
+        slots.append(f"Next [{next_}]({ds.units[next_]})")
+    return " · ".join(slots)
+
+
+def indented(body):
+    """A list Field's content nested one level, as under a bullet."""
+    return ["  " + line if line.strip() else line for line in body.split("\n")]
+
+
+def subsection_list(ds, section):
+    return "\n".join(
+        f"- {unit_link(ds, uid)}: {one_line(ds.doc(uid).field('Goal').body())}" for uid in children(ds, section)
+    )
+
+
+def section_list(ds, part):
+    lines = []
+    for uid in children(ds, part):
+        lines.append(f"- {unit_link(ds, uid)}")
+        lines += indented(ds.doc(uid).field("Generators").body())
+    return "\n".join(lines)
+
+
+def counts(ds):
+    n = [sum(len(uid.levels) == level for uid in ds.units) for level in (1, 2, 3)]
+    return f"- Parts: {n[0]}\n- Sections: {n[1]}\n- Subsections: {n[2]}"
+
+
+def parts_table(ds):
+    lines = ["| Part | Title | Sections | Subsections |", "| --- | --- | --- | --- |"]
+    for part in sorted((u for u in ds.units if len(u.levels) == 1), key=lambda u: u.levels):
+        sections = children(ds, part)
+        subsections = sum(len(children(ds, s)) for s in sections)
+        lines.append(f"| [{part}]({ds.units[part]}) | {ds.title(part)} | {len(sections)} | {subsections} |")
+    return "\n".join(lines)
 
 
 def set_field(doc, doc_type, name, body):
@@ -600,9 +947,10 @@ def set_field(doc, doc_type, name, body):
         (i for i, b in enumerate(doc.blocks) if field_index(doc_type, b.name) > field_index(doc_type, name)),
         len(doc.blocks),
     )
+    before = doc.blocks[at - 1].lines if at else doc.head
+    if before[-1].strip():
+        before.append("\n")  # the last block of a doc has no blank line after it
     doc.blocks.insert(at, Block(name, lines))
-    if doc.head[-1].strip():
-        doc.head.append("\n")
 
 
 def context(ds, doc):
@@ -617,8 +965,7 @@ def context(ds, doc):
     lines.append(f"- Part: [{part} {ds.title(part)}]({ds.units[part]})")
     lines.append(f"- Section: [{section} {ds.title(section)}]({ds.units[section]})")
     lines.append("- Section Generators:")
-    generators = ds.doc(section).field("Generators").body()
-    lines += ["  " + line if line.strip() else line for line in generators.split("\n")]
+    lines += indented(ds.doc(section).field("Generators").body())
     return "\n".join(lines)
 
 
@@ -627,7 +974,7 @@ def derive(root):
     errors = errors_before_derive(ds)
     if errors:
         raise BuildError("\n".join(f"{n}: {m}" for n, m in errors))
-    for name, text in derived(ds).items():
+    for name, text in derived(ds, other_curricula(ds.root)).items():
         (ds.root / name).write_text(text, encoding="utf-8")
 
 
@@ -662,7 +1009,9 @@ def errors_before_derive(ds):
     if version:
         # The rest of the doc set may follow another format, which this script can't read.
         return [("index.md", e) for e in version]
-    return ds.errors + structure_errors(ds) + field_errors(ds)
+    errors = ds.errors + structure_errors(ds) + field_errors(ds)
+    # A missing or misnamed unit already reported would also break every link and Prereq naming it.
+    return errors or link_errors(ds) + prereq_errors(ds)
 
 
 def check(root):
