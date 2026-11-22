@@ -304,13 +304,32 @@ class Check(TempDirTestCase):
     def test_reports_a_filename_whose_slug_differs_from_the_title(self):
         self.assertErrors(
             INVALID / "filename-slug",
-            f"GIT-01.01.01-objects.md: filename should be {SUBSECTION_FILE}, from its title",
+            f"GIT-01.01.01-objects.md: filename should be {SUBSECTION_FILE}, from its title; run derive to rename it",
         )
 
     def test_reports_a_hand_edit_to_derived_content(self):
         self.assertErrors(
             INVALID / "context-edited",
-            f"{SUBSECTION_FILE}: derived content differs from what derive writes; edit its source and run derive",
+            f"{SUBSECTION_FILE}: Field Context has `2026-11-20` where derive writes `2026-11-19`; edit its source and run derive",
+        )
+
+    def test_reports_each_edited_span_of_derived_content(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "- Snapshot: 2026-11-19\n", "- Snapshot: 2026-11-19 (approx.)\n")
+        replace(doc_set / REFS_FILE, ": A commit pins a whole project state,", ": A commit pins a project state,")
+        replace(doc_set / "GIT-tags.md", "- Where: inline\n- Uses: 1\n", "- Where: inline\n- Uses: 7\n")
+        self.assertErrors(
+            doc_set,
+            f"{REFS_FILE}: Field Context has `(approx.)`, which derive doesn't write; edit its source and run derive",
+            f"{REFS_FILE}: Field Prereqs lacks `whole`, which derive writes; edit its source and run derive",
+            "GIT-tags.md: tag 2.46 has `7` where derive writes `1`; edit its source and run derive",
+        )
+
+    def test_reports_a_whitespace_edit_to_derived_content(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "  - A commit names one tree", "- A commit names one tree")
+        self.assertErrors(
+            doc_set, f"{REFS_FILE}: Field Context differs in whitespace from what derive writes; edit its source and run derive"
         )
 
     # One fixture per rule #19 names.
@@ -476,7 +495,11 @@ class Check(TempDirTestCase):
     def test_passes_an_entry_derive_added_naming_a_tag_no_longer_in_the_tags_doc(self):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / CAT_FILE, "(inline)\n", "(inline)\n- [2.44](GIT-tags.md#244): Gone. (from GIT-03)\n")
-        self.assertErrors(doc_set, f"{CAT_FILE}: derived content differs from what derive writes; edit its source and run derive")
+        self.assertErrors(
+            doc_set,
+            f"{CAT_FILE}: Field Tags has `- [2.44](GIT-tags.md#244): Gone. (from GIT-03)`, which derive doesn't write; "
+            "edit its source and run derive",
+        )
 
     # The other rules check enforces, each on a copy of the golden doc set.
 
@@ -507,7 +530,9 @@ class Check(TempDirTestCase):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / ANCESTRY_FILE, " · Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md)", "")
         self.assertErrors(
-            doc_set, f"{ANCESTRY_FILE}: derived content differs from what derive writes; edit its source and run derive"
+            doc_set,
+            f"{ANCESTRY_FILE}: the nav line lacks `· Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md)`, "
+            "which derive writes; edit its source and run derive",
         )
 
     def test_reports_content_beside_a_nav_line(self):
@@ -599,6 +624,29 @@ class Check(TempDirTestCase):
         doc_set = self.copy(GOLDEN)
         (doc_set / INDEX_SUBSECTION_FILE).unlink()
         self.assertErrors(doc_set, f"{INDEX_SECTION_FILE}: GIT-01.02 has no Subsection")
+
+    def test_reports_an_optional_field_written_as_none(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "## Scope\n", "## Generators\n\nNone\n\n## Scope\n")
+        replace(doc_set / "index.md", "## Target version\n\n2.47.1\n", "## Target version\n\nNone\n")
+        replace(doc_set / SECTION_FILE, "## Subsections\n", "## Tags\n\nNone\n\n## Subsections\n")
+        self.assertErrors(
+            doc_set,
+            *(f"{name}: Optional Field {field} is `None`; leave it out when empty"
+              for name, field in ((REFS_FILE, "Generators"), ("index.md", "Target version"), (SECTION_FILE, "Tags"))),
+        )
+
+    def test_reports_an_id_level_above_99(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "GIT-01.01.100-packs.md").write_text("# GIT-01.01.100 Packs\n", encoding="utf-8")
+        self.assertErrors(doc_set, "GIT-01.01.100-packs.md: GIT-01.01.100 isn't an ID: each level is two digits from 01 to 99")
+
+    def test_reports_a_part_with_no_section(self):
+        doc_set = self.copy(GOLDEN)
+        for path in doc_set.glob("GIT-02.*"):
+            path.unlink()
+        replace(doc_set / REFS_FILE, ", which [GIT-02.01.01 Ancestry](GIT-02.01.01-ancestry.md) covers", "")
+        self.assertErrors(doc_set, f"{PART_2_FILE}: GIT-02 has no Section")
 
     def test_reports_a_doc_set_with_no_part(self):
         doc_set = self.copy(GOLDEN)
@@ -903,7 +951,7 @@ class Derive(TempDirTestCase):
     def test_copies_an_edited_meaning_into_every_tags_field(self):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / "GIT-tags.md", "- Meaning: Checked against the release notes of Git 2.43.", "- Meaning: Checked against Git 2.43.")
-        stale = "derived content differs from what derive writes; edit its source and run derive"
+        stale = "Field Tags has `the release notes of`, which derive doesn't write; edit its source and run derive"
         self.assertErrors(doc_set, f"{INDEX_SECTION_FILE}: {stale}", f"{INDEX_SUBSECTION_FILE}: {stale}")
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -964,6 +1012,70 @@ class Derive(TempDirTestCase):
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(filecmp.dircmp(doc_set, GOLDEN).diff_files, [])
+
+    def test_twice_after_hand_edits_gives_no_diff(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / SECTION_FILE, "# GIT-01.01 Objects", "# GIT-01.01 Object store")
+        replace(doc_set / "GIT-notes.md", "None so far.", "None so far, beyond GIT-01.02 and {2.43}.")
+        self.assertEqual(run("derive", doc_set).returncode, 0)
+        once = {name: (doc_set / name).read_bytes() for name in tree(doc_set)}
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual({name: (doc_set / name).read_bytes() for name in tree(doc_set)}, once)
+
+    def test_renames_a_unit_whose_title_changed_and_relinks_it(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / SECTION_FILE, "# GIT-01.01 Objects", "# GIT-01.01 Object store")
+        self.assertErrors(
+            doc_set, f"{SECTION_FILE}: filename should be GIT-01.01-object-store.md, from its title; run derive to rename it"
+        )
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((doc_set / SECTION_FILE).exists())
+        self.assertIn("- [GIT-01.01 Object store](GIT-01.01-object-store.md)\n", (doc_set / PART_FILE).read_text(encoding="utf-8"))
+        self.assertIn("- Section: [GIT-01.01 Object store](GIT-01.01-object-store.md)\n", (doc_set / REFS_FILE).read_text(encoding="utf-8"))
+        self.assertIn(" · [GIT-01.01](GIT-01.01-object-store.md) · ", (doc_set / REFS_FILE).read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
+
+    def test_renames_a_misnamed_file_back_to_its_titles_filename(self):
+        doc_set = self.copy(INVALID / "filename-slug")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(filecmp.dircmp(doc_set, GOLDEN).diff_files, [])
+        self.assertEqual(tree(doc_set), tree(GOLDEN))
+
+    def test_relinks_prose_naming_a_renamed_unit(self):
+        doc_set = self.copy(GOLDEN)
+        old, new = "GIT-02.01.01-ancestry.md", "GIT-02.01.01-ancestry-and-reachability.md"
+        replace(doc_set / ANCESTRY_FILE, "# GIT-02.01.01 Ancestry", "# GIT-02.01.01 Ancestry and reachability")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(sorted(p.name for p in doc_set.glob("GIT-02.01.01-*")), [new])
+        refs = (doc_set / REFS_FILE).read_text(encoding="utf-8")
+        self.assertIn(f"which [GIT-02.01.01 Ancestry and reachability]({new}) covers.", refs)
+        self.assertNotIn(old, "".join((doc_set / name).read_text(encoding="utf-8") for name in tree(doc_set)))
+        self.assertPasses(doc_set)
+
+    def test_keeps_front_matter_on_a_doc_it_renames_and_rewrites(self):
+        doc_set = self.copy(GOLDEN)
+        front = "---\naliases: [Ancestry, GIT-01.01]\n---\n\n"
+        (doc_set / ANCESTRY_FILE).write_text(front + (doc_set / ANCESTRY_FILE).read_text(encoding="utf-8"), encoding="utf-8")
+        self.assertPasses(doc_set)
+        replace(doc_set / ANCESTRY_FILE, "# GIT-02.01.01 Ancestry", "# GIT-02.01.01 Reachability")
+        replace(doc_set / SECTION_FILE, "# GIT-01.01 Objects", "# GIT-01.01 Object store")  # changes its Prereqs' copies
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        text = (doc_set / "GIT-02.01.01-reachability.md").read_text(encoding="utf-8")
+        self.assertTrue(text.startswith(front + "# GIT-02.01.01 Reachability\n"), text[:200])
+        self.assertPasses(doc_set)
+
+    def test_renames_nothing_when_another_error_stops_it(self):
+        doc_set = self.copy(INVALID / "id-unknown")
+        replace(doc_set / SECTION_FILE, "# GIT-01.01 Objects", "# GIT-01.01 Object store")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"derive: {REFS_FILE}: GIT-09.01 names no unit", result.stderr.splitlines())
+        self.assertTrue((doc_set / SECTION_FILE).exists())
 
     def write_math(self, name="math"):
         """A second Curriculum beside the copied doc set, holding the Subsection its Prereq names."""
