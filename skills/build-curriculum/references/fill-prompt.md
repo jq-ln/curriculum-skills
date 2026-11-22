@@ -1,4 +1,4 @@
-<!-- Template for a fill agent. The orchestrator replaces every {{placeholder}} and sends the whole file, once per part file. -->
+<!-- Template for a fill agent. The orchestrator replaces every double-braced placeholder and sends the whole file, once per part file. -->
 
 # Fill: {{part}}, {{subject}}
 
