@@ -1532,19 +1532,27 @@ def edited_spans(ds, name, old):
     places = locations(doc, ds.types[name])
     suffix = "; edit its source and run derive"
     old_words, new_words = list(re.finditer(r"\S+", old)), list(re.finditer(r"\S+", new))
-    matcher = difflib.SequenceMatcher(None, [m.group() for m in old_words], [m.group() for m in new_words], autojunk=False)
+    new_tokens = [m.group() for m in new_words]
+    matcher = difflib.SequenceMatcher(None, [m.group() for m in old_words], new_tokens, autojunk=False)
+    # Spans that still differ once stale copies of renamed units' titles are updated: the hand edits.
+    edits = []
+    if ds.renames:
+        fixed = re.findall(r"\S+", retitled(ds, old))
+        edits = [(j1, j2) for op, _, _, j1, j2 in difflib.SequenceMatcher(None, fixed, new_tokens, autojunk=False).get_opcodes() if op != "equal"]
     out = []
     for op, i1, i2, j1, j2 in matcher.get_opcodes():
         if op == "equal":
             continue
+        retitle = ds.renames and not any(k1 <= j2 and j1 <= k2 for k1, k2 in edits)
+        end = "; run derive to copy the new title" if retitle else suffix
         where = place(places, new_words[anchor(j1, j2)].start())
         was, now = quoted(old, old_words[i1:i2]), quoted(new, new_words[j1:j2])
         if op == "replace":
-            out.append(f"{where} has {was} where derive writes {now}{suffix}")
+            out.append(f"{where} has {was} where derive writes {now}{end}")
         elif op == "delete":
-            out.append(f"{where} has {was}, which derive doesn't write{suffix}")
+            out.append(f"{where} has {was}, which derive doesn't write{end}")
         else:
-            out.append(f"{where} lacks {now}, which derive writes{suffix}")
+            out.append(f"{where} lacks {now}, which derive writes{end}")
     if out:
         return out
     old_lines, new_lines = old.splitlines(keepends=True), new.splitlines(keepends=True)
@@ -1559,6 +1567,24 @@ def edited_spans(ds, name, old):
             if message not in out:
                 out.append(message)
     return out
+
+
+def retitled(ds, text):
+    """text with each copy of a renamed unit's old title replaced by its new one.
+
+    A copy is a link's text or an index table cell beside the unit's filename on disk.
+    Only a copy whose words give that filename counts, so a hand-edited copy stays as it is.
+    """
+    for old in ds.renames:
+        uid = ds.uid(old)
+        title, u, f = ds.title(uid), re.escape(str(uid)), re.escape(old)
+
+        def swap(m):
+            return title if unit_filename(uid, m.group()) == old else m.group()
+
+        text = re.sub(rf"(?<=\[{u} )[^\]\n]+(?=\]\({f}\))", swap, text)
+        text = re.sub(rf"(?<=\[{u}\]\({f}\) \| )[^|\n]+?(?= \|)", swap, text)
+    return text
 
 
 def anchor(j1, j2):

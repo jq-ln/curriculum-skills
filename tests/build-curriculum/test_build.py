@@ -1039,6 +1039,12 @@ class Derive(TempDirTestCase):
             f"{SECTION_FILE}: filename should be GIT-01.01-object-store.md, from its title; run derive to rename it",
             check.stdout.splitlines(),
         )
+        self.assertIn(
+            f"{PART_FILE}: Field Sections has `Objects]({SECTION_FILE})` where derive writes "
+            f"`Object store]({SECTION_FILE})`; run derive to copy the new title",
+            check.stdout.splitlines(),
+        )
+        self.assertNotIn("edit its source", check.stdout)
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse((doc_set / SECTION_FILE).exists())
@@ -1058,6 +1064,18 @@ class Derive(TempDirTestCase):
             result.stdout.splitlines(),
         )
         self.assertIn("GIT-tags.md: tag 2.46 has `9` where derive writes `1`; edit its source and run derive", result.stdout.splitlines())
+
+    def test_reports_a_hand_edited_copy_of_a_renamed_units_title(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / SECTION_FILE, "# GIT-01.01 Objects", "# GIT-01.01 Object store")
+        replace(doc_set / "GIT-02-history.md", f"Objects]({SECTION_FILE}).", f"Object model]({SECTION_FILE}).")
+        result = run("check", doc_set)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            f"GIT-02-history.md: Field Intro has `model]({SECTION_FILE}).` where derive writes "
+            f"`store]({SECTION_FILE}).`; edit its source and run derive",
+            result.stdout.splitlines(),
+        )
 
     def test_renames_a_misnamed_file_back_to_its_titles_filename(self):
         doc_set = self.copy(INVALID / "filename-slug")
