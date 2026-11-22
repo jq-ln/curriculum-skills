@@ -96,6 +96,40 @@ class Split(TempDirTestCase):
         replace(draft / "outline.md", "# GIT-01 Repository internals", "# GIT-01 ———")
         self.assertStops(draft, "split: outline.md: # GIT-01 ———: title has an empty slug")
 
+    def test_stops_on_an_id_with_a_00_level(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "outline.md", "# GIT-01 Repository internals", "# GIT-00 Repository internals")
+        self.assertStops(
+            draft,
+            "split: outline.md: # GIT-00 Repository internals: GIT-00 isn't an ID: each level is two digits from 01 to 99",
+        )
+
+    def test_names_the_file_with_text_before_its_first_h1(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "part-01.md", "# GIT-01.01.01", "Stray text.\n\n# GIT-01.01.01")
+        self.assertStops(draft, "split: part-01.md: doesn't start with an H1")
+
+    def test_names_the_file_with_a_setext_heading(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "outline.md", "None so far.\n", "None so far.\n---\n")
+        self.assertStops(draft, "split: outline.md: has a setext heading, `None so far.` over `---`; use an ATX heading")
+
+    def test_reads_a_draft_file_that_starts_with_a_blank_line(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "outline.md", "# Git (GIT)\n", "\n# Git (GIT)\n")
+        out = self.tmp / "git"
+        result = run("split", draft, out)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(filecmp.cmp(out / "index.md", GOLDEN / "index.md", shallow=False))
+
+    def test_writes_an_empty_field_with_one_blank_line_after_it(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "outline.md", "## Target version\n\n2.47.1\n", "## Target version\n")
+        out = self.tmp / "git"
+        result = run("split", draft, out)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("## Target version\n\n## Format version\n", (out / "index.md").read_text(encoding="utf-8"))
+
 
 class Check(TempDirTestCase):
     def assertErrors(self, doc_set, *lines):
@@ -164,6 +198,11 @@ class Check(TempDirTestCase):
             f.write("\n## Intro\n\nA second intro.\n")
         self.assertErrors(doc_set, f"{PART_FILE}: Field Intro appears more than once")
 
+    def test_reports_a_repeated_field_apart_from_its_first_copy_as_repeated(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "index.md", "## Target version", "## Intro\n\nA second intro.\n\n## Target version")
+        self.assertErrors(doc_set, "index.md: Field Intro appears more than once")
+
     def test_reports_a_field_out_of_order(self):
         doc_set = self.copy(GOLDEN)
         overview = doc_set / "GIT-overview.md"
@@ -214,10 +253,59 @@ class Check(TempDirTestCase):
         (doc_set / "GIT-notes.md").unlink()
         self.assertErrors(doc_set, "GIT-notes.md: is missing")
 
+    def test_reports_a_section_with_no_subsection(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / SUBSECTION_FILE).unlink()
+        self.assertErrors(doc_set, f"{SECTION_FILE}: GIT-01.01 has no Subsection")
+
+    def test_reports_a_doc_set_with_no_part(self):
+        doc_set = self.copy(GOLDEN)
+        for name in (PART_FILE, SECTION_FILE, SUBSECTION_FILE):
+            (doc_set / name).unlink()
+        self.assertErrors(doc_set, "index.md: the doc set has no Part")
+
+    def test_reports_only_the_bad_h1_of_a_unit_with_children(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / SECTION_FILE, "# GIT-01.01 Objects", "# GIT-01.02 Objects")
+        self.assertErrors(doc_set, f"{SECTION_FILE}: H1 ID GIT-01.02 differs from the filename's ID GIT-01.01")
+
+    def test_reports_a_setext_heading(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_FILE, "changes it.\n", "changes it.\n---\n")
+        self.assertErrors(doc_set, f"{PART_FILE}: has a setext heading, `What a repository holds on disk, before any command that changes it.` over `---`; use an ATX heading")
+
+    def test_passes_a_thematic_break_after_a_blank_line(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_FILE, "changes it.\n", "changes it.\n\n---\n\nMore.\n")
+        result = run("check", doc_set)
+        self.assertEqual((result.returncode, result.stdout), (0, ""))
+
+    def test_reports_section_generators_with_content_other_than_bullets(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / SECTION_FILE, "## Generators\n\n", "## Generators\n\nThe base facts:\n\n")
+        self.assertErrors(doc_set, f"{SECTION_FILE}: Field Generators holds content other than bullets")
+
+    def test_passes_an_appendix(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "GIT-appendix-glossary.md").write_text(
+            "# GIT Appendix: Glossary\n\n## Purpose\n\nTerms the units share.\n", encoding="utf-8"
+        )
+        result = run("check", doc_set)
+        self.assertEqual((result.returncode, result.stdout), (0, ""))
+
+    def test_reports_an_appendix_with_a_bad_h1(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "GIT-appendix-glossary.md").write_text("# Glossary\n", encoding="utf-8")
+        self.assertErrors(doc_set, "GIT-appendix-glossary.md: H1 `# Glossary` isn't `# GIT Appendix: <title>`")
+
     def test_reports_a_unit_whose_parent_is_missing(self):
         doc_set = self.copy(GOLDEN)
         (doc_set / SECTION_FILE).unlink()
-        self.assertErrors(doc_set, f"{SUBSECTION_FILE}: GIT-01.01.01 has no Section GIT-01.01")
+        self.assertErrors(
+            doc_set,
+            f"{SUBSECTION_FILE}: GIT-01.01.01 has no Section GIT-01.01",
+            f"{PART_FILE}: GIT-01 has no Section",
+        )
 
 
 class Derive(TempDirTestCase):

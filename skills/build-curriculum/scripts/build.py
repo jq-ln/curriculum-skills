@@ -9,6 +9,9 @@ Subcommands:
 Follows the curriculum format in ../references/curriculum-format.md, which this
 script never reads: FORMAT_VERSION and the rules below are kept in step with it,
 and CI fails when FORMAT_VERSION drifts. Standard library only.
+
+Appendices are recognised by filename and H1 only: split doesn't take them from
+a Draft, check doesn't check their Fields, and derive leaves them as they are.
 """
 
 import argparse
@@ -29,6 +32,7 @@ NOTES = "Notes doc"
 PART = "Part"
 SECTION = "Section"
 SUBSECTION = "Subsection"
+APPENDIX = "Appendix"
 UNIT_TYPES = {1: PART, 2: SECTION, 3: SUBSECTION}
 
 # Each Doc type's Fields in their fixed order, with whether each is required.
@@ -59,20 +63,26 @@ FIELDS = {
         ("Check", True),
         ("Sources", True),
     ],
+    APPENDIX: [],  # its Fields aren't read yet, so every H2 in it is free content
 }
 # Fields derive writes. A missing one isn't a Field error: derive adds it, and check reports it
 # as derived content that differs from what derive writes.
 DERIVED_FIELDS = {"Context"}
 # Doc types whose H2s after their Fields are free content. In the tags doc every H2 is a tag.
-FREE_H2 = {NOTES}
+FREE_H2 = {NOTES, APPENDIX}
 
 CODE = r"[A-Z][A-Z0-9]*"
 ID_RE = re.compile(rf"({CODE})-(\d{{2}})(?:\.(\d{{2}}))?(?:\.(\d{{2}}))?")
 INDEX_H1_RE = re.compile(rf"(.+) \(({CODE})\)")
 NAMED_H1_RE = re.compile(rf"({CODE}) (Overview|Tags|Sources|Notes)")
 NAMED_TYPES = {"Overview": OVERVIEW, "Tags": TAGS, "Sources": SOURCES, "Notes": NOTES}
+APPENDIX_H1_RE = re.compile(rf"({CODE}) Appendix: (.+)")
+DESCRIPTION = r"[a-z0-9]+(?:-[a-z0-9]+)*"
 HEADING_RE = re.compile(r"(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*")
 FENCE_RE = re.compile(r" {0,3}(`{3,}|~{3,})")
+SETEXT_RE = re.compile(r" {0,3}(=+|-+)[ \t]*")
+# Lines that start a block other than a paragraph, so a `---` under them is a thematic break.
+NON_PARAGRAPH_RE = re.compile(r" {0,3}([-+*]|\d{1,9}[.)])([ \t]|$)| {0,3}[>|<]")
 MARKSMAN = ".marksman.toml"
 # Deriving copies titles unescaped into link text and table rows, which these would break.
 FORBIDDEN_IN_TITLE = "[]|\\<&`"
@@ -98,19 +108,37 @@ def heading(line):
 
 
 def scan_lines(lines):
-    """Yield (line, heading-or-None), skipping headings inside fenced code."""
+    """Yield (line, heading-or-None), skipping headings inside fenced code.
+
+    Raises BuildError on a setext heading. A paragraph is approximated as a run of
+    non-blank lines that starts in column 0-3 and holds no list item, blockquote,
+    table row, HTML or heading.
+    """
     fence = None
+    paragraph = None  # the current run of non-blank lines, while it can be a paragraph
     for line in lines:
         m = FENCE_RE.match(line)
         if fence:
             if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not line[m.end():].strip():
                 fence = None
             yield line, None
-        elif m and not (m.group(1)[0] == "`" and "`" in line[m.end():]):
-            fence = m.group(1)
+            continue
+        if m and not (m.group(1)[0] == "`" and "`" in line[m.end():]):
+            fence, paragraph = m.group(1), None
             yield line, None
-        else:
-            yield line, heading(line)
+            continue
+        h = heading(line)
+        if not line.strip():
+            paragraph = None
+        elif paragraph and SETEXT_RE.fullmatch(line.rstrip("\n")):
+            raise BuildError(f"has a setext heading, `{paragraph[-1].strip()}` over `{line.strip()}`; use an ATX heading")
+        elif SETEXT_RE.fullmatch(line.rstrip("\n")) and "-" in line:
+            paragraph = None  # a thematic break, which ends the block
+        elif h or NON_PARAGRAPH_RE.match(line) or (paragraph is None and line.startswith(("    ", "\t"))):
+            paragraph = False
+        elif paragraph is not False:
+            paragraph = (paragraph or []) + [line]
+        yield line, h
 
 
 @dataclass
@@ -174,7 +202,7 @@ def split_draft(text):
     """Split a Draft file into one Doc per top-level H1."""
     docs, chunk = [], []
     for line, h in scan_lines(text.splitlines(keepends=True)):
-        if h and h[0] == 1 and chunk:
+        if h and h[0] == 1 and "".join(chunk).strip():
             docs.append(parse("".join(chunk)))
             chunk = []
         chunk.append(line)
@@ -203,11 +231,16 @@ class UnitId:
 
 
 def parse_id(text):
-    """The UnitId text is exactly, or None."""
+    """The UnitId text is exactly, or None. A level of 00 isn't an ID."""
     m = ID_RE.fullmatch(text)
     if not m:
         return None
-    return UnitId(m.group(1), tuple(int(g) for g in m.groups()[1:] if g is not None))
+    levels = tuple(int(g) for g in m.groups()[1:] if g is not None)
+    return None if 0 in levels else UnitId(m.group(1), levels)
+
+
+def not_an_id(text):
+    return f"{text} isn't an ID: each level is two digits from 01 to 99"
 
 
 def split_unit_h1(h1):
@@ -286,9 +319,16 @@ def split(draft_dir, out_dir):
     keys = {}  # H1 key -> filename, so a part file's unit merges into the Outline's
     code = None
     for path in files:
-        for doc in split_draft(path.read_text(encoding="utf-8")):
+        try:
+            docs = split_draft(path.read_text(encoding="utf-8"))
+        except BuildError as e:
+            raise BuildError(f"{path.name}: {e}") from None
+        for doc in docs:
             where = f"{path.name}: # {doc.h1}"
             kind = doc_type_of_h1(doc.h1)
+            token = doc.h1.split(" ", 1)[0]
+            if not kind and ID_RE.fullmatch(token):
+                raise BuildError(f"{where}: {not_an_id(token)}")
             if not kind:
                 raise BuildError(f"{where}: not the H1 of any Doc type")
             doc_type, doc_code, uid = kind
@@ -333,7 +373,7 @@ def render(doc_type, doc):
     out = [doc.head[0], "\n"]
     for block in doc.blocks:
         body = str(FORMAT_VERSION) if block.name == "Format version" else block.body()
-        out += [f"## {block.name}\n", "\n", body + "\n", "\n"]
+        out += [f"## {block.name}\n", "\n"] + ([body + "\n", "\n"] if body else [])
     return "".join(out).rstrip("\n") + "\n"
 
 
@@ -347,6 +387,8 @@ class DocSet:
     docs: dict = dataclass_field(default_factory=dict)  # filename -> Doc
     types: dict = dataclass_field(default_factory=dict)  # filename -> doc type
     units: dict = dataclass_field(default_factory=dict)  # UnitId -> filename
+    unit_ids: set = dataclass_field(default_factory=set)  # every UnitId a filename names, readable or not
+    bad_unit_id: bool = False  # some unit filename has an ID that doesn't parse, so its place is unknown
     errors: list = dataclass_field(default_factory=list)  # (filename, message)
 
     def error(self, name, message):
@@ -383,6 +425,7 @@ def load(root):
 
     named = {f"{ds.code}-{w.lower()}.md": (t, f"{ds.code} {w}") for w, t in NAMED_TYPES.items()}
     unit_name = re.compile(rf"({re.escape(ds.code)}-[0-9][0-9.]*)-(.+)\.md")
+    appendix_name = re.compile(rf"{re.escape(ds.code)}-appendix-{DESCRIPTION}\.md")
     for path in sorted(root.iterdir()):
         name = path.name
         if name in ("index.md", MARKSMAN):
@@ -393,12 +436,16 @@ def load(root):
         m = unit_name.fullmatch(name)
         if name in named:
             (doc_type, h1), uid = named[name], None
+        elif appendix_name.fullmatch(name):
+            doc_type, h1, uid = APPENDIX, None, None
         elif m:
             uid = parse_id(m.group(1))
-            if not uid or 0 in uid.levels:
-                ds.error(name, f"{m.group(1)} isn't an ID: each level is two digits from 01 to 99")
+            if not uid:
+                ds.error(name, not_an_id(m.group(1)))
+                ds.bad_unit_id = True
                 continue
-            doc_type = uid.doc_type
+            doc_type, h1 = uid.doc_type, None
+            ds.unit_ids.add(uid)
         else:
             ds.error(name, "isn't a doc set filename")
             continue
@@ -409,7 +456,9 @@ def load(root):
             continue
         if uid and not unit_h1_ok(ds, name, uid, doc):
             continue  # without a readable H1 the unit can't be placed or copied from
-        if not uid and doc.h1 != h1:
+        if doc_type == APPENDIX and not appendix_h1_ok(ds, name, doc):
+            continue
+        if h1 and doc.h1 != h1:
             ds.error(name, f"H1 `# {doc.h1}` isn't `# {h1}`")
             continue
         ds.docs[name], ds.types[name] = doc, doc_type
@@ -439,6 +488,17 @@ def unit_h1_ok(ds, name, uid, doc):
         ds.error(name, error)
     if not errors and name != unit_filename(uid, title):
         ds.error(name, f"filename should be {unit_filename(uid, title)}, from its title")
+    return True
+
+
+def appendix_h1_ok(ds, name, doc):
+    """Check an Appendix's H1, recording any error."""
+    m = APPENDIX_H1_RE.fullmatch(doc.h1)
+    if not m or m.group(1) != ds.code:
+        ds.error(name, f"H1 `# {doc.h1}` isn't `# {ds.code} Appendix: <title>`")
+        return False
+    for error in title_errors(m.group(2), "Appendix title"):
+        ds.error(name, error)
     return True
 
 
@@ -512,11 +572,22 @@ def derive(root):
 
 
 def structure_errors(ds):
-    """A unit whose parent is missing."""
+    """A unit whose parent is missing, a Part or Section with no child, or no Part at all.
+
+    Tested against every ID a filename names, so a unit with an unreadable doc,
+    already reported, doesn't also make its children or parent report. A filename
+    whose ID doesn't parse could be any unit's child, so then no unit reports a
+    missing child.
+    """
     errors = []
+    parents = {uid.parent() for uid in ds.unit_ids if len(uid.levels) > 1}
     for uid, name in sorted(ds.units.items(), key=lambda kv: kv[0].levels):
-        if len(uid.levels) > 1 and uid.parent() not in ds.units:
+        if len(uid.levels) > 1 and uid.parent() not in ds.unit_ids:
             errors.append((name, f"{uid} has no {UNIT_TYPES[len(uid.levels) - 1]} {uid.parent()}"))
+        if len(uid.levels) < 3 and uid not in parents and not ds.bad_unit_id:
+            errors.append((name, f"{uid} has no {UNIT_TYPES[len(uid.levels) + 1]}"))
+    if not ds.bad_unit_id and not any(len(uid.levels) == 1 for uid in ds.unit_ids):
+        errors.append(("index.md", "the doc set has no Part"))
     return errors
 
 
@@ -556,7 +627,7 @@ def field_errors(ds):
         if doc_type == TAGS:
             continue  # every H2 in the tags doc is a tag
         order = [n for n, _ in FIELDS[doc_type]]
-        last, free = -1, None
+        last, free, seen = -1, None, set()
         for block in doc.blocks:
             if block.name not in order:
                 if doc_type in FREE_H2:
@@ -567,15 +638,25 @@ def field_errors(ds):
             i = order.index(block.name)
             if free:
                 errors.append((name, f"Field {block.name} comes after free content {free}"))
-            elif i == last:
+            elif block.name in seen:
                 errors.append((name, f"Field {block.name} appears more than once"))
             elif i < last:
                 errors.append((name, f"Field {block.name} is out of order"))
             last = max(last, i)
+            seen.add(block.name)
+        generators = doc.field("Generators") if doc_type == SECTION else None
+        if generators and not bullets_only(generators.body()):
+            # Context copies the whole Field as the Section Generators, which are its bullets only.
+            errors.append((name, "Field Generators holds content other than bullets"))
         for field_name, required in FIELDS[doc_type]:
             if required and field_name not in DERIVED_FIELDS and not doc.field(field_name):
                 errors.append((name, f"required Field {field_name} is missing"))
     return errors
+
+
+def bullets_only(body):
+    """Whether every line is a top-level bullet, a line indented under one, or blank."""
+    return all(re.match(r"[-+*] |[ \t]", line) or not line.strip() for line in body.split("\n"))
 
 
 # --- CLI ---------------------------------------------------------------------
