@@ -29,6 +29,8 @@ INDEX_SECTION_FILE = "GIT-01.02-the-index.md"
 INDEX_SUBSECTION_FILE = "GIT-01.02.01-the-index-as-a-staging-snapshot.md"
 SECTION_FILE = "GIT-01.01-objects.md"
 CAT_FILE = "GIT-03.01.01-cat-file.md"  # in the Optional Part, using a tag inline
+APPENDIX_FILE = "GIT-appendix-manual-coverage.md"  # applies to GIT-01 and GIT-02.01
+COMMIT_GRAPH_FILE = "GIT-02.01-the-commit-graph.md"
 
 
 def run(*args):
@@ -109,6 +111,12 @@ class Split(TempDirTestCase):
         replace(draft / "part-01.md", h1, h1 + "\nLead prose here.\n")
         self.assertStops(draft, f"split: part-01.md: # GIT-01.01.01 {SUBSECTION_TITLE}: has content before its first Field")
 
+    def test_stops_on_content_before_a_merge_blocks_first_field(self):
+        draft = self.copy(DRAFT)
+        with open(draft / "part-03.md", "a") as f:
+            f.write("\nGIT-03.01.01: the manual and --help disagree on -p for trees.\n")
+        self.assertStops(draft, "split: part-03.md: # GIT Part notes: has content before its first Field")
+
     def test_stops_on_a_title_with_an_empty_slug(self):
         draft = self.copy(DRAFT)
         replace(draft / "outline.md", "# GIT-01 Repository internals", "# GIT-01 ———")
@@ -170,6 +178,85 @@ class Split(TempDirTestCase):
         draft = self.copy(DRAFT)
         (draft / "part-01.md").write_bytes(b"# GIT-01.01.01 \xff\n")
         self.assertStops(draft, "split: part-01.md: isn't valid UTF-8")
+
+    def test_stops_on_a_batch_whose_sections_come_before_an_earlier_batchs(self):
+        draft = self.copy(DRAFT)
+        a, b = (draft / "part-01.md").read_text(encoding="utf-8"), (draft / "part-01-b.md").read_text(encoding="utf-8")
+        (draft / "part-01.md").write_text(b, encoding="utf-8")
+        (draft / "part-01-b.md").write_text(a, encoding="utf-8")
+        self.assertStops(
+            draft,
+            f"split: part-01-b.md: # GIT-01.01.01 {SUBSECTION_TITLE}: comes after GIT-01.02.01; "
+            "a Part's files hold its Sections in ID order",
+        )
+
+    def test_stops_on_a_section_split_across_batches(self):
+        draft = self.copy(DRAFT)
+        text = (draft / "part-01.md").read_text(encoding="utf-8")
+        at = text.index("# GIT-01.01.02")
+        (draft / "part-01.md").write_text(text[:at], encoding="utf-8")
+        batch = (draft / "part-01-b.md").read_text(encoding="utf-8")
+        (draft / "part-01-b.md").write_text(text[at:] + "\n" + batch, encoding="utf-8")
+        self.assertStops(
+            draft, "split: part-01-b.md: # GIT-01.01.02 Refs: Section GIT-01.01 is also in part-01.md; a batch holds whole Sections"
+        )
+
+    def test_stops_on_a_part_file_holding_another_parts_unit(self):
+        draft = self.copy(DRAFT)
+        (draft / "part-02.md").rename(draft / "part-03-b.md")
+        self.assertStops(draft, "split: part-03-b.md: # GIT-02.01.01 Ancestry: isn't in GIT-03, the Part this file fills")
+
+    def test_stops_on_a_draft_file_with_a_name_it_doesnt_read(self):
+        draft = self.copy(DRAFT)
+        (draft / "part-01-b.md").rename(draft / "part-1b.md")
+        self.assertStops(draft, "split: part-1b.md: isn't outline.md, part-NN.md, part-NN-<letter>.md or appendix-<description>.md")
+
+    def test_replaces_a_notes_field_holding_only_none_so_far(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "part-03.md", "# GIT Part notes\n", "# GIT Part notes\n\n## Judgement calls\n\n- The manual and `--help` disagree.\n")
+        out = self.tmp / "git"
+        result = run("split", draft, out)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "## Judgement calls\n\n- The manual and `--help` disagree.\n\n## Scope decisions\n",
+            (out / "GIT-notes.md").read_text(encoding="utf-8"),
+        )
+
+    def test_keeps_an_abbreviation_added_with_another_expansion_for_check_to_report(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "part-01-b.md", "| man | Git manual pages, version 2.47.1 |", "| man | Git manual pages, version 2.46 |")
+        out = self.tmp / "git"
+        self.assertEqual(run("split", draft, out).returncode, 0)
+        self.assertErrors(
+            out,
+            "GIT-sources.md: abbreviation man is defined more than once, as "
+            "`Git manual pages, version 2.47.1` and `Git manual pages, version 2.46`",
+        )
+
+    def test_stops_on_a_merge_block_field_its_doc_lacks(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "part-03.md", "# GIT Part notes\n", "# GIT Part notes\n\n## Summary\n\nDone.\n")
+        self.assertStops(draft, "split: part-03.md: # GIT Part notes: Summary isn't a Field of the Notes doc")
+
+    def test_stops_on_a_unit_after_a_merge_block(self):
+        draft = self.copy(DRAFT)
+        with (draft / "part-02.md").open("a", encoding="utf-8") as f:
+            f.write("\n# GIT-02.01.02 Merge bases\n\n## Scope\n\nLater.\n")
+        self.assertStops(
+            draft, "split: part-02.md: # GIT-02.01.02 Merge bases: comes after a merge block, which goes at the end of a part file"
+        )
+
+    def test_stops_on_a_merge_block_in_the_outline(self):
+        draft = self.copy(DRAFT)
+        with (draft / "outline.md").open("a", encoding="utf-8") as f:
+            f.write("\n# GIT Part notes\n")
+        self.assertStops(draft, "split: outline.md: # GIT Part notes: a merge block goes at the end of a part file")
+
+    def test_stops_on_an_appendix_outside_its_own_draft_file(self):
+        draft = self.copy(DRAFT)
+        with (draft / "outline.md").open("a", encoding="utf-8") as f:
+            f.write("\n# GIT Appendix: Glossary\n\n## Purpose\n\nTerms.\n")
+        self.assertStops(draft, "split: outline.md: # GIT Appendix: Glossary: an Appendix goes alone in its own appendix-<description>.md")
 
     def test_stops_on_an_output_path_that_is_a_file(self):
         out = self.tmp / "git"
@@ -466,7 +553,11 @@ class Check(TempDirTestCase):
     def test_reports_free_content_before_a_notes_field(self):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / "GIT-notes.md", "## Build notes", "## Aside\n\nA free H2.\n\n## Build notes")
-        self.assertErrors(doc_set, "GIT-notes.md: Field Build notes comes after free content Aside")
+        self.assertErrors(
+            doc_set,
+            "GIT-notes.md: Field Build notes comes after free content Aside",
+            "GIT-notes.md: Field Open questions comes after free content Aside",
+        )
 
     def test_reports_a_unit_title_with_a_character_that_breaks_links(self):
         doc_set = self.copy(GOLDEN)
@@ -536,13 +627,60 @@ class Check(TempDirTestCase):
         replace(doc_set / SECTION_FILE, "## Generators\n\n", "## Generators\n\nThe base facts:\n\n")
         self.assertErrors(doc_set, f"{SECTION_FILE}: Field Generators holds content other than bullets")
 
-    def test_passes_an_appendix(self):
-        doc_set = self.copy(GOLDEN)
-        (doc_set / "GIT-appendix-glossary.md").write_text(
-            "# GIT Appendix: Glossary\n\n## Purpose\n\nTerms the units share.\n", encoding="utf-8"
+    # One fixture per rule #21 names.
+
+    def test_reports_an_abbreviation_defined_twice_with_different_meanings(self):
+        self.assertErrors(
+            INVALID / "abbreviation-clash",
+            "GIT-sources.md: abbreviation man is defined more than once, as "
+            "`Git manual pages, version 2.47.1` and `Git manual pages, version 2.46`",
         )
-        result = run("check", doc_set)
-        self.assertEqual((result.returncode, result.stdout), (0, ""))
+
+    def test_reports_an_appendix_with_a_tags_prereqs_or_check_field(self):
+        self.assertErrors(
+            INVALID / "appendix-unit-field",
+            *(f"{APPENDIX_FILE}: has a {name} Field, which an Appendix can't: it isn't a unit" for name in ("Tags", "Prereqs", "Check")),
+        )
+
+    def test_reports_an_appendix_applying_to_an_unknown_id(self):
+        self.assertErrors(INVALID / "appendix-applies-to-unknown", f"{APPENDIX_FILE}: Applies to GIT-02.09 names no Section")
+
+    # The other Appendix rules, each on a copy of the golden doc set.
+
+    def test_reports_an_appendix_applying_to_a_subsection(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / APPENDIX_FILE, "- GIT-02.01\n", "- GIT-02.01\n- GIT-02.01.01\n")
+        self.assertErrors(doc_set, f"{APPENDIX_FILE}: Applies to entry `GIT-02.01.01` isn't a Part or Section ID of this Curriculum")
+
+    def test_reports_an_applies_to_that_isnt_bullets(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / APPENDIX_FILE, "## Applies to\n\n", "## Applies to\n\nThese units:\n\n")
+        self.assertErrors(doc_set, f"{APPENDIX_FILE}: Field Applies to holds content other than bullets")
+
+    def test_reports_an_appendix_error_beside_a_link_error(self):
+        doc_set = self.copy(INVALID / "abbreviation-clash")
+        replace(doc_set / REFS_FILE, "ref; branch; HEAD\n", "ref; branch; HEAD; GIT-01.09.09\n")
+        self.assertErrors(
+            doc_set,
+            "GIT-sources.md: abbreviation man is defined more than once, as "
+            "`Git manual pages, version 2.47.1` and `Git manual pages, version 2.46`",
+            f"{REFS_FILE}: GIT-01.09.09 names no unit",
+        )
+
+    def test_reports_an_appendix_without_a_purpose(self):
+        doc_set = self.copy(GOLDEN)
+        text = (doc_set / APPENDIX_FILE).read_text(encoding="utf-8")
+        start, end = text.index("## Purpose"), text.index("## Applies to")
+        (doc_set / APPENDIX_FILE).write_text(text[:start] + text[end:], encoding="utf-8")
+        self.assertErrors(doc_set, f"{APPENDIX_FILE}: required Field Purpose is missing")
+
+    def test_reports_a_subsection_linking_an_appendix(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "ref; branch; HEAD\n", f"ref; branch; HEAD; [coverage]({APPENDIX_FILE})\n")
+        self.assertErrors(
+            doc_set,
+            f"{REFS_FILE}: link [coverage]({APPENDIX_FILE}) names no unit or tag; write the unit's bare ID or the tag's marker instead",
+        )
 
     def test_reports_an_appendix_with_a_bad_h1(self):
         doc_set = self.copy(GOLDEN)
@@ -795,6 +933,32 @@ class Derive(TempDirTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(filecmp.dircmp(doc_set, GOLDEN).diff_files, [])
 
+    def test_links_an_appendix_with_no_applies_to_from_the_index_only(self):
+        doc_set = self.copy(GOLDEN)
+        (doc_set / "GIT-appendix-glossary.md").write_text(
+            "# GIT Appendix: Glossary\n\n## Purpose\n\nTerms the units of GIT-01 share.\n", encoding="utf-8"
+        )
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "- [Notes](GIT-notes.md)\n"
+            "- [Appendix: Glossary](GIT-appendix-glossary.md): Terms the units of "
+            "[GIT-01 Repository internals](GIT-01-repository-internals.md) share.\n"
+            f"- [Appendix: Manual coverage]({APPENDIX_FILE}): Which manual pages",
+            (doc_set / "index.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(sorted(filecmp.dircmp(doc_set, GOLDEN).diff_files), ["index.md"])
+        self.assertPasses(doc_set)
+
+    def test_drops_the_appendices_field_of_a_section_applies_to_no_longer_names(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / APPENDIX_FILE, "- GIT-02.01\n", "")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("## Appendices", (doc_set / COMMIT_GRAPH_FILE).read_text(encoding="utf-8"))
+        self.assertIn("## Appendices", (doc_set / PART_FILE).read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
+
     def test_twice_gives_no_diff(self):
         doc_set = self.copy(GOLDEN)
         result = run("derive", doc_set)
@@ -835,8 +999,8 @@ class Derive(TempDirTestCase):
         doc_set = self.copy(GOLDEN)
         overview = doc_set / "GIT-overview.md"
         overview.write_text(overview.read_text(encoding="utf-8") + "\n\n", encoding="utf-8")
-        appendix = doc_set / "GIT-appendix-glossary.md"
-        appendix.write_text("---\naliases: [Glossary]\n---\n\n# GIT Appendix: Glossary\n", encoding="utf-8")
+        appendix = doc_set / APPENDIX_FILE
+        appendix.write_text("---\naliases: [Coverage]\n---\n\n" + appendix.read_text(encoding="utf-8") + "\n", encoding="utf-8")
         before = {name: (doc_set / name).read_bytes() for name in tree(doc_set)}
         check = run("check", doc_set)
         self.assertEqual((check.returncode, check.stdout), (0, ""))

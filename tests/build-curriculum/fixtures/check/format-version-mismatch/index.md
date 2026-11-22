@@ -24,6 +24,14 @@ How Git stores a project's history, from the object database up.
 - Synthesis: 1
 - Optional: 1
 
+## Docs
+
+- [Overview](GIT-overview.md)
+- [Tags](GIT-tags.md)
+- [Sources](GIT-sources.md)
+- [Notes](GIT-notes.md)
+- [Appendix: Manual coverage](GIT-appendix-manual-coverage.md): Which manual pages each Part draws on, to check coverage against the Target version. It cross-checks sources and teaches nothing, so no unit holds it.
+
 ## Parts
 
 | Part | Title | Sections | Subsections |

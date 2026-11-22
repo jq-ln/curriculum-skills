@@ -4,6 +4,10 @@
 
 What a repository holds on disk, before any command that changes it.
 
+## Appendices
+
+- [Appendix: Manual coverage](GIT-appendix-manual-coverage.md): Which manual pages each Part draws on, to check coverage against the Target version. It cross-checks sources and teaches nothing, so no unit holds it.
+
 ## Sections
 
 - [GIT-01.01 Objects](GIT-01.01-objects.md)

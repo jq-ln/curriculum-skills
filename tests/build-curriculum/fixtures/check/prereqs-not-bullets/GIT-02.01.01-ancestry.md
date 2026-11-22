@@ -43,3 +43,4 @@ Why can't a new commit change the history of an existing one?
 ## Sources
 
 - [man gitrevisions](https://git-scm.com/docs/gitrevisions)
+- [src revision.c](https://github.com/git/git/blob/v2.47.1/revision.c)

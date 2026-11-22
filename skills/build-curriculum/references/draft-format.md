@@ -5,7 +5,10 @@ A Draft is the authored content of a Curriculum, before the build script's `spli
 ## Layout
 
 - `outline.md`: the Outline, written by the outline agent and edited by the human at the checkpoint. The agent writes it as `outline.md.partial` and renames it when done, so `split`, which reads only `outline.md`, never sees an unfinished Outline.
-- `part-NN.md`, one per Part, such as `part-03.md` for `<CODE>-03`: the rest of that Part's Subsection Fields, written by its fill agent. A Part filled in batches of whole Sections has `part-NN.md`, then `part-NN-b.md`, `part-NN-c.md` and so on, each holding whole Sections in Section order.
+- `part-NN.md`, one per Part, such as `part-03.md` for `<CODE>-03`: the rest of that Part's Subsection Fields, written by its fill agent. A Part filled in batches of whole Sections has `part-NN.md`, then `part-NN-b.md`, `part-NN-c.md` and so on, each holding whole Sections in Section order. `split` reads them in that order and stops on a unit from another Part, a Section in more than one file, or a Section before one in an earlier file.
+- `appendix-<description>.md`, one per Appendix, such as `appendix-manual-coverage.md`: the whole Appendix, with `<description>` as the [Filenames](curriculum-format.md#filenames) section gives it. `split` writes it as `<CODE>-appendix-<description>.md`. An Appendix goes in no other file.
+
+`split` stops on any other `.md` file in the Draft, so a misnamed file isn't skipped.
 
 Every file holds a run of docs. Each doc is an H1 followed by its Fields as H2s:
 
@@ -56,7 +59,7 @@ The sources this part file's Sources Fields use that the Sources doc doesn't lis
 | src | Git source tree, version 2.47.1 | Git source tree |
 ```
 
-Both Fields take the Sources doc's form and are left out when empty. An abbreviation the Sources doc already defines with the same expansion isn't repeated; one defined with a different expansion is a `check` error.
+Both Fields take the Sources doc's form and are left out when empty. `split` adds each family bullet and table row the Sources doc doesn't hold yet, so two part files may add the same source. An abbreviation the Sources doc already defines with the same expansion isn't repeated; one defined with a different expansion is a `check` error.
 
 ### Part notes
 

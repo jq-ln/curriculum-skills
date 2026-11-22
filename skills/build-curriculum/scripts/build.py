@@ -9,10 +9,6 @@ Subcommands:
 Follows the curriculum format in ../references/curriculum-format.md, which this
 script never reads: FORMAT_VERSION and the rules below are kept in step with it,
 and CI fails when FORMAT_VERSION drifts. Standard library only.
-
-Appendices are recognised by filename and H1 only: split doesn't take them from
-a Draft, check doesn't check their Fields, and derive only links the unit IDs in
-their prose.
 """
 
 import argparse
@@ -46,6 +42,7 @@ FIELDS = {
         ("Target version", False),
         ("Format version", True),
         ("Counts", True),
+        ("Docs", True),
         ("Parts", True),
     ],
     OVERVIEW: [("Methodology", True), ("Ordering rationale", True)],
@@ -58,8 +55,8 @@ FIELDS = {
         ("Build notes", True),
         ("Open questions", False),
     ],
-    PART: [("Intro", True), ("Tags", False), ("Sections", True)],
-    SECTION: [("Generators", True), ("Tags", False), ("Subsections", True)],
+    PART: [("Intro", True), ("Tags", False), ("Appendices", False), ("Sections", True)],
+    SECTION: [("Generators", True), ("Tags", False), ("Appendices", False), ("Subsections", True)],
     SUBSECTION: [
         ("Context", True),
         ("Tags", False),
@@ -72,14 +69,17 @@ FIELDS = {
         ("Check", True),
         ("Sources", True),
     ],
-    APPENDIX: [],  # its Fields aren't read yet, so every H2 in it is free content
+    APPENDIX: [("Purpose", True), ("Applies to", False)],
 }
+# H2s an Appendix can't have, though its other H2s are free content: it isn't a unit.
+NOT_IN_APPENDIX = ["Tags", "Prereqs", "Check"]
 # Fields derive writes. A missing one isn't a Field error: derive adds it, and check reports it
 # as derived content that differs from what derive writes.
-DERIVED_FIELDS = {"Context", "Counts", "Parts", "Sections", "Subsections"}
+DERIVED_FIELDS = {"Context", "Counts", "Docs", "Parts", "Appendices", "Sections", "Subsections"}
 # Fields whose content isn't authored prose, so markers in them aren't linked: the derived ones,
-# Prereqs and Tags, whose IDs and tag names derive links as entries, and Format version.
-NOT_PROSE = DERIVED_FIELDS | {"Prereqs", "Tags", "Format version"}
+# Prereqs and Tags, whose IDs and tag names derive links as entries, Applies to, whose IDs
+# stay bare, and Format version.
+NOT_PROSE = DERIVED_FIELDS | {"Prereqs", "Tags", "Applies to", "Format version"}
 # Doc types whose H2s after their Fields are free content. In the tags doc every H2 is a tag.
 FREE_H2 = {NOTES, APPENDIX}
 
@@ -348,6 +348,9 @@ def doc_type_of_h1(h1):
     m = INDEX_H1_RE.fullmatch(h1)
     if m:
         return INDEX, m.group(2), None
+    m = APPENDIX_H1_RE.fullmatch(h1)
+    if m:
+        return APPENDIX, m.group(1), None
     return None
 
 
@@ -377,17 +380,34 @@ def split(draft_dir, out_dir):
     if out_dir.exists() and any(out_dir.iterdir()):
         raise BuildError(f"{out_dir}: already exists and isn't empty")
 
-    files = [draft_dir / "outline.md"] + sorted(draft_dir.glob("part-*.md"))
+    files = draft_files(draft_dir)
     merged = {}  # filename -> (doc type, Doc)
     keys = {}  # H1 key -> filename, so a part file's unit merges into the Outline's
     code = None
-    for path in files:
+    section_file = {}  # Section UnitId -> the part file holding its Subsections
+    last = None  # the last Subsection read from a part file
+    merges = []  # (where, code, doc type merged into, Doc), in file order
+    for path, part, description in files:
         try:
             docs = split_draft(read(path))
         except BuildError as e:
             raise BuildError(f"{path.name}: {e}") from None
         for doc in docs:
             where = f"{path.name}: # {doc.h1}"
+            block = MERGE_H1_RE.fullmatch(doc.h1)
+            if block:
+                if not part:
+                    raise BuildError(f"{where}: a merge block goes at the end of a part file")
+                if "".join(doc.head[1:]).strip():
+                    raise BuildError(f"{where}: has content before its first Field")
+                into_type = MERGE_BLOCKS[block.group(2)]
+                for b in doc.blocks:
+                    if b.name not in [n for n, _ in FIELDS[into_type]]:
+                        raise BuildError(f"{where}: {b.name} isn't a Field of the {into_type}")
+                merges.append((where, block.group(1), into_type, doc))
+                continue
+            if merges and merges[-1][0].startswith(f"{path.name}: "):
+                raise BuildError(f"{where}: comes after a merge block, which goes at the end of a part file")
             kind = doc_type_of_h1(doc.h1)
             token = doc.h1.split(" ", 1)[0]
             if not kind and ID_RE.fullmatch(token):
@@ -395,21 +415,35 @@ def split(draft_dir, out_dir):
             if not kind:
                 raise BuildError(f"{where}: not the H1 of any Doc type")
             doc_type, doc_code, uid = kind
+            if (doc_type == APPENDIX) != bool(description) or (description and len(docs) > 1):
+                raise BuildError(f"{where}: an Appendix goes alone in its own appendix-<description>.md")
             if "".join(doc.head[1:]).strip():
                 raise BuildError(f"{where}: has content before its first Field")
+            if part and uid:
+                if uid.levels[0] != part:
+                    raise BuildError(f"{where}: isn't in {UnitId(uid.code, (part,))}, the Part this file fills")
+                if len(uid.levels) == 3:
+                    section = uid.parent()
+                    if section_file.setdefault(section, path.name) != path.name:
+                        raise BuildError(f"{where}: Section {section} is also in {section_file[section]}; a batch holds whole Sections")
+                    if last and last.levels[0] == part and uid.levels < last.levels:
+                        raise BuildError(f"{where}: comes after {last}; a Part's files hold its Sections in ID order")
+                    last = uid
             if uid:
                 errors = title_errors(split_unit_h1(doc.h1)[1])
             elif doc_type == INDEX:
                 errors = title_errors(INDEX_H1_RE.fullmatch(doc.h1).group(1), "name")
+            elif doc_type == APPENDIX:
+                errors = title_errors(APPENDIX_H1_RE.fullmatch(doc.h1).group(2), "Appendix title")
             else:
                 errors = []
             for error in errors:
                 raise BuildError(f"{where}: {error}")
             if doc_type == INDEX:
                 code = code or doc_code
-            key = str(uid) if uid else doc_type
+            key = str(uid) if uid else description or doc_type
             if key not in keys:
-                keys[key] = filename_for(doc_type, doc_code, doc.h1)
+                keys[key] = f"{doc_code}-appendix-{description}.md" if description else filename_for(doc_type, doc_code, doc.h1)
                 merged[keys[key]] = (doc_type, Doc(head=[doc.head[0]]))
             _, into = merged[keys[key]]
             if into.h1 != doc.h1:
@@ -423,6 +457,15 @@ def split(draft_dir, out_dir):
 
     if code is None:
         raise BuildError(f"{draft_dir}: the Draft has no index H1, `# <name> (<CODE>)`")
+    for where, block_code, into_type, doc in merges:
+        if block_code != code:
+            raise BuildError(f"{where}: code {block_code} isn't the index's code {code}")
+        h1 = f"{code} {into_type.split()[0]}"  # such as GIT Sources, for the Sources doc
+        into = merged.get(filename_for(into_type, code, h1))
+        if not into:
+            raise BuildError(f"{where}: the Draft has no # {h1}")
+        for block in doc.blocks:
+            merge_field(into[1], block)
     for name, (doc_type, doc) in merged.items():
         _, doc_code, _ = doc_type_of_h1(doc.h1)
         if doc_code != code:
@@ -435,6 +478,76 @@ def split(draft_dir, out_dir):
     for name, (doc_type, doc) in merged.items():
         (out_dir / name).write_text(render(doc_type, doc), encoding="utf-8")
     (out_dir / MARKSMAN).write_text("", encoding="utf-8")
+
+
+MERGE_H1_RE = re.compile(rf"({CODE}) (Sources added|Part notes)")
+MERGE_BLOCKS = {"Sources added": SOURCES, "Part notes": NOTES}
+NONE_SO_FAR = "None so far."
+
+
+def table_rows(body):
+    """The body rows of a body's table: (line, cells) for each row after the header and delimiter."""
+    rows = [line for line in body.split("\n") if line.strip().startswith("|")][2:]
+    return [(row, [cell.strip() for cell in row.strip().strip("|").split("|")]) for row in rows]
+
+
+def is_bullet(line):
+    return bool(re.match(r"[-+*] ", line))
+
+
+def merge_field(doc, block):
+    """Add a merge block Field's entries to the same Field of doc.
+
+    A Families bullet, or an Abbreviations row with the same abbreviation and
+    expansion, that doc already holds is skipped, so two batches adding one
+    source write it once. An abbreviation with another expansion is added, for
+    check to report.
+    """
+    into, added = doc.field(block.name), block.body()
+    if into and into.body() not in ("", NONE_SO_FAR):
+        if block.name == "Families":
+            have = set(into.body().split("\n"))
+            added = "\n".join(line for line in added.split("\n") if line not in have)
+        elif block.name == "Abbreviations":
+            have = {tuple(cells[:2]) for _, cells in table_rows(into.body())}
+            added = "\n".join(line for line, cells in table_rows(added) if tuple(cells[:2]) not in have)
+        if not added:
+            return
+        # Bullets added to bullets stay one tight list; anything else starts a new paragraph.
+        tight = block.name == "Abbreviations" or (is_bullet(into.body().split("\n")[-1]) and is_bullet(added))
+        joint = "\n" if tight else "\n\n"
+        added = into.body() + joint + added
+    if not added:
+        return
+    lines = [f"## {block.name}\n", "\n", added + "\n"]
+    if into:
+        into.lines = lines
+    else:
+        doc.blocks.append(Block(block.name, lines))
+
+
+DRAFT_PART_RE = re.compile(r"part-([0-9]{2})(?:-([b-z]))?\.md")
+
+
+DRAFT_APPENDIX_RE = re.compile(rf"appendix-({DESCRIPTION})\.md")
+
+
+def draft_files(draft_dir):
+    """[(path, Part number or None, Appendix description or None)] for each Draft file split reads.
+
+    outline.md comes first, then the part files in batch order, then the Appendices.
+    Raises BuildError on any other Markdown file, so a misnamed part file isn't silently skipped.
+    """
+    parts, appendices = [], []
+    for path in sorted(draft_dir.glob("*.md")):
+        part, appendix = DRAFT_PART_RE.fullmatch(path.name), DRAFT_APPENDIX_RE.fullmatch(path.name)
+        if part:
+            parts.append(((int(part.group(1)), part.group(2) or ""), path))
+        elif appendix:
+            appendices.append((path, None, appendix.group(1)))
+        elif path.name != "outline.md" and not path.name.startswith("."):
+            raise BuildError(f"{path.name}: isn't outline.md, part-NN.md, part-NN-<letter>.md or appendix-<description>.md")
+    return [(draft_dir / "outline.md", None, None)] + [(path, key[0], None) for key, path in sorted(parts)] + appendices
 
 
 def render(doc_type, doc):
@@ -1175,11 +1288,14 @@ def derived(ds, other=lambda code: None):
             set_field(doc, SUBSECTION, "Context", context(ds, doc))
             set_field(doc, SUBSECTION, "Prereqs", prereqs(ds, name, other))
         elif doc_type == SECTION:
+            set_field(doc, SECTION, "Appendices", appendix_list(ds, ds.uid(name)))
             set_field(doc, SECTION, "Subsections", subsection_list(ds, split_unit_h1(doc.h1)[0]))
         elif doc_type == PART:
+            set_field(doc, PART, "Appendices", appendix_list(ds, ds.uid(name)))
             set_field(doc, PART, "Sections", section_list(ds, split_unit_h1(doc.h1)[0]))
         elif doc_type == INDEX:
             set_field(doc, INDEX, "Counts", counts(ds, uses))
+            set_field(doc, INDEX, "Docs", docs_list(ds))
             set_field(doc, INDEX, "Parts", parts_table(ds))
     return {name: doc.text() for name, doc in ds.docs.items() if doc.text() != before[name]}
 
@@ -1213,6 +1329,55 @@ def section_list(ds, part):
         lines.append(f"- {unit_link(ds, uid)}")
         lines += indented(ds.doc(uid).field("Generators").body())
     return "\n".join(lines)
+
+
+def applies_to(ds, name):
+    """(the UnitIds an Appendix's Applies to names, the errors in it)."""
+    f = ds.docs[name].field("Applies to")
+    if not f:
+        return set(), []
+    items = entries(f.body())
+    if items is None:
+        return set(), [(name, "Field Applies to holds content other than bullets")]
+    out, errors = set(), []
+    for entry in items:
+        uid = parse_id(entry)
+        if not uid or uid.code != ds.code or len(uid.levels) == 3:
+            errors.append((name, f"Applies to entry `{entry}` isn't a Part or Section ID of this Curriculum"))
+        elif uid not in ds.unit_ids:
+            if not ds.bad_unit_id:
+                errors.append((name, f"Applies to {uid} names no {uid.doc_type}"))
+        else:
+            out.add(uid)
+    return out, errors
+
+
+def appendix_errors(ds):
+    """An Appendix with an H2 only a unit has, or an Applies to naming no Part or Section."""
+    errors = []
+    for name in unit_names(ds, APPENDIX):
+        for block in ds.docs[name].blocks:
+            if block.name in NOT_IN_APPENDIX:
+                errors.append((name, f"has a {block.name} Field, which an Appendix can't: it isn't a unit"))
+        errors += applies_to(ds, name)[1]
+    return errors
+
+
+def appendix_entry(ds, name):
+    doc = ds.docs[name]
+    title = APPENDIX_H1_RE.fullmatch(doc.h1).group(2)
+    return f"- [Appendix: {title}]({name}): {one_line(doc.field('Purpose').body())}"
+
+
+def appendix_list(ds, uid):
+    """The Appendices Field of the Part or Section uid: each Appendix whose Applies to names it, or None."""
+    names = [name for name in sorted(unit_names(ds, APPENDIX)) if uid in applies_to(ds, name)[0]]
+    return "\n".join(appendix_entry(ds, name) for name in names) or None
+
+
+def docs_list(ds):
+    lines = [f"- [{w}]({ds.code}-{w.lower()}.md)" for w in NAMED_TYPES]
+    return "\n".join(lines + [appendix_entry(ds, name) for name in sorted(unit_names(ds, APPENDIX))])
 
 
 def counts(ds, uses):
@@ -1312,7 +1477,14 @@ def errors_before_derive(ds):
     if errors:
         # A missing or misnamed unit or tag already reported would also break every link and Prereq naming it.
         return errors
-    return link_prose_everywhere(load(ds.root))[0] + prereq_errors(ds) + tag_where_errors(ds) + optional_errors(ds)
+    return (
+        link_prose_everywhere(load(ds.root))[0]
+        + prereq_errors(ds)
+        + tag_where_errors(ds)
+        + optional_errors(ds)
+        + abbreviation_errors(ds)
+        + appendix_errors(ds)
+    )
 
 
 def check(root):
@@ -1325,6 +1497,20 @@ def check(root):
     return stale or [
         (name, "derived content differs from what derive writes; edit its source and run derive")
         for name in derived(ds)
+    ]
+
+
+def abbreviation_errors(ds):
+    """An abbreviation in more than one row of the sources doc's Abbreviations table."""
+    name = f"{ds.code}-sources.md"
+    f = ds.docs[name].field("Abbreviations") if name in ds.docs else None
+    expansions = {}
+    for _, cells in table_rows(f.body()) if f else []:
+        expansions.setdefault(cells[0], []).append(cells[1] if len(cells) > 1 else "")
+    return [
+        (name, f"abbreviation {abbreviation} is defined more than once, as {' and '.join(f'`{e}`' for e in found)}")
+        for abbreviation, found in expansions.items()
+        if len(found) > 1
     ]
 
 
