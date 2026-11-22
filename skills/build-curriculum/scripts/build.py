@@ -3,7 +3,7 @@
 
 Subcommands:
   split <draft-dir> <output-dir>  write the doc set from a Draft
-  derive <doc-set-dir>            rewrite derived content in place
+  derive <doc-set-dir>            rewrite derived content and filenames in place
   check <doc-set-dir>             print one line per error; exit 1 if any
 
 Follows the curriculum format in ../references/curriculum-format.md, which this
@@ -12,6 +12,7 @@ and CI fails when FORMAT_VERSION drifts. Standard library only.
 """
 
 import argparse
+import difflib
 import re
 import sys
 import unicodedata
@@ -572,6 +573,7 @@ class DocSet:
     unit_ids: set = dataclass_field(default_factory=set)  # every UnitId a filename names, readable or not
     bad_unit_id: bool = False  # some unit filename has an ID that doesn't parse, so its place is unknown
     tags: dict = dataclass_field(default_factory=dict)  # tag name -> Tag, in the tags doc's order
+    renames: dict = dataclass_field(default_factory=dict)  # filename on disk -> the filename its title gives
     errors: list = dataclass_field(default_factory=list)  # (filename, message)
 
     def error(self, name, message):
@@ -592,8 +594,13 @@ class DocSet:
         return f"{self.code}-tags.md"
 
 
-def load(root):
-    """Read and classify every file in a doc set, collecting errors as it goes."""
+def load(root, renamed=False):
+    """Read and classify every file in a doc set, collecting errors as it goes.
+
+    A unit whose filename doesn't match its title is recorded in renames, and
+    kept under its filename on disk, or under the one its title gives when
+    renamed is true, so every link and copy derived from it names that file.
+    """
     root = Path(root)
     ds = DocSet(root)
     index = root / "index.md"
@@ -652,12 +659,15 @@ def load(root):
         if h1 and doc.h1 != h1:
             ds.error(name, f"H1 `# {doc.h1}` isn't `# {h1}`")
             continue
-        ds.docs[name], ds.types[name] = doc, doc_type
         if uid:
             if uid in ds.units:
                 ds.error(name, f"{uid} also names {ds.units[uid]}")
+                ds.renames.pop(name, None)
                 continue
+            if renamed:
+                name = ds.renames.get(name, name)
             ds.units[uid] = name
+        ds.docs[name], ds.types[name] = doc, doc_type
     for name in named:
         if not (root / name).exists():
             ds.error(name, "is missing")
@@ -686,7 +696,7 @@ def unit_h1_ok(ds, name, uid, doc):
     for error in errors:
         ds.error(name, error)
     if not errors and name != unit_filename(uid, title):
-        ds.error(name, f"filename should be {unit_filename(uid, title)}, from its title")
+        ds.renames[name] = unit_filename(uid, title)
     return True
 
 
@@ -1437,7 +1447,14 @@ def derive(root):
     errors = errors_before_derive(ds)
     if errors:
         raise BuildError("\n".join(f"{n}: {m}" for n, m in errors))
-    for name, text in derived(ds, other_curricula(ds.root)).items():
+    if ds.renames:
+        ds = load(root, renamed=True)  # so every link and copy names the new filenames
+    changed = derived(ds, other_curricula(ds.root))
+    for old, new in ds.renames.items():
+        # Renamed, not written anew then unlinked: on a case-insensitive filesystem a
+        # rename that changes only case would unlink the file just written.
+        (ds.root / old).rename(ds.root / new)
+    for name, text in changed.items():
         (ds.root / name).write_text(text, encoding="utf-8")
 
 
@@ -1490,14 +1507,120 @@ def errors_before_derive(ds):
 def check(root):
     """Every error in the doc set at root, as (filename, message)."""
     ds = load(root)
+    renames = [(old, f"filename should be {new}, from its title; run derive to rename it") for old, new in ds.renames.items()]
     errors = errors_before_derive(ds)
     if errors:
-        return errors
+        return renames + errors
     stale = link_prose_everywhere(load(root))[1]
-    return stale or [
-        (name, "derived content differs from what derive writes; edit its source and run derive")
-        for name in derived(ds)
-    ]
+    if stale:
+        return renames + stale
+    before = {name: doc.text() for name, doc in ds.docs.items()}
+    # Diffed under the filenames on disk, so a rename alone shows only as the copies of the new title.
+    return renames + [(name, message) for name in derived(ds) for message in edited_spans(ds, name, before[name])]
+
+
+SPAN_LIMIT = 100  # the most characters of a span an error line quotes
+
+
+def edited_spans(ds, name, old):
+    """One message per span where old, a doc's text, differs word for word from its derived text.
+
+    When the words agree, one message per place where only the whitespace differs.
+    """
+    doc = ds.docs[name]
+    new = doc.text()
+    places = locations(doc, ds.types[name])
+    suffix = "; edit its source and run derive"
+    old_words, new_words = list(re.finditer(r"\S+", old)), list(re.finditer(r"\S+", new))
+    new_tokens = [m.group() for m in new_words]
+    matcher = difflib.SequenceMatcher(None, [m.group() for m in old_words], new_tokens, autojunk=False)
+    # Spans that still differ once stale copies of renamed units' titles are updated: the hand edits.
+    edits = []
+    if ds.renames:
+        fixed = re.findall(r"\S+", retitled(ds, old))
+        edits = [(j1, j2) for op, _, _, j1, j2 in difflib.SequenceMatcher(None, fixed, new_tokens, autojunk=False).get_opcodes() if op != "equal"]
+    out = []
+    for op, i1, i2, j1, j2 in matcher.get_opcodes():
+        if op == "equal":
+            continue
+        retitle = ds.renames and not any(k1 <= j2 and j1 <= k2 for k1, k2 in edits)
+        end = "; run derive to copy the new title" if retitle else suffix
+        where = place(places, new_words[anchor(j1, j2)].start())
+        was, now = quoted(old, old_words[i1:i2]), quoted(new, new_words[j1:j2])
+        if op == "replace":
+            out.append(f"{where} has {was} where derive writes {now}{end}")
+        elif op == "delete":
+            out.append(f"{where} has {was}, which derive doesn't write{end}")
+        else:
+            out.append(f"{where} lacks {now}, which derive writes{end}")
+    if out:
+        return out
+    old_lines, new_lines = old.splitlines(keepends=True), new.splitlines(keepends=True)
+    starts = [0]
+    for line in new_lines:
+        starts.append(starts[-1] + len(line))
+    matcher = difflib.SequenceMatcher(None, old_lines, new_lines, autojunk=False)
+    for op, _, _, j1, j2 in matcher.get_opcodes():
+        if op != "equal":
+            where = place(places, starts[anchor(j1, j2)])
+            message = f"{where} differs in whitespace from what derive writes{suffix}"
+            if message not in out:
+                out.append(message)
+    return out
+
+
+def retitled(ds, text):
+    """text with each copy of a renamed unit's old title replaced by its new one.
+
+    A copy is a link's text or an index table cell beside the unit's filename on disk.
+    Only a copy whose words give that filename counts, so a hand-edited copy stays as it is.
+    """
+    for old in ds.renames:
+        uid = ds.uid(old)
+        title, u, f = ds.title(uid), re.escape(str(uid)), re.escape(old)
+
+        def swap(m):
+            return title if unit_filename(uid, m.group()) == old else m.group()
+
+        text = re.sub(rf"(?<=\[{u} )[^\]\n]+(?=\]\({f}\))", swap, text)
+        text = re.sub(rf"(?<=\[{u}\]\({f}\) \| )[^|\n]+?(?= \|)", swap, text)
+    return text
+
+
+def anchor(j1, j2):
+    """The index in the derived text that places a differing span j1:j2.
+
+    A deletion is placed by the item before it, so text cut from a Field's end stays in that Field.
+    """
+    return j1 if j2 > j1 or not j1 else j1 - 1
+
+
+def quoted(text, words):
+    """The text from the first word to the last, on one line, in backticks, cut to SPAN_LIMIT characters."""
+    if not words:
+        return ""
+    span = " ".join(text[words[0].start() : words[-1].end()].split())
+    return f"`{span if len(span) <= SPAN_LIMIT else span[: SPAN_LIMIT - 1] + '…'}`"
+
+
+def locations(doc, doc_type):
+    """[(offset in doc.text(), what starts there)], in order: front matter, the H1, the nav line and each H2."""
+    out, at = [], 0
+    if doc.front:
+        out.append((0, "front matter"))
+        at = len("".join(doc.front))
+    out.append((at, "the H1"))
+    if doc_type == SUBSECTION and len(doc.head) > 1:
+        out.append((at + len(doc.head[0]), "the nav line"))
+    at += len("".join(doc.head))
+    for block in doc.blocks:
+        out.append((at, f"tag {block.name}" if doc_type == TAGS else f"Field {block.name}"))
+        at += len("".join(block.lines))
+    return out
+
+
+def place(places, offset):
+    return [what for start, what in places if start <= offset][-1]
 
 
 def abbreviation_errors(ds):
@@ -1561,8 +1684,11 @@ def field_errors(ds):
             # Context copies the whole Field as the Section Generators, which are its bullets only.
             errors.append((name, "Field Generators holds content other than bullets"))
         for field_name, required in FIELDS[doc_type]:
-            if required and field_name not in DERIVED_FIELDS and not doc.field(field_name):
+            f = doc.field(field_name)
+            if required and field_name not in DERIVED_FIELDS and not f:
                 errors.append((name, f"required Field {field_name} is missing"))
+            elif not required and field_name not in DERIVED_FIELDS and f and f.body().lower().rstrip(".") == "none":
+                errors.append((name, f"Optional Field {field_name} is `{f.body()}`; leave it out when empty"))
     return errors
 
 
