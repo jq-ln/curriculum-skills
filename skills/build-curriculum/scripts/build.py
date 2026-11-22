@@ -398,6 +398,8 @@ def split(draft_dir, out_dir):
             if block:
                 if not part:
                     raise BuildError(f"{where}: a merge block goes at the end of a part file")
+                if "".join(doc.head[1:]).strip():
+                    raise BuildError(f"{where}: has content before its first Field")
                 into_type = MERGE_BLOCKS[block.group(2)]
                 for b in doc.blocks:
                     if b.name not in [n for n, _ in FIELDS[into_type]]:

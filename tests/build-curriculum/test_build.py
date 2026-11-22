@@ -111,6 +111,12 @@ class Split(TempDirTestCase):
         replace(draft / "part-01.md", h1, h1 + "\nLead prose here.\n")
         self.assertStops(draft, f"split: part-01.md: # GIT-01.01.01 {SUBSECTION_TITLE}: has content before its first Field")
 
+    def test_stops_on_content_before_a_merge_blocks_first_field(self):
+        draft = self.copy(DRAFT)
+        with open(draft / "part-03.md", "a") as f:
+            f.write("\nGIT-03.01.01: the manual and --help disagree on -p for trees.\n")
+        self.assertStops(draft, "split: part-03.md: # GIT Part notes: has content before its first Field")
+
     def test_stops_on_a_title_with_an_empty_slug(self):
         draft = self.copy(DRAFT)
         replace(draft / "outline.md", "# GIT-01 Repository internals", "# GIT-01 ———")
