@@ -25,14 +25,14 @@ Commits on an Issue branch have no required format. Write them like this:
 
 - The subject is at most 72 characters.
 - The body is optional. Add one only to say why, when the subject and the diff don't make it obvious.
-- References go in trailers at the end, such as `Refs #<issue>` or `Co-Authored-By:`.
+- References go in trailers at the end, such as `Refs: #<issue>` or `Co-Authored-By:`.
 
 ```text
 fix(hooks): replace hook links that already exist
 
 `ln -s` exits 1 when the link already exists, which aborted every re-run of install-hooks.
 
-Refs #<issue>
+Refs: #<issue>
 ```
 
 ## Issues
