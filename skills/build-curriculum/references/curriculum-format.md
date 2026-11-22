@@ -294,7 +294,7 @@ The H1 is `# <CODE> Tags`. The doc holds one `## <tag>` heading per tag the Curr
 - Uses: 16
 ```
 
-- **Meaning** (authored) is one line, the text copied into each Tags Field entry.
+- **Meaning** (authored) is one line, the text copied into each Tags Field entry. It can't end with `(from <ID>)` or `(inline)`, which would make an own entry read as one deriving added.
 - **Where** (authored) says where the tag may be used: `doc` (named in a Tags Field) or `inline` (as a marker in prose), or `doc, inline`. A tag used as a marker when its Where lacks `inline` is invalid, so a stray `{Optional}` in prose can't make a unit Optional. An own Tags Field entry, one without a `(from <ID>)` or `(inline)` ending, for a tag whose Where lacks `doc` is invalid. Deriving adds each tag a Subsection uses inline itself, marked `(inline)`.
 - **Uses** (derived) is the number of Subsections whose Tags Field lists the tag.
 

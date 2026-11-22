@@ -112,8 +112,8 @@ STANDARD_TAGS = [
 ]
 OPTIONAL = "Optional"
 WHERE = {"doc": {"doc"}, "inline": {"inline"}, "doc, inline": {"doc", "inline"}}
-TAG_KEYS = ["Meaning", "Where", "Uses"]
-ORIGIN_RE = re.compile(r" \((?:from \S+|inline)\)$")  # ends a Tags entry derive added  # the bullets under a tag's heading, in order
+TAG_KEYS = ["Meaning", "Where", "Uses"]  # the bullets under a tag's heading, in order
+ORIGIN_RE = re.compile(r" \((?:from \S+|inline)\)$")  # ends a Tags entry derive added
 FORBIDDEN_IN_TAG = "{}[]`"
 # Deriving copies titles unescaped into link text and table rows, which these would break.
 FORBIDDEN_IN_TITLE = "[]|\\<&`"
@@ -748,7 +748,9 @@ def link_prose(ds, name, text, errors, stale, used):
 
     def replace(m):
         if m.group("tag"):
-            return use_tag(m.group("tagname")) if m.group("tagname") in ds.tags else m.group()
+            if m.group("tagname") in ds.tags:
+                return use_tag(m.group("tagname"))
+            return "{" + INLINE_RE.sub(replace, m.group("tagname")) + "}"  # braces stay text; what's inside is prose
         if m.group("id"):
             token = m.group("id")
             if not token.startswith(f"{ds.code}-"):
@@ -1033,6 +1035,8 @@ def tags_doc_errors(ds):
         elif tag not in standard:
             if not bullets.get("Meaning"):
                 errors.append((name, f"tag {tag} has no Meaning"))
+            elif ORIGIN_RE.search(bullets["Meaning"]):  # its Tags entries would read back as derived and be dropped
+                errors.append((name, f"tag {tag} has a Meaning ending in (from <ID>) or (inline), which marks a derived Tags entry"))
             if bullets.get("Where") not in WHERE:
                 errors.append((name, f"tag {tag} has Where `{bullets.get('Where', '')}`; use doc, inline or `doc, inline`"))
     return errors

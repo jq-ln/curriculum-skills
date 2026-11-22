@@ -231,6 +231,9 @@ class Check(TempDirTestCase):
     def test_reports_an_own_code_id_naming_no_unit(self):
         self.assertErrors(INVALID / "id-unknown", f"{REFS_FILE}: GIT-09.01 names no unit")
 
+    def test_reports_an_unknown_id_in_braces(self):
+        self.assertErrors(INVALID / "id-in-braces", f"{REFS_FILE}: GIT-09.09 names no unit")
+
     def test_reports_a_link_target_that_isnt_a_bare_sibling_filename(self):
         self.assertErrors(
             INVALID / "link-target-form",
@@ -321,6 +324,15 @@ class Check(TempDirTestCase):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / "GIT-tags.md", "## 2.46\n", "## 2.46 [rc]\n")
         self.assertErrors(doc_set, "GIT-tags.md: tag 2.46 [rc] contains [ ], which a tag name can't")
+
+    def test_reports_a_meaning_ending_like_an_origin_mark(self):
+        doc_set = self.copy(GOLDEN)
+        with open(doc_set / "GIT-tags.md", "a", encoding="utf-8") as f:
+            f.write("\n## Shell\n\n- Meaning: Every example runs in a POSIX shell (inline)\n- Where: doc\n")
+        self.assertErrors(
+            doc_set,
+            "GIT-tags.md: tag Shell has a Meaning ending in (from <ID>) or (inline), which marks a derived Tags entry",
+        )
 
     def test_reports_a_tag_whose_anchor_is_a_standard_tags(self):
         doc_set = self.copy(GOLDEN)
@@ -612,6 +624,17 @@ class Derive(TempDirTestCase):
         self.assertTrue(filecmp.cmp(doc_set / PART_2_FILE, GOLDEN / PART_2_FILE, shallow=False))
         self.assertIn(
             f"None so far, beyond [GIT-01.02 The index]({INDEX_SECTION_FILE}).\n",
+            (doc_set / "GIT-notes.md").read_text(encoding="utf-8"),
+        )
+        self.assertPasses(doc_set)
+
+    def test_links_an_id_in_braces_and_keeps_the_braces(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-notes.md", "None so far.", "None so far {GIT-01.02}.")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            f"None so far {{[GIT-01.02 The index]({INDEX_SECTION_FILE})}}.\n",
             (doc_set / "GIT-notes.md").read_text(encoding="utf-8"),
         )
         self.assertPasses(doc_set)
