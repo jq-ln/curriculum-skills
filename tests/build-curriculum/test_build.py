@@ -206,6 +206,22 @@ class Split(TempDirTestCase):
         (draft / "part-02.md").rename(draft / "part-03-b.md")
         self.assertStops(draft, "split: part-03-b.md: # GIT-02.01.01 Ancestry: isn't in GIT-03, the Part this file fills")
 
+    def test_stops_on_a_part_file_adding_a_subsection_the_outline_lacks(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "part-02.md", "# GIT Sources added", "# GIT-02.01.02 Merge bases\n\n## Scope\n\nLater.\n\n# GIT Sources added")
+        self.assertStops(
+            draft, "split: part-02.md: # GIT-02.01.02 Merge bases: isn't a Subsection of outline.md; a part file fills the Outline's Subsections"
+        )
+
+    def test_stops_on_a_part_file_adding_a_tag(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "part-01.md", "# GIT-01.01.02 Refs\n", "# GIT-01.01.02 Refs\n\n## Tags\n\n- Synthesis\n")
+        self.assertStops(
+            draft,
+            "split: part-01.md: # GIT-01.01.02 Refs: Tags is fixed by outline.md; "
+            "a part file holds Generators, Foundations, Scope, Key concepts, Check and Sources",
+        )
+
     def test_stops_on_a_draft_file_with_a_name_it_doesnt_read(self):
         draft = self.copy(DRAFT)
         (draft / "part-01-b.md").rename(draft / "part-1b.md")

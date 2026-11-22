@@ -72,6 +72,8 @@ FIELDS = {
     ],
     APPENDIX: [("Purpose", True), ("Applies to", False)],
 }
+# Subsection Fields only outline.md holds, so a fill agent can't change a unit's Goal, Prereqs or tags.
+OUTLINE_FIELDS = ["Tags", "Goal", "Prereqs"]
 # H2s an Appendix can't have, though its other H2s are free content: it isn't a unit.
 NOT_IN_APPENDIX = ["Tags", "Prereqs", "Check"]
 # Fields derive writes. A missing one isn't a Field error: derive adds it, and check reports it
@@ -430,6 +432,9 @@ def split(draft_dir, out_dir):
                     if last and last.levels[0] == part and uid.levels < last.levels:
                         raise BuildError(f"{where}: comes after {last}; a Part's files hold its Sections in ID order")
                     last = uid
+            if part and not (uid and len(uid.levels) == 3 and str(uid) in keys):
+                # outline.md is read first, so keys holds its units: a fill agent never adds or reshapes one
+                raise BuildError(f"{where}: isn't a Subsection of outline.md; a part file fills the Outline's Subsections")
             if uid:
                 errors = title_errors(split_unit_h1(doc.h1)[1])
             elif doc_type == INDEX:
@@ -450,6 +455,9 @@ def split(draft_dir, out_dir):
             if into.h1 != doc.h1:
                 raise BuildError(f"{where}: differs from the earlier H1 # {into.h1}")
             for block in doc.blocks:
+                if part and block.name in OUTLINE_FIELDS:
+                    fill = [n for n, _ in FIELDS[SUBSECTION] if n not in OUTLINE_FIELDS and n not in DERIVED_FIELDS]
+                    raise BuildError(f"{where}: {block.name} is fixed by outline.md; a part file holds {', '.join(fill[:-1])} and {fill[-1]}")
                 if block.name == "Format version":
                     raise BuildError(f"{where}: Format version is written by split, not the Draft")
                 if into.field(block.name):
