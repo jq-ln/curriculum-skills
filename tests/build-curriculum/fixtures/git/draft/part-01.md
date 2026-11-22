@@ -38,20 +38,10 @@ Why does resetting a branch to an older commit leave the newer commit's objects 
 
 - [man git-update-ref](https://git-scm.com/docs/git-update-ref)
 
-# GIT-01.02.01 The index as a staging snapshot
+# GIT Sources added
 
-## Scope
+# GIT Part notes
 
-The index file, how `git add` updates it, and how `git commit` writes a tree from it.
+## Build notes
 
-## Key concepts
-
-index; staging; tree
-
-## Check
-
-Why does a file edited after `git add` commit in its earlier state?
-
-## Sources
-
-- [man git-add](https://git-scm.com/docs/git-add)
+- Checked each Sources link in GIT-01.01 against the Target version's manual pages.

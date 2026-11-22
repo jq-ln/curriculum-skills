@@ -15,3 +15,7 @@ What does `git cat-file -p` print for a tree?
 ## Sources
 
 - [man git-cat-file](https://git-scm.com/docs/git-cat-file)
+
+# GIT Sources added
+
+# GIT Part notes
