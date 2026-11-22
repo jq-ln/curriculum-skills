@@ -1,5 +1,7 @@
 # GIT-01.01.02 Content-addressed objects — blobs, trees, commits and the naïve view of a snapshot
 
+[Index](index.md) · [GIT-01](GIT-01-repository-internals.md) · [GIT-01.01](GIT-01.01-objects.md) · Next [GIT-01.01.02](GIT-01.01.02-refs.md)
+
 ## Context
 
 - Curriculum: Git (GIT)
