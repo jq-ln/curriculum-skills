@@ -334,6 +334,21 @@ class Check(TempDirTestCase):
             "GIT-tags.md: tag Shell has a Meaning ending in (from <ID>) or (inline), which marks a derived Tags entry",
         )
 
+    def assertOriginMarkNameReported(self, name):
+        doc_set = self.copy(GOLDEN)
+        with open(doc_set / "GIT-tags.md", "a", encoding="utf-8") as f:
+            f.write(f"\n## {name}\n\n- Meaning: Not yet reviewed.\n- Where: doc\n")
+        self.assertErrors(
+            doc_set,
+            f"GIT-tags.md: tag {name} has a name ending in (from <ID>) or (inline), which marks a derived Tags entry",
+        )
+
+    def test_reports_a_tag_name_ending_in_inline(self):
+        self.assertOriginMarkNameReported("Draft (inline)")
+
+    def test_reports_a_tag_name_ending_in_from_id(self):
+        self.assertOriginMarkNameReported("Draft (from GIT-03)")
+
     def test_reports_a_tag_whose_anchor_is_a_standard_tags(self):
         doc_set = self.copy(GOLDEN)
         with open(doc_set / "GIT-tags.md", "a", encoding="utf-8") as f:

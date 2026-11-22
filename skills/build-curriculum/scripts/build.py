@@ -1022,6 +1022,8 @@ def tags_doc_errors(ds):
         anchor = tag_anchor(tag)
         if bad:
             errors.append((name, f"tag {tag} contains {' '.join(bad)}, which a tag name can't"))
+        elif ORIGIN_RE.search(tag):  # its own Tags entries, just the name, would read back as derived and be dropped
+            errors.append((name, f"tag {tag} has a name ending in (from <ID>) or (inline), which marks a derived Tags entry"))
         elif not anchor:
             errors.append((name, f"tag {tag} has an empty anchor"))
         elif "_" in anchor or "--" in anchor or anchor[0] == "-" or anchor[-1] == "-":

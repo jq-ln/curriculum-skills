@@ -300,7 +300,7 @@ The H1 is `# <CODE> Tags`. The doc holds one `## <tag>` heading per tag the Curr
 
 The standard tags the Curriculum uses come first, in the order of [Standard tags](#standard-tags), copied from there. The Curriculum's own tags follow, in authored order. A Curriculum with no tags of its own still has a tags doc.
 
-A tag name is the heading's text. It contains no `{`, `}`, `[`, `]` or backtick. Its anchor is GitHub's heading slug: lowercase the name, drop every character that isn't a letter, digit, space, `-` or `_`, then turn each space into `-`, so `2.43` gives `243` and `Host: Node` gives `host-node`. A tag is invalid when its anchor is empty, contains `_` or `--`, starts or ends with `-`, or equals another heading's anchor in the tags doc. These rules are deliberately stricter than needed: they're a simple test that guarantees GitHub's anchor and marksman's, which drops punctuation and collapses separators, are identical.
+A tag name is the heading's text. It contains no `{`, `}`, `[`, `]` or backtick, and, like a Meaning, can't end with `(from <ID>)` or `(inline)`, since an own Tags entry is just the name. Its anchor is GitHub's heading slug: lowercase the name, drop every character that isn't a letter, digit, space, `-` or `_`, then turn each space into `-`, so `2.43` gives `243` and `Host: Node` gives `host-node`. A tag is invalid when its anchor is empty, contains `_` or `--`, starts or ends with `-`, or equals another heading's anchor in the tags doc. These rules are deliberately stricter than needed: they're a simple test that guarantees GitHub's anchor and marksman's, which drops punctuation and collapses separators, are identical.
 
 ## Standard tags
 
