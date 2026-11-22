@@ -37,7 +37,7 @@ A Notes doc Field with nothing to say yet holds `None so far.`, because every Fi
 
 ## Part files
 
-A part file holds that Part's Subsections, each with its remaining Fields: Generators (optional), Foundations (optional), Scope, Key concepts, Check and Sources. It holds only Subsections that `outline.md` holds, with identical H1s, and none of the Fields `outline.md` holds for them, so a fill agent never changes an ID, title, Goal, Prereq or tag. `split` stops on a Part or Section doc, a Subsection `outline.md` lacks, or a Tags, Goal or Prereqs Field in a part file.
+A part file holds that Part's Subsections, each with its remaining Fields: Generators (optional), Foundations (optional), Scope, Key concepts, Check and Sources. It holds only Subsections that `outline.md` holds, and none of their Tags, Goal or Prereqs Fields, so a fill agent never changes an ID, title, Goal, Prereq or tag. `split` stops on any other doc or Field there.
 
 The file ends with two merge blocks, in this order, so parallel fill agents never edit a shared doc. `split` adds their entries to the shared docs.
 

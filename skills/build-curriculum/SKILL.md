@@ -49,9 +49,11 @@ Show the user:
 
 Ask the user to edit `outline.md` or tell you what to change, and to say go when it's right. Make each change they ask for in `outline.md`, renumbering as [IDs](references/curriculum-format.md#ids) says, run the `split` check of step 2 again, and show the checkpoint again. Wait for go.
 
+On go, create an empty file `.approved` in the Draft directory, so a resumed run doesn't ask again. The step is done when it exists.
+
 ## 4. Fill
 
-Plan the part files from `outline.md`. A Part of up to about 30 Subsections is one part file, `part-NN.md`. A larger Part is split into batches of whole Sections: walk its Sections in ID order and start a new batch whenever the next Section would take the current one past 30 Subsections, so each batch holds at least one Section. Name the batches `part-NN.md`, `part-NN-b.md`, `part-NN-c.md` and so on, as the [Draft format](references/draft-format.md#layout) says.
+Plan the part files from `outline.md`. A Part of up to 30 Subsections is one part file, `part-NN.md`. A larger Part is split into batches of whole Sections: walk its Sections in ID order and start a new batch whenever the next Section would take the current one past 30 Subsections, so each batch holds at least one Section. Name the batches `part-NN.md`, `part-NN-b.md`, `part-NN-c.md` and so on, as the [Draft format](references/draft-format.md#layout) says.
 
 Fill [`references/fill-prompt.md`](references/fill-prompt.md) once per part file: `{{subject}}`, `{{code}}`, `{{target_version}}` and `{{brief}}` as in step 2; `{{part}}` with the Part's ID and title, such as `GIT-03 Plumbing`; `{{sections}}` with the batch's Section IDs, such as `GIT-03.01, GIT-03.02, GIT-03.03`; and with absolute paths, `{{outline}}` with `outline.md`, `{{part_file}}` with the part file in the Draft directory, and `{{draft_format}}` and `{{curriculum_format}}` as in step 2.
 
@@ -69,7 +71,7 @@ python3 <skill-dir>/scripts/build.py derive <output-dir>
 python3 <skill-dir>/scripts/build.py check <output-dir>
 ```
 
-A non-zero `split` names the Draft file and doc at fault: fix it in the Draft and run `split` again; a failed `split` writes nothing. `split` checks only the Draft's shape, so a mistake in a part file's content surfaces later, in `check`.
+A non-zero `split` names the Draft file and doc at fault: fix it in the Draft and run `split` again, since a failed `split` writes nothing. After 3 failed runs, show the user the last error and stop, keeping the Draft. `split` checks only the Draft's shape, so a mistake in a part file's content surfaces later, in `check`.
 
 When `derive` or `check` exits non-zero, run a fix round:
 
@@ -83,15 +85,17 @@ The step is done when `check` exits 0.
 
 ## 6. Clean up
 
-Delete the Draft directory, since the doc set now holds everything it did. Tell the user where the Curriculum is, with its Parts, Sections and Subsections counts from `index.md`, and point them at the notes doc's Open questions Field when it exists.
+Delete the Draft directory, since the doc set now holds everything it did. Tell the user where the Curriculum is, with its Parts, Sections and Subsections counts from `index.md`, and point them at the notes doc's Open questions Field when it exists. The step is done when the Draft directory is gone and the user has the path.
 
 ## Resuming
 
-Each stage leaves a mark in the Draft directory or the output directory, so a new run picks up at the first stage that hasn't finished. Check these in order and start at the first that applies:
+Each stage leaves a mark in the Draft directory or the output directory, so a new run picks up at the first stage that hasn't finished.
+
+When `outline.md` exists, its values win over what the user confirmed in step 1: take the Code from its index H1 and the Target version from its index's Target version Field (`none given` when the Field is absent), and tell the user when either differs from what they confirmed.
+
+Then check these in order and start at the first that applies:
 
 1. **No `outline.md`**: the outline agent didn't finish. Delete any `outline.md.partial` and start at step 2.
-2. **`outline.md` and no part file**: the Outline isn't approved, or the fill hasn't finished a part file yet. Run step 2's `split` check, since the user may have edited `outline.md`, then show the checkpoint.
-3. **Some part files, output directory missing or empty**: the user said go and the fill started. Delete every `*.partial` file, plan the part files as step 4 says, and run step 4 for the part files that don't exist yet.
-4. **Output directory not empty**: `split` ran, and the build or its fix rounds stopped. Start step 5 at `derive`, with 3 fresh fix rounds, keeping the fixes already in the doc set.
-
-Before that, `outline.md`'s values win over what the user confirmed in step 1: take the Code from its index H1 and the Target version from its index's Target version Field (`none given` when the Field is absent), and tell the user when either differs from what they confirmed.
+2. **No `.approved`**: the user hasn't said go. Run step 2's `split` check, since the user may have edited `outline.md`, then show the checkpoint.
+3. **No `.marksman.toml` in the output directory**: the fill or `split` didn't finish, since `split` writes `.marksman.toml` last. Delete every `*.partial` file in the Draft directory and anything in the output directory, which held nothing before the first run. Then run step 4 for the planned part files that don't exist yet, and step 5.
+4. **`.marksman.toml` in the output directory**: `split` finished, and the build or its fix rounds stopped. Start step 5 at `derive`, with 3 fresh fix rounds, keeping the fixes already in the doc set.

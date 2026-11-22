@@ -213,13 +213,24 @@ class Split(TempDirTestCase):
             draft, "split: part-02.md: # GIT-02.01.02 Merge bases: isn't a Subsection of outline.md; a part file fills the Outline's Subsections"
         )
 
-    def test_stops_on_a_part_file_adding_a_tag(self):
+    def test_stops_on_a_part_file_holding_a_field_the_outline_fixes(self):
+        for field, content in [("Tags", "- Synthesis"), ("Goal", "Refs move."), ("Prereqs", "None")]:
+            with self.subTest(field=field):
+                draft = self.copy(DRAFT)
+                # GIT-01.01.02 has no Tags in outline.md, so only the part-file rule can stop this
+                replace(draft / "part-01.md", "# GIT-01.01.02 Refs\n", f"# GIT-01.01.02 Refs\n\n## {field}\n\n{content}\n")
+                self.assertStops(
+                    draft,
+                    f"split: part-01.md: # GIT-01.01.02 Refs: {field} is fixed by outline.md; "
+                    "a part file holds Generators, Foundations, Scope, Key concepts, Check and Sources",
+                )
+                shutil.rmtree(draft)
+
+    def test_stops_on_a_part_file_holding_a_section_doc(self):
         draft = self.copy(DRAFT)
-        replace(draft / "part-01.md", "# GIT-01.01.02 Refs\n", "# GIT-01.01.02 Refs\n\n## Tags\n\n- Synthesis\n")
+        replace(draft / "part-02.md", "# GIT-02.01.01 Ancestry\n", "# GIT-02.01 The commit graph\n\n## Generators\n\n- More.\n\n# GIT-02.01.01 Ancestry\n")
         self.assertStops(
-            draft,
-            "split: part-01.md: # GIT-01.01.02 Refs: Tags is fixed by outline.md; "
-            "a part file holds Generators, Foundations, Scope, Key concepts, Check and Sources",
+            draft, "split: part-02.md: # GIT-02.01 The commit graph: isn't a Subsection of outline.md; a part file fills the Outline's Subsections"
         )
 
     def test_stops_on_a_draft_file_with_a_name_it_doesnt_read(self):

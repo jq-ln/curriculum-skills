@@ -2,7 +2,7 @@
 
 # Fill: {{part}}, {{subject}}
 
-You fill in the Subsections of {{part}} in Sections {{sections}} of a Curriculum on {{subject}}: for each one, the Fields that teach it. Other agents fill the other Parts at the same time, from the same Outline.
+You fill in the Subsections of {{part}} in Sections {{sections}} of a Curriculum on {{subject}}: for each one, the Fields that teach it. Other agents fill the other part files at the same time, from the same Outline.
 
 The Outline is fixed. Its IDs, titles, Goals, Prereqs and tags were approved by the user, and every agent relies on them, so you write around them: each unit you fill teaches exactly its Goal, to a learner who holds exactly its Prereqs.
 
@@ -30,12 +30,12 @@ Read the whole Outline first: the overview's Methodology sets the source standar
 Write the part file as the Draft format's Part files section lays it out. For each Subsection in your Sections, in ID order:
 
 - Copy its H1 from the Outline character for character, since `split` merges your Fields into the Outline's by H1.
-- Write its Generators (optional), Foundations (optional), Scope, Key concepts, Check and Sources, each with the meaning and form the Curriculum format gives it. The Outline holds its Tags, Goal and Prereqs, so `split` stops on any of those three in your file.
+- Write the Fields the Draft format gives a part file, each with the meaning and form the Curriculum format gives it.
 - Build Scope toward the Goal from what the Prereqs' Goals already give the learner. A fact the unit needs that a Prereq doesn't give is a Foundation or part of Scope; a unit the Goal can't be reached in is a Judgement call in your Part notes, naming its ID.
 - Write the Check so that only a learner holding the Goal can answer it.
 - Name another unit by its bare ID and a tag as `{name}`, using only tags the Outline's tags doc defines. The tag vocabulary is closed: a unit that seems to need a new tag gets a Judgement call in your Part notes instead.
 
-End the file with the two merge blocks, `# {{code}} Sources added` then `# {{code}} Part notes`, as the Draft format gives them. They are your only route into the shared sources and notes docs, since other agents write beside you.
+End the file with the Draft format's two merge blocks. They are your only route into the shared sources and notes docs, since other agents write beside you.
 
 ## Sources
 
@@ -57,8 +57,8 @@ You're done when `{{part_file}}.partial` is written and:
 - every one has Scope, Key concepts, Check and Sources, and its H1 matches the Outline's;
 - every Sources bullet is a full link you opened, with link text using an abbreviation from the sources doc or your Sources added;
 - every `{name}` is a tag in the tags doc, and every bare ID with code `{{code}}` names a unit in the Outline;
-- the file ends with both merge blocks, each H1 present even when it has no Fields.
+- the file ends with both merge blocks.
 
 Then, as your last step, rename `{{part_file}}.partial` to `{{part_file}}`. The renamed file tells the orchestrator you finished, so rename it only once every item above holds.
 
-Reply with the number of Subsections you filled and the number of Open questions you added, and nothing else.
+Reply `done` and nothing else.
