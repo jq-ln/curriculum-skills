@@ -28,7 +28,7 @@ The step is done when the Subject, Code, Target version (or `none given`), Brief
 
 ## 2. Outline
 
-Fill [`references/outline-prompt.md`](references/outline-prompt.md): replace each `{{placeholder}}` with its input, `{{draft_dir}}` with the Draft directory's absolute path, and `{{draft_format}}` and `{{curriculum_format}}` with the absolute paths of [`references/draft-format.md`](references/draft-format.md) and [`references/curriculum-format.md`](references/curriculum-format.md). Create the Draft directory, then hand the filled prompt to one subagent. Where you can't start subagents, follow the prompt yourself. If the agent returns and `outline.md` doesn't exist, it stopped part-way: delete `outline.md.partial` and run it again.
+Fill [`references/outline-prompt.md`](references/outline-prompt.md): replace each `{{placeholder}}` with its input, `{{draft_dir}}` with the Draft directory's absolute path, and `{{draft_format}}` and `{{curriculum_format}}` with the absolute paths of [`references/draft-format.md`](references/draft-format.md) and [`references/curriculum-format.md`](references/curriculum-format.md). Create the Draft directory and write the Brief to `brief.txt` in it, verbatim, or `None.` when there is none, so a resumed run fills the part files with the same Brief. Then hand the filled prompt to one subagent. Where you can't start subagents, follow the prompt yourself. If the agent returns and `outline.md` doesn't exist, it stopped part-way: delete `outline.md.partial` and run it again.
 
 Then check that `split` reads the Outline, into a new empty temporary directory:
 
@@ -91,11 +91,11 @@ Delete the Draft directory, since the doc set now holds everything it did. Tell 
 
 Each stage leaves a mark in the Draft directory or the output directory, so a new run picks up at the first stage that hasn't finished.
 
-When `outline.md` exists, its values win over what the user confirmed in step 1: take the Code from its index H1 and the Target version from its index's Target version Field (`none given` when the Field is absent), and tell the user when either differs from what they confirmed.
+The Draft's values win over what the user gave or confirmed in step 1: take the Brief from `brief.txt`, and when `outline.md` exists, the Code from its index H1 and the Target version from its index's Target version Field (`none given` when the Field is absent). Tell the user when any of them differs from what they gave.
 
 Then check these in order and start at the first that applies:
 
 1. **No `outline.md`**: the outline agent didn't finish. Delete any `outline.md.partial` and start at step 2.
 2. **No `.approved`**: the user hasn't said go. Run step 2's `split` check, since the user may have edited `outline.md`, then show the checkpoint.
-3. **No `.marksman.toml` in the output directory**: the fill or `split` didn't finish, since `split` writes `.marksman.toml` last. Delete every `*.partial` file in the Draft directory and anything in the output directory, which held nothing before the first run. Then run step 4 for the planned part files that don't exist yet, and step 5.
+3. **No `.marksman.toml` in the output directory**: the fill or `split` didn't finish, since `split` writes `.marksman.toml` last. Delete every `*.partial` file in the Draft directory, and `index.md` and every `<CODE>-*.md` file in the output directory, which is all an unfinished `split` leaves there. If the output directory holds anything else, ask the user before deleting it. Then run step 4 for the planned part files that don't exist yet, and step 5.
 4. **`.marksman.toml` in the output directory**: `split` finished, and the build or its fix rounds stopped. Start step 5 at `derive`, with 3 fresh fix rounds, keeping the fixes already in the doc set.

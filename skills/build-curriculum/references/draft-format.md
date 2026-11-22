@@ -4,6 +4,7 @@ A Draft is the authored content of a Curriculum, before the build script's `spli
 
 ## Layout
 
+- `brief.txt`: the Brief, verbatim, or `None.`, written by the orchestrator before the outline agent starts, so a resumed run gives the fill agents the same Brief. It isn't `.md`, so `split` doesn't read it.
 - `outline.md`: the Outline, written by the outline agent and edited by the human at the checkpoint. The agent writes it as `outline.md.partial` and renames it when done, so `split`, which reads only `outline.md`, never sees an unfinished Outline.
 - `part-NN.md`, one per Part, such as `part-03.md` for `<CODE>-03`: the rest of that Part's Subsection Fields, written by its fill agent. A Part filled in batches of whole Sections has `part-NN.md`, then `part-NN-b.md`, `part-NN-c.md` and so on, each holding whole Sections in Section order. `split` reads them in that order and stops on a unit from another Part, a Section in more than one file, or a Section before one in an earlier file.
 - `appendix-<description>.md`, one per Appendix, such as `appendix-manual-coverage.md`: the whole Appendix, with `<description>` as the [Filenames](curriculum-format.md#filenames) section gives it. `split` writes it as `<CODE>-appendix-<description>.md`. An Appendix goes in no other file.
@@ -37,7 +38,7 @@ A Notes doc Field with nothing to say yet holds `None so far.`, because every Fi
 
 ## Part files
 
-A part file holds that Part's Subsections, each with its remaining Fields: Generators (optional), Foundations (optional), Scope, Key concepts, Check and Sources. It holds only Subsections that `outline.md` holds, and none of their Tags, Goal or Prereqs Fields, so a fill agent never changes an ID, title, Goal, Prereq or tag. `split` stops on any other doc or Field there.
+A part file holds that Part's Subsections, each with its remaining Fields: Generators (optional), Foundations (optional), Scope, Key concepts, Check and Sources. It holds only Subsections that `outline.md` holds, and none of their Tags, Goal or Prereqs Fields, so a fill agent never changes an ID, title, Goal, Prereq or tag. `split` stops on any other doc, or a Tags, Goal or Prereqs Field.
 
 The file ends with two merge blocks, in this order, so parallel fill agents never edit a shared doc. `split` adds their entries to the shared docs.
 
