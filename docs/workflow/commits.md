@@ -51,7 +51,7 @@ Mark a breaking change in both places:
 
 Spell the footer with a hyphen, not as `BREAKING CHANGE:`. Git doesn't accept a space in a trailer token, so with the space git parses none of the footer paragraph as trailers, and the squash commit loses its `Co-Authored-By:`. Conventional Commits and release-please treat the two spellings the same.
 
-Write `BREAKING-CHANGE:` only as a footer. Anywhere else in the description it still counts and still bumps the version.
+Write either spelling only as a footer. Anywhere else in the description it still counts and still bumps the version.
 
 ## Agent attribution
 
