@@ -586,54 +586,92 @@ def format_version_errors(ds):
 
 # The format doc's unit marker, and an own-code token: an ID-shaped run the marker must match at its start.
 MARKER_RE = re.compile(rf"\b{CODE}-[0-9]{{2}}(?:\.[0-9]{{2}}){{0,2}}(?![.-]?\w)")
+# Link text with one level of nested brackets, and a destination with one level of parentheses.
+LINK_TEXT = r"(?:[^\[\]\\]|\\.|\[(?:[^\[\]\\]|\\.)*\])*"
+LINK_DEST = r"<[^<>\n]*>|(?:[^\s()\\]|\\.|\((?:[^\s()\\]|\\.)*\))*"
+LINK_RE = re.compile(rf"!?\[({LINK_TEXT})\]\((?:{LINK_DEST})[^)]*\)")
 # Inline spans in a paragraph, tried in this order at each position. Only `id` matches are
 # prose; a code span, autolink, raw HTML or link (text and destination) is kept as it is.
+# A shortcut reference link, `[label]` alone, can't be told from text without the
+# definitions, so an ID in one is read as prose.
 INLINE_RE = re.compile(
-    r"""
+    rf"""
     (?P<code>(?P<ticks>`+).*?(?<!`)(?P=ticks)(?!`))
     | `+  # a backtick run with no closing run is literal text
-    | <[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*>  # autolink
+    | <[A-Za-z][A-Za-z0-9+.-]{{1,31}}:[^\s<>]*>  # autolink
     | <[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>  # email autolink
     | <!--.*?--> | </?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>  # raw HTML
-    | (?P<link>(?P<bang>!?)\[(?P<text>(?:[^\[\]\\]|\\.)*)\]\(\s*(?P<dest><[^<>\n]*>|[^\s()]*)(?:\s+(?:"[^"]*"|'[^']*'))?\s*\))
+    | (?P<link>(?P<bang>!?)\[(?P<text>{LINK_TEXT})\]\(\s*(?P<dest>{LINK_DEST})(?:\s+(?:"[^"]*"|'[^']*'))?\s*\))
+    | !?\[{LINK_TEXT}\]\[[^\[\]]*\]  # a full or collapsed reference link
     | \\.  # an escaped character
     | (?P<id>\b[A-Z][A-Z0-9]*-[0-9][0-9.-]*\w*)
     """,
     re.S | re.X,
 )
 SCHEME_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
-LIST_ITEM_RE = re.compile(r" {0,3}([-+*]|[0-9]{1,9}[.)])([ \t]|$)")
+LIST_ITEM_RE = re.compile(r" {0,3}(?:[-+*]|[0-9]{1,9}[.)])(?:[ \t]+|$)")
+# HTML blocks of CommonMark types 6 and 7, which run to a blank line. Type 7 can't interrupt a paragraph.
+HTML_BLOCK_6_RE = re.compile(
+    r" {0,3}</?(?:address|article|aside|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt"
+    r"|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main"
+    r"|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead"
+    r"|title|tr|track|ul)(?:[ \t>]|/>|$)",
+    re.I,
+)
+HTML_BLOCK_7_RE = re.compile(r" {0,3}(?:<[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>|</[A-Za-z][A-Za-z0-9-]*\s*>)\s*$")
+
+
+def strip_links(text):
+    """text with every inline link replaced by its link text."""
+    return LINK_RE.sub(r"\1", text)
+
+
+def indent(line):
+    return len(line) - len(line.lstrip(" "))
 
 
 def prose_chunks(text):
     """Split a Field's content into (is_prose, text) runs, so code blocks and HTML blocks stay out.
 
-    Indented code is a run indented 4+ spaces after a blank line, outside a list,
-    which approximates CommonMark as scan_lines() does.
+    Indented code starts after a blank line, 4 or more spaces past the indent of
+    the list item it's in, if any, and runs while lines are blank or as indented.
+    Tabs count as one space, as an approximation like those in scan_lines().
     """
     chunks = []  # [is_prose, text]
-    fence, html_end, blank, in_list = None, None, True, False
+    fence, html_end, code_at, blank, list_indent = None, None, None, True, 0
     for line in text.splitlines(keepends=True):
         prose = False
-        m = FENCE_RE.match(line)
+        m = FENCE_RE.match(line.lstrip(" ")) if indent(line) >= list_indent else None
+        if code_at is not None and line.strip() and indent(line.expandtabs(1)) < code_at:
+            code_at = None
         if html_end:
-            if html_end.search(line):
+            if html_end == "blank" and not line.strip():
+                html_end, prose = None, True
+            elif html_end != "blank" and html_end.search(line):
                 html_end = None
         elif fence:
-            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not line[m.end():].strip():
+            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not line[m.end() + indent(line):].strip():
                 fence = None
-        elif m and not (m.group(1)[0] == "`" and "`" in line[m.end():]):
+        elif code_at is not None:
+            pass  # indented code, blank lines included
+        elif blank and line.strip() and indent(line.expandtabs(1)) >= list_indent + 4:
+            code_at = list_indent + 4
+        elif m and not (m.group(1)[0] == "`" and "`" in line[m.end() + indent(line):]):
             fence = m.group(1)
         elif any(start.match(line) for start, _ in HTML_BLOCKS):
             start, end = next((s, e) for s, e in HTML_BLOCKS if s.match(line))
             if not end.search(line, start.match(line).end()):
                 html_end = end
-        elif blank and not in_list and line.startswith(("    ", "\t")) and line.strip():
-            pass  # indented code
+        elif HTML_BLOCK_6_RE.match(line) or (blank and HTML_BLOCK_7_RE.match(line)):
+            html_end = "blank"
         else:
             prose = True
-        if line.strip() and line[0] not in " \t":
-            in_list = bool(LIST_ITEM_RE.match(line))
+        if prose and line.strip():
+            item = LIST_ITEM_RE.match(line)
+            if item:
+                list_indent = item.end()
+            elif indent(line) < list_indent and blank:
+                list_indent = 0  # a paragraph after the list ends it
         blank = not line.strip()
         if chunks and chunks[-1][0] == prose:
             chunks[-1][1] += line
@@ -652,11 +690,17 @@ def unit_link(ds, uid):
     return f"[{uid} {ds.title(uid)}]({ds.units[uid]})"
 
 
-def link_prose(ds, name, text, errors):
+def goal_entry(ds, uid):
+    """A list entry linking a Subsection, with its Goal copied."""
+    return f"- {unit_link(ds, uid)}: {one_line(ds.doc(uid).field('Goal').body())}"
+
+
+def link_prose(ds, name, text, errors, stale):
     """text with every own-code marker linked and every unit link refreshed.
 
     Appends (name, message) to errors for a malformed own-code token, an own-code ID
-    naming no unit, and a link between docs that's malformed, broken or names no unit.
+    naming no unit, and a link between docs that's malformed, broken or names no
+    unit. A unit link with a bad target goes to stale instead: derive rewrites it.
     """
 
     def replace(m):
@@ -664,7 +708,7 @@ def link_prose(ds, name, text, errors):
             token = m.group("id")
             if not token.startswith(f"{ds.code}-"):
                 return token  # another Curriculum's code stays plain text
-            marker = MARKER_RE.match(text, m.start())
+            marker = MARKER_RE.match(m.string, m.start())
             uid = parse_id(marker.group()) if marker else None
             if not uid:
                 errors.append((name, not_an_id(token.rstrip(".-"))))
@@ -682,12 +726,11 @@ def link_prose(ds, name, text, errors):
             problem = target_error(ds, name, dest)
             words = m.group("text").split()
             uid = own_unit(ds, words[0]) if words else None
-            if problem:
-                errors.append((name, problem))
-            elif not uid:
-                errors.append((name, f"link {m.group()} names no unit; write the unit's bare ID instead"))
-            else:
+            if uid:
+                if problem:
+                    stale.append((name, f"{problem}; run derive to rewrite it"))
                 return unit_link(ds, uid)
+            errors.append((name, problem or f"link {m.group()} names no unit; write the unit's bare ID instead"))
         return m.group()
 
     return "".join(INLINE_RE.sub(replace, chunk) if prose else chunk for prose, chunk in prose_chunks(text))
@@ -699,9 +742,9 @@ def target_error(ds, name, dest):
     if not dest or "/" in file or "%" in dest or "\\" in dest or (not file and not anchor):
         return f"link target {dest or '(empty)'} isn't a bare sibling filename or a same-file anchor"
     target = file or name
-    if file and not (ds.root / file).is_file():
+    if target not in ds.docs:
         return f"link target {dest} names no file in the doc set"
-    if anchor and target in ds.docs and anchor not in anchors(ds.docs[target]):
+    if anchor and anchor not in anchors(ds.docs[target]):
         return f"link target {dest} names no heading in {target}"
     return None
 
@@ -712,8 +755,7 @@ def anchors(doc):
     for _, h in scan_lines(doc.head + [line for b in doc.blocks for line in b.lines]):
         if not h:
             continue
-        text = re.sub(r"!?\[((?:[^\[\]\\]|\\.)*)\]\([^)]*\)", r"\1", h[1])  # a link's text only
-        a = re.sub(r"[^\w\- ]", "", text.lower()).replace(" ", "-")
+        a = re.sub(r"[^\w\- ]", "", strip_links(h[1]).lower()).replace(" ", "-")
         n = seen.get(a, 0)
         seen[a] = n + 1
         out.add(f"{a}-{n}" if n else a)
@@ -728,12 +770,16 @@ def prose_blocks(ds, name):
     return [b for b in doc.blocks if b.name not in NOT_PROSE]
 
 
-def link_errors(ds):
-    errors = []
+def link_prose_everywhere(ds):
+    """(errors, stale) from link_prose() over every doc's authored prose, rewriting it in place."""
+    errors, stale = [], []
     for name in ds.docs:
         for block in prose_blocks(ds, name):
-            link_prose(ds, name, "".join(block.lines[1:]), errors)
-    return errors
+            old = "".join(block.lines[1:])
+            new = link_prose(ds, name, old, errors, stale)
+            if new != old:
+                block.lines[1:] = new.splitlines(keepends=True)
+    return errors, stale
 
 
 # --- Prereqs -----------------------------------------------------------------
@@ -806,7 +852,7 @@ def prereqs(ds, name, other):
     lines = []
     for entry, uid in prereq_ids(ds, name)[0]:
         if uid.code == ds.code:
-            lines.append(f"- {unit_link(ds, uid)}: {one_line(ds.doc(uid).field('Goal').body())}")
+            lines.append(goal_entry(ds, uid))
         else:
             lines.append(f"- {other_prereq(other(uid.code), uid) or entry}")
     return "\n".join(lines) or "None"
@@ -826,7 +872,7 @@ def other_prereq(root, uid):
     unit, goal = split_unit_h1(doc.h1), doc.field("Goal")
     if not unit or unit[0] != uid or not goal or not goal.body():
         return None
-    text = re.sub(r"!?\[((?:[^\[\]\\]|\\.)*)\]\([^)]*\)", r"\1", one_line(goal.body()))
+    text = strip_links(one_line(goal.body()))
     return f"{uid} {unit[1]}: {text}"
 
 
@@ -864,12 +910,7 @@ def derived(ds, other=lambda code: None):
     code is kept as it is and never compared.
     """
     before = {name: doc.text() for name, doc in ds.docs.items()}
-    # Link prose first, so every copy below takes the linked text.
-    for name in ds.docs:
-        for block in prose_blocks(ds, name):
-            new = link_prose(ds, name, "".join(block.lines[1:]), [])
-            if new != "".join(block.lines[1:]):
-                block.lines[1:] = new.splitlines(keepends=True)
+    link_prose_everywhere(ds)  # first, so every copy below takes the linked text
     subsections = sorted((uid for uid in ds.units if len(uid.levels) == 3), key=lambda u: u.levels)
     for name, doc in ds.docs.items():
         doc_type = ds.types[name]
@@ -910,9 +951,7 @@ def indented(body):
 
 
 def subsection_list(ds, section):
-    return "\n".join(
-        f"- {unit_link(ds, uid)}: {one_line(ds.doc(uid).field('Goal').body())}" for uid in children(ds, section)
-    )
+    return "\n".join(goal_entry(ds, uid) for uid in children(ds, section))
 
 
 def section_list(ds, part):
@@ -1011,7 +1050,7 @@ def errors_before_derive(ds):
         return [("index.md", e) for e in version]
     errors = ds.errors + structure_errors(ds) + field_errors(ds)
     # A missing or misnamed unit already reported would also break every link and Prereq naming it.
-    return errors or link_errors(ds) + prereq_errors(ds)
+    return errors or link_prose_everywhere(load(ds.root))[0] + prereq_errors(ds)
 
 
 def check(root):
@@ -1020,7 +1059,8 @@ def check(root):
     errors = errors_before_derive(ds)
     if errors:
         return errors
-    return [
+    stale = link_prose_everywhere(load(root))[1]
+    return stale or [
         (name, "derived content differs from what derive writes; edit its source and run derive")
         for name in derived(ds)
     ]

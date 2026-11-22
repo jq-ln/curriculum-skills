@@ -23,6 +23,8 @@ PART_FILE = "GIT-01-repository-internals.md"
 REFS_FILE = "GIT-01.01.02-refs.md"
 ANCESTRY_FILE = "GIT-02.01.01-ancestry.md"
 PART_2_FILE = "GIT-02-history.md"
+INDEX_SECTION_FILE = "GIT-01.02-the-index.md"
+INDEX_SUBSECTION_FILE = "GIT-01.02.01-the-index-as-a-staging-snapshot.md"
 SECTION_FILE = "GIT-01.01-objects.md"
 
 
@@ -57,6 +59,10 @@ class TempDirTestCase(unittest.TestCase):
 
     def tearDown(self):
         self._tmp.cleanup()
+
+    def assertPasses(self, doc_set):
+        result = run("check", doc_set)
+        self.assertEqual((result.returncode, result.stdout), (0, ""))
 
     def copy(self, src):
         dst = self.tmp / src.name
@@ -225,23 +231,56 @@ class Check(TempDirTestCase):
     def test_reports_a_link_target_that_isnt_a_bare_sibling_filename(self):
         self.assertErrors(
             INVALID / "link-target-form",
-            "GIT-overview.md: link target ./GIT-02-history.md isn't a bare sibling filename or a same-file anchor",
+            "GIT-overview.md: link target ./GIT-02-history.md isn't a bare sibling filename or a same-file anchor; "
+            "run derive to rewrite it",
         )
 
     def test_reports_a_link_target_naming_a_missing_file(self):
         self.assertErrors(
-            INVALID / "link-target-missing", "GIT-overview.md: link target GIT-02-commits.md names no file in the doc set"
+            INVALID / "link-target-missing",
+            "GIT-overview.md: link target GIT-02-commits.md names no file in the doc set; run derive to rewrite it",
         )
 
     def test_reports_a_prereq_that_points_forward(self):
         self.assertErrors(INVALID / "prereq-forward", f"{REFS_FILE}: Prereq GIT-02.01.01 doesn't come before GIT-01.01.02")
 
-    # The other rules check enforces, each on a copy of the golden doc set.
+    # One fixture per other rule this script added with #19.
 
     def test_reports_an_own_code_token_that_isnt_an_id(self):
-        doc_set = self.copy(GOLDEN)
-        replace(doc_set / REFS_FILE, "Stops before history,", "Stops before history and GIT-7,")
-        self.assertErrors(doc_set, f"{REFS_FILE}: GIT-7 isn't an ID: each level is two digits from 01 to 99")
+        self.assertErrors(
+            INVALID / "id-token-malformed", f"{REFS_FILE}: GIT-7 isn't an ID: each level is two digits from 01 to 99"
+        )
+
+    def test_reports_a_link_between_docs_naming_no_unit(self):
+        self.assertErrors(
+            INVALID / "link-names-no-unit",
+            "GIT-notes.md: link [the overview](GIT-overview.md) names no unit; write the unit's bare ID instead",
+        )
+
+    def test_reports_a_link_target_naming_a_missing_heading(self):
+        self.assertErrors(
+            INVALID / "link-anchor-missing",
+            f"GIT-overview.md: link target GIT-02-history.md#merges names no heading in {PART_2_FILE}; run derive to rewrite it",
+        )
+
+    def test_reports_a_prereq_naming_a_section(self):
+        self.assertErrors(INVALID / "prereq-not-subsection", f"{REFS_FILE}: Prereq GIT-01.01 names no Subsection")
+
+    def test_reports_a_prereq_with_a_qualifier(self):
+        self.assertErrors(
+            INVALID / "prereq-not-alone", f"{ANCESTRY_FILE}: Prereqs entry `GIT-01.01.01 (preview)` isn't an ID alone"
+        )
+
+    def test_reports_a_prereq_in_another_curriculum_that_isnt_a_subsection_id(self):
+        self.assertErrors(INVALID / "prereq-other-code-level", f"{ANCESTRY_FILE}: Prereq MATH-03.01 isn't a Subsection ID")
+
+    def test_reports_prereqs_that_arent_bullets(self):
+        self.assertErrors(
+            INVALID / "prereqs-not-bullets",
+            f"{ANCESTRY_FILE}: Field Prereqs holds content other than bullets, or None alone",
+        )
+
+    # The other rules check enforces, each on a copy of the golden doc set.
 
     def test_passes_ids_in_code_and_in_links_out_of_the_curriculum(self):
         doc_set = self.copy(GOLDEN)
@@ -252,50 +291,19 @@ class Check(TempDirTestCase):
         )
         self.assertPasses(doc_set)
 
-    def test_reports_a_link_between_docs_naming_no_unit(self):
-        doc_set = self.copy(GOLDEN)
-        replace(doc_set / "GIT-notes.md", "None so far.", "None so far; see [the overview](GIT-overview.md).")
-        self.assertErrors(
-            doc_set,
-            "GIT-notes.md: link [the overview](GIT-overview.md) names no unit; write the unit's bare ID instead",
-        )
-
-    def test_reports_a_link_target_naming_a_missing_heading(self):
-        doc_set = self.copy(GOLDEN)
-        replace(doc_set / "GIT-overview.md", "(GIT-02-history.md)", "(GIT-02-history.md#merges)")
-        self.assertErrors(doc_set, f"GIT-overview.md: link target GIT-02-history.md#merges names no heading in {PART_2_FILE}")
-
     def test_reports_a_url_encoded_link_target(self):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / "GIT-overview.md", "(GIT-02-history.md)", "(GIT%2D02-history.md)")
         self.assertErrors(
-            doc_set, "GIT-overview.md: link target GIT%2D02-history.md isn't a bare sibling filename or a same-file anchor"
+            doc_set,
+            "GIT-overview.md: link target GIT%2D02-history.md isn't a bare sibling filename or a same-file anchor; "
+            "run derive to rewrite it",
         )
-
-    def test_reports_a_prereq_naming_a_section(self):
-        doc_set = self.copy(GOLDEN)
-        replace(doc_set / REFS_FILE, "## Prereqs\n\n", "## Prereqs\n\n- GIT-01.01\n")
-        self.assertErrors(doc_set, f"{REFS_FILE}: Prereq GIT-01.01 names no Subsection")
 
     def test_reports_a_prereq_naming_its_own_unit(self):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / REFS_FILE, "## Prereqs\n\n", "## Prereqs\n\n- GIT-01.01.02\n")
         self.assertErrors(doc_set, f"{REFS_FILE}: Prereq GIT-01.01.02 doesn't come before GIT-01.01.02")
-
-    def test_reports_a_prereq_with_a_qualifier(self):
-        doc_set = self.copy(GOLDEN)
-        replace(doc_set / ANCESTRY_FILE, "- MATH-03.01.02\n", "- MATH-03.01.02\n- GIT-01.01.01 (preview)\n")
-        self.assertErrors(doc_set, f"{ANCESTRY_FILE}: Prereqs entry `GIT-01.01.01 (preview)` isn't an ID alone")
-
-    def test_reports_a_prereq_in_another_curriculum_that_isnt_a_subsection_id(self):
-        doc_set = self.copy(GOLDEN)
-        replace(doc_set / ANCESTRY_FILE, "- MATH-03.01.02\n", "- MATH-03.01\n")
-        self.assertErrors(doc_set, f"{ANCESTRY_FILE}: Prereq MATH-03.01 isn't a Subsection ID")
-
-    def test_reports_prereqs_that_arent_bullets(self):
-        doc_set = self.copy(GOLDEN)
-        replace(doc_set / ANCESTRY_FILE, "- MATH-03.01.02\n", "- MATH-03.01.02\n\nAnd some prose.\n")
-        self.assertErrors(doc_set, f"{ANCESTRY_FILE}: Field Prereqs holds content other than bullets, or None alone")
 
     def test_reports_a_hand_edit_to_a_nav_line(self):
         doc_set = self.copy(GOLDEN)
@@ -373,8 +381,8 @@ class Check(TempDirTestCase):
 
     def test_reports_a_section_with_no_subsection(self):
         doc_set = self.copy(GOLDEN)
-        (doc_set / "GIT-01.02.01-the-index-as-a-staging-snapshot.md").unlink()
-        self.assertErrors(doc_set, "GIT-01.02-the-index.md: GIT-01.02 has no Subsection")
+        (doc_set / INDEX_SUBSECTION_FILE).unlink()
+        self.assertErrors(doc_set, f"{INDEX_SECTION_FILE}: GIT-01.02 has no Subsection")
 
     def test_reports_a_doc_set_with_no_part(self):
         doc_set = self.copy(GOLDEN)
@@ -422,12 +430,8 @@ class Check(TempDirTestCase):
         self.assertErrors(
             doc_set,
             f"{SUBSECTION_FILE}: GIT-01.01.01 has no Section GIT-01.01",
-            "GIT-01.01.02-refs.md: GIT-01.01.02 has no Section GIT-01.01",
+            f"{REFS_FILE}: GIT-01.01.02 has no Section GIT-01.01",
         )
-
-    def assertPasses(self, doc_set):
-        result = run("check", doc_set)
-        self.assertEqual((result.returncode, result.stdout), (0, ""))
 
     def test_passes_a_field_inside_an_html_comment(self):
         doc_set = self.copy(GOLDEN)
@@ -509,10 +513,45 @@ class Derive(TempDirTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(filecmp.cmp(doc_set / PART_2_FILE, GOLDEN / PART_2_FILE, shallow=False))
         self.assertIn(
-            "None so far, beyond [GIT-01.02 The index](GIT-01.02-the-index.md).\n",
+            f"None so far, beyond [GIT-01.02 The index]({INDEX_SECTION_FILE}).\n",
             (doc_set / "GIT-notes.md").read_text(encoding="utf-8"),
         )
         self.assertPasses(doc_set)
+
+    def test_links_an_id_after_a_code_block_in_the_same_field(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-notes.md", "None so far.", "None so far.\n\n```text\nlog\n```\n\nSee GIT-01.02.")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("See [GIT-01.02 The index](GIT-01.02-the-index.md).\n", (doc_set / "GIT-notes.md").read_text(encoding="utf-8"))
+
+    def test_leaves_ids_outside_prose_unlinked(self):
+        doc_set = self.copy(GOLDEN)
+        outside = (
+            "None so far.\n\n"
+            "[see [x] GIT-01.01](https://example.com), [GIT-01.01 ref][r] and [GIT-01.01 p](https://example.com/a_(b)).\n\n"
+            "[r]: https://example.com\n\n"
+            "    GIT-01.01\n    GIT-01.02\n\n"
+            "<div>\nGIT-01.01\n</div>\n"
+        )
+        replace(doc_set / "GIT-notes.md", "None so far.\n", outside)
+        before = (doc_set / "GIT-notes.md").read_bytes()
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((doc_set / "GIT-notes.md").read_bytes(), before)
+        self.assertPasses(doc_set)
+
+    def test_refreshes_a_unit_link_whose_target_is_stale(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_2_FILE, "[GIT-01.01 Objects](GIT-01.01-objects.md)", "[GIT-01.01 Objects](GIT-01.01-old.md)")
+        check = run("check", doc_set)
+        self.assertIn(
+            f"{PART_2_FILE}: link target GIT-01.01-old.md names no file in the doc set; run derive to rewrite it",
+            check.stdout.splitlines(),
+        )
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(filecmp.dircmp(doc_set, GOLDEN).diff_files, [])
 
     def test_twice_gives_no_diff(self):
         doc_set = self.copy(GOLDEN)
@@ -549,10 +588,6 @@ class Derive(TempDirTestCase):
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(filecmp.dircmp(doc_set, GOLDEN).diff_files, [])
-
-    def assertPasses(self, doc_set):
-        result = run("check", doc_set)
-        self.assertEqual((result.returncode, result.stdout), (0, ""))
 
     def test_leaves_alone_docs_with_nothing_to_derive(self):
         doc_set = self.copy(GOLDEN)
