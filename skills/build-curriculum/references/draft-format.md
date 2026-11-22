@@ -78,4 +78,4 @@ The notes this Part's fill produced:
 - GIT-01.02.01: no primary source states ...
 ```
 
-Each Field is optional and is added to the Notes doc's Field of the same name. A part file with nothing to add still ends with both H1s, each with no Fields.
+Each Field is optional and its entries are added to the Notes doc's Field of the same name. They replace a Field that holds only `None so far.`, and an Open questions Field the Notes doc lacks is added. A part file with nothing to add still ends with both H1s, each with no Fields.

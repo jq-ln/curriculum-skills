@@ -18,11 +18,11 @@ Take from the user's request:
 
 Propose a **Code**: a short abbreviation of the Subject in the [code form](references/curriculum-format.md#doc-set), such as `GIT` or `PG`.
 
-Ask the user once, in one message, to confirm or correct the Code, the Target version (or that the outline agent will establish it) and the output directory, and to name a Subject if the request had none. Say the Code never changes once the Curriculum exists. Take their answer as final.
+If the request names no Subject, ask for it first, since the Code is proposed from it. Then ask the user once, in one message, to confirm or correct the Code, the Target version (or that the outline agent will establish it) and the output directory. Say the Code never changes once the Curriculum exists. Take their answer as final.
 
 The Snapshot is today's date as `YYYY-MM-DD`. The Draft directory is `<output>.draft/`, beside the output directory.
 
-If `<output>.draft/outline.md` already exists, an earlier run wrote it: go straight to step 3 with it.
+If `<output>.draft/outline.md` already exists, an earlier run wrote it, and its values win: take the Code from its index H1 and the Target version from its index's Target version Field (`none given` when the Field is absent), and tell the user when either differs from what they confirmed. Then skip the outline agent, but still run step 2's `split` check before step 3, because an agent that stopped part-way leaves an Outline that never passed it.
 
 The step is done when the Subject, Code, Target version (or `none given`), Brief (or `None.`), Snapshot, output directory and Draft directory are fixed.
 
@@ -33,10 +33,10 @@ Fill [`references/outline-prompt.md`](references/outline-prompt.md): replace eac
 Then check that `split` reads the Outline, into a new empty temporary directory:
 
 ```sh
-python3 scripts/build.py split <draft-dir> <temp-dir>
+python3 <skill-dir>/scripts/build.py split <draft-dir> <temp-dir>
 ```
 
-A non-zero exit prints the problem: fix `outline.md` and run it again. Delete the temporary directory once `split` exits 0. The step is done when it has.
+Pass all three as absolute paths, since the script and the Draft sit under different directories. A non-zero exit prints the problem: fix `outline.md` and run it again. Delete the temporary directory once `split` exits 0. The step is done when it has.
 
 ## 3. Checkpoint
 

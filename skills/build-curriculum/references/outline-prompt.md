@@ -45,7 +45,7 @@ Every claim the Curriculum makes is traced to the source that owns it:
 
 ## Units
 
-Goals, Generators, Prereqs, IDs and tags follow the Curriculum format's [Subsection](curriculum-format.md#subsection), [IDs](curriculum-format.md#ids) and [Standard tags](curriculum-format.md#standard-tags) sections. On top of those:
+Goals, Generators, Prereqs, IDs and tags follow the Curriculum format's Subsection, IDs and Standard tags sections. On top of those:
 
 - Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a unit that needs more into several Subsections. Merge a unit too thin to carry its own Goal into its neighbour.
 - Add a Synthesis Subsection wherever loose facts collapse into a structure, such as at the end of a Section.
@@ -66,7 +66,7 @@ Write the first notes in the notes doc:
 You're done when `outline.md` is written and:
 
 - every Part has at least one Section and every Section at least one Subsection;
-- every Subsection has a Goal and a Prereqs Field, and every Prereq is an earlier Subsection's ID or another Curriculum's three-level ID;
+- every Subsection has a Goal and a Prereqs Field, and every Prereq is an earlier Subsection's ID or another Curriculum's three-level ID, and no unit outside an Optional Part, Section or Subsection lists a unit inside one;
 - every tag used is defined in the tags doc;
 - the overview's Methodology states the primary-source standard and how the Target version was established.
 
