@@ -1,6 +1,6 @@
 # curriculum-skills
 
-A Claude Code plugin of skills for building curriculums. Its first skill, [`build-curriculum`](skills/build-curriculum/), researches a subject and writes it as a [Curriculum](GLOSSARY.md#curriculums) in the format of [`docs/curriculum-format.md`](docs/curriculum-format.md).
+A Claude Code plugin of skills for building Curriculums. Its first skill, [`build-curriculum`](skills/build-curriculum/), researches a subject and writes it as a [Curriculum](GLOSSARY.md#curriculums) in the format of [`docs/curriculum-format.md`](docs/curriculum-format.md).
 
 ## Install
 
