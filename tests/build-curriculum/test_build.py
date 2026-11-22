@@ -312,6 +312,18 @@ class Check(TempDirTestCase):
             doc_set, f"{ANCESTRY_FILE}: derived content differs from what derive writes; edit its source and run derive"
         )
 
+    def test_reports_content_after_a_nav_line(self):
+        self.assertErrors(
+            INVALID / "nav-line-extra-content",
+            f"{REFS_FILE}: has content between its H1 and first Field other than one paragraph, the nav line; "
+            "move it into a Field",
+        )
+
+    def test_reports_an_own_code_token_between_backticks_in_two_paragraphs(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "ref; branch; HEAD\n", "ref; branch; HEAD; one ` tick\n\nGIT-7\n\nthree `code`\n")
+        self.assertErrors(doc_set, f"{REFS_FILE}: GIT-7 isn't an ID: each level is two digits from 01 to 99")
+
     def test_reports_an_unknown_field(self):
         doc_set = self.copy(GOLDEN)
         with open(doc_set / PART_FILE, "a", encoding="utf-8") as f:
@@ -540,6 +552,28 @@ class Derive(TempDirTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((doc_set / "GIT-notes.md").read_bytes(), before)
         self.assertPasses(doc_set)
+
+    def test_keeps_a_code_span_from_pairing_a_backtick_in_an_earlier_paragraph(self):
+        doc_set = self.copy(GOLDEN)
+        concepts = "ref; branch; HEAD\n\nA lone ` backtick here.\n\nSee `GIT-01.01.01` literally.\n"
+        replace(doc_set / REFS_FILE, "ref; branch; HEAD\n", concepts)
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(concepts, (doc_set / REFS_FILE).read_text(encoding="utf-8"))
+
+    def test_links_an_id_between_backticks_in_two_list_items(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "ref; branch; HEAD\n", "- one `tick\n- two GIT-01.01.01 here\n- three `code`\n")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"- two [GIT-01.01.01 {SUBSECTION_TITLE}]({SUBSECTION_FILE}) here\n", (doc_set / REFS_FILE).read_text(encoding="utf-8"))
+
+    def test_stops_on_content_after_a_nav_line(self):
+        self.assertStops(
+            INVALID / "nav-line-extra-content",
+            f"derive: {REFS_FILE}: has content between its H1 and first Field other than one paragraph, the nav line; "
+            "move it into a Field",
+        )
 
     def test_refreshes_a_unit_link_whose_target_is_stale(self):
         doc_set = self.copy(GOLDEN)

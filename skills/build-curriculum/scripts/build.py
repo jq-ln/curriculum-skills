@@ -633,12 +633,15 @@ def indent(line):
 def prose_chunks(text):
     """Split a Field's content into (is_prose, text) runs, so code blocks and HTML blocks stay out.
 
+    Each paragraph, list item and heading is its own prose run, so a code span or
+    raw HTML tag can't pair across them, which CommonMark never does.
+
     Indented code starts after a blank line, 4 or more spaces past the indent of
     the list item it's in, if any, and runs while lines are blank or as indented.
     Tabs count as one space, as an approximation like those in scan_lines().
     """
     chunks = []  # [is_prose, text]
-    fence, html_end, code_at, blank, list_indent = None, None, None, True, 0
+    fence, html_end, code_at, blank, list_indent, after_heading = None, None, None, True, 0, False
     for line in text.splitlines(keepends=True):
         prose = False
         m = FENCE_RE.match(line.lstrip(" ")) if indent(line) >= list_indent else None
@@ -672,8 +675,9 @@ def prose_chunks(text):
                 list_indent = item.end()
             elif indent(line) < list_indent and blank:
                 list_indent = 0  # a paragraph after the list ends it
-        blank = not line.strip()
-        if chunks and chunks[-1][0] == prose:
+        starts_block = prose and line.strip() and (blank or after_heading or LIST_ITEM_RE.match(line) or heading(line))
+        blank, after_heading = not line.strip(), prose and bool(heading(line))
+        if chunks and chunks[-1][0] == prose and not starts_block:
             chunks[-1][1] += line
         else:
             chunks.append([prose, line])
@@ -1048,7 +1052,7 @@ def errors_before_derive(ds):
     if version:
         # The rest of the doc set may follow another format, which this script can't read.
         return [("index.md", e) for e in version]
-    errors = ds.errors + structure_errors(ds) + field_errors(ds)
+    errors = ds.errors + structure_errors(ds) + field_errors(ds) + head_errors(ds)
     # A missing or misnamed unit already reported would also break every link and Prereq naming it.
     return errors or link_prose_everywhere(load(ds.root))[0] + prereq_errors(ds)
 
@@ -1064,6 +1068,23 @@ def check(root):
         (name, "derived content differs from what derive writes; edit its source and run derive")
         for name in derived(ds)
     ]
+
+
+def head_errors(ds):
+    """A Subsection with content between its H1 and first Field other than one paragraph, the nav line.
+
+    derive replaces that paragraph, so anything else there would be lost.
+    """
+    errors = []
+    for name, doc in ds.docs.items():
+        if ds.types[name] != SUBSECTION:
+            continue
+        lines = "".join(doc.head[1:]).strip("\n").split("\n")
+        if lines == [""]:
+            continue
+        if any(not line.strip() for line in lines) or lines[0][0] in " \t" or heading(lines[0]) or FENCE_RE.match(lines[0]) or NON_PARAGRAPH_RE.match(lines[0]):
+            errors.append((name, "has content between its H1 and first Field other than one paragraph, the nav line; move it into a Field"))
+    return errors
 
 
 def field_errors(ds):
