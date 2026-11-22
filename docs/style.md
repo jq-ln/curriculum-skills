@@ -19,7 +19,7 @@ Write one paragraph per line and leave body lines unwrapped.
 
 ## Commits
 
-The PR title becomes the subject of the commit on `main`, and the PR description becomes its body. Their format, the 64-character title limit and the `BREAKING CHANGE:` footer live in [`commits.md`](workflow/commits.md).
+The PR title becomes the subject of the commit on `main`, and the PR description becomes its body. Their format, the 64-character title limit and the `BREAKING-CHANGE:` footer live in [`commits.md`](workflow/commits.md).
 
 Commits on an Issue branch have no required format. Write them like this:
 

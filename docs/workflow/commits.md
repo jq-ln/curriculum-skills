@@ -47,9 +47,11 @@ End the description with any footers, as its last paragraph, one per line.
 Mark a breaking change in both places:
 
 1. `!` before the colon in the title, such as `feat!: drop the v1 config format`.
-2. A `BREAKING CHANGE: <what breaks and what to do instead>` footer at the end of the description.
+2. A `BREAKING-CHANGE: <what breaks and what to do instead>` footer at the end of the description.
 
-Write `BREAKING CHANGE:` only as a footer. Anywhere else in the description it still counts and still bumps the version.
+Spell the footer with a hyphen, not as `BREAKING CHANGE:`. Git doesn't accept a space in a trailer token, so with the space git parses none of the footer paragraph as trailers, and the squash commit loses its `Co-Authored-By:`. Conventional Commits and release-please treat the two spellings the same.
+
+Write `BREAKING-CHANGE:` only as a footer. Anywhere else in the description it still counts and still bumps the version.
 
 ## Agent attribution
 
@@ -59,7 +61,7 @@ An agent-assisted PR ends its description with the provider's `Co-Authored-By:` 
 Co-Authored-By: <agent name> <provider's no-reply address>
 ```
 
-Use the exact line the provider gives. Put it in the footer paragraph, with any `BREAKING CHANGE:` footer.
+Use the exact line the provider gives. Put it in the footer paragraph, with any `BREAKING-CHANGE:` footer.
 
 ## Accelerators (optional)
 
