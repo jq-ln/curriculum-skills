@@ -72,11 +72,15 @@ FIELDS = {
     ],
     APPENDIX: [("Purpose", True), ("Applies to", False)],
 }
+# Subsection Fields only outline.md holds, so a fill agent can't change a unit's Goal, Prereqs or tags.
+OUTLINE_FIELDS = {"Tags", "Goal", "Prereqs"}
 # H2s an Appendix can't have, though its other H2s are free content: it isn't a unit.
 NOT_IN_APPENDIX = ["Tags", "Prereqs", "Check"]
 # Fields derive writes. A missing one isn't a Field error: derive adds it, and check reports it
 # as derived content that differs from what derive writes.
 DERIVED_FIELDS = {"Context", "Counts", "Docs", "Parts", "Appendices", "Sections", "Subsections"}
+# The Subsection Fields a part file holds, in order.
+FILL_FIELDS = [n for n, _ in FIELDS[SUBSECTION] if n not in OUTLINE_FIELDS | DERIVED_FIELDS]
 # Fields whose content isn't authored prose, so markers in them aren't linked: the derived ones,
 # Prereqs and Tags, whose IDs and tag names derive links as entries, Applies to, whose IDs
 # stay bare, and Format version.
@@ -430,6 +434,9 @@ def split(draft_dir, out_dir):
                     if last and last.levels[0] == part and uid.levels < last.levels:
                         raise BuildError(f"{where}: comes after {last}; a Part's files hold its Sections in ID order")
                     last = uid
+            if part and not (uid and len(uid.levels) == 3 and str(uid) in keys):
+                # outline.md is read first, so keys holds its units: a fill agent never adds a unit, or a Part or Section doc
+                raise BuildError(f"{where}: isn't a Subsection of outline.md; a part file fills the Outline's Subsections")
             if uid:
                 errors = title_errors(split_unit_h1(doc.h1)[1])
             elif doc_type == INDEX:
@@ -450,6 +457,9 @@ def split(draft_dir, out_dir):
             if into.h1 != doc.h1:
                 raise BuildError(f"{where}: differs from the earlier H1 # {into.h1}")
             for block in doc.blocks:
+                if part and block.name in OUTLINE_FIELDS:
+                    fill = f"{', '.join(FILL_FIELDS[:-1])} and {FILL_FIELDS[-1]}"
+                    raise BuildError(f"{where}: {block.name} is fixed by outline.md; a part file holds {fill}")
                 if block.name == "Format version":
                     raise BuildError(f"{where}: Format version is written by split, not the Draft")
                 if into.field(block.name):
@@ -478,7 +488,7 @@ def split(draft_dir, out_dir):
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, (doc_type, doc) in merged.items():
         (out_dir / name).write_text(render(doc_type, doc), encoding="utf-8")
-    (out_dir / MARKSMAN).write_text("", encoding="utf-8")
+    (out_dir / MARKSMAN).write_text("", encoding="utf-8")  # last, so the skill reads it as split having finished
 
 
 MERGE_H1_RE = re.compile(rf"({CODE}) (Sources added|Part notes)")

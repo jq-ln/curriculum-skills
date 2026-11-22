@@ -1,4 +1,4 @@
-<!-- Template for the outline agent. The orchestrator replaces every {{placeholder}} and sends the whole file. -->
+<!-- Template for the outline agent. The orchestrator replaces every double-braced placeholder and sends the whole file. -->
 
 # Outline: {{subject}}
 
