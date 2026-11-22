@@ -8,6 +8,8 @@
     // release-please writes the changelog, and repeats headings such as "Features" per release.
     "CHANGELOG.md",
     // The README's Claude Code symlink to .agents/skills, whose files are linted already.
-    ".claude/skills/**"
+    ".claude/skills/**",
+    // Doc sets the build script's tests break on purpose, one check rule each.
+    "tests/build-curriculum/fixtures/check/**"
   ]
 }

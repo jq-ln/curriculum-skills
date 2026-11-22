@@ -1,0 +1,8 @@
+{
+  // A Draft holds many docs, one H1 each, so it has more than one top-level
+  // heading, and each doc repeats Field names such as Intro under its own H1.
+  "config": {
+    "MD024": { "siblings_only": true },
+    "MD025": false
+  }
+}
