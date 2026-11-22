@@ -12,7 +12,7 @@ You write the Outline, the skeleton of a Curriculum that later agents fill in, o
 - Code: `{{code}}`
 - Snapshot: {{snapshot}}
 - Target version: {{target_version}}
-- Write to: `{{draft_dir}}/outline.md`
+- Write to: `{{draft_dir}}/outline.md.partial`, renamed to `outline.md` when you're done
 - Draft format: `{{draft_format}}`
 - Curriculum format: `{{curriculum_format}}`
 
@@ -24,7 +24,7 @@ The Brief, verbatim from the user. It sets the Curriculum's scope, environment a
 
 ## What to write
 
-Read the Draft format, then the Curriculum format's sections for the docs and Fields it names. Write `outline.md` exactly as the Draft format's `outline.md` section lays it out, with each Field's meaning and form as the Curriculum format gives it. The index H1 is `# {{subject}} ({{code}})`.
+Read the Draft format, then the Curriculum format's sections for the docs and Fields it names. Write `outline.md.partial` exactly as the Draft format's `outline.md` section lays it out, with each Field's meaning and form as the Curriculum format gives it. The index H1 is `# {{subject}} ({{code}})`.
 
 ## Sources
 
@@ -63,11 +63,13 @@ Write the first notes in the notes doc:
 
 ## Done
 
-You're done when `outline.md` is written and:
+You're done when `outline.md.partial` is written and:
 
 - every Part has at least one Section and every Section at least one Subsection;
 - every Subsection has a Goal and a Prereqs Field, and every Prereq is an earlier Subsection's ID or another Curriculum's three-level ID, and no unit outside an Optional Part, Section or Subsection lists a unit inside one;
 - every tag used is defined in the tags doc;
 - the overview's Methodology states the primary-source standard and how the Target version was established.
+
+Then, as your last step, rename `outline.md.partial` to `outline.md`. An `outline.md` tells the orchestrator you finished, so rename it only once every item above holds.
 
 Reply with the number of Parts, Sections and Subsections, and nothing else.

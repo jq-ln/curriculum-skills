@@ -4,7 +4,7 @@ A Draft is the authored content of a Curriculum, before the build script's `spli
 
 ## Layout
 
-- `outline.md`: the Outline, written by the outline agent and edited by the human at the checkpoint.
+- `outline.md`: the Outline, written by the outline agent and edited by the human at the checkpoint. The agent writes it as `outline.md.partial` and renames it when done, so `split`, which reads only `outline.md`, never sees an unfinished Outline.
 - `part-NN.md`, one per Part, such as `part-03.md` for `<CODE>-03`: the rest of that Part's Subsection Fields, written by its fill agent. A Part filled in batches of whole Sections has `part-NN.md`, then `part-NN-b.md`, `part-NN-c.md` and so on, each holding whole Sections in Section order.
 
 Every file holds a run of docs. Each doc is an H1 followed by its Fields as H2s:

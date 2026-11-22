@@ -22,13 +22,13 @@ If the request names no Subject, ask for it first, since the Code is proposed fr
 
 The Snapshot is today's date as `YYYY-MM-DD`. The Draft directory is `<output>.draft/`, beside the output directory.
 
-If `<output>.draft/outline.md` already exists, an earlier run wrote it, and its values win: take the Code from its index H1 and the Target version from its index's Target version Field (`none given` when the Field is absent), and tell the user when either differs from what they confirmed. Then skip the outline agent, but still run step 2's `split` check before step 3, because an agent that stopped part-way leaves an Outline that never passed it.
+If `<output>.draft/outline.md` already exists, an earlier outline agent finished it, since the agent writes `outline.md.partial` and renames it only as its last step. Its values win: take the Code from its index H1 and the Target version from its index's Target version Field (`none given` when the Field is absent), and tell the user when either differs from what they confirmed. Then skip the outline agent, but still run step 2's `split` check before step 3, since the user may have edited the file. A leftover `outline.md.partial` without `outline.md` is an agent that stopped part-way: delete it and run step 2 in full.
 
 The step is done when the Subject, Code, Target version (or `none given`), Brief (or `None.`), Snapshot, output directory and Draft directory are fixed.
 
 ## 2. Outline
 
-Fill [`references/outline-prompt.md`](references/outline-prompt.md): replace each `{{placeholder}}` with its input, `{{draft_dir}}` with the Draft directory's absolute path, and `{{draft_format}}` and `{{curriculum_format}}` with the absolute paths of [`references/draft-format.md`](references/draft-format.md) and [`references/curriculum-format.md`](references/curriculum-format.md). Create the Draft directory, then hand the filled prompt to one subagent. Where you can't start subagents, follow the prompt yourself.
+Fill [`references/outline-prompt.md`](references/outline-prompt.md): replace each `{{placeholder}}` with its input, `{{draft_dir}}` with the Draft directory's absolute path, and `{{draft_format}}` and `{{curriculum_format}}` with the absolute paths of [`references/draft-format.md`](references/draft-format.md) and [`references/curriculum-format.md`](references/curriculum-format.md). Create the Draft directory, then hand the filled prompt to one subagent. Where you can't start subagents, follow the prompt yourself. If the agent returns and `outline.md` doesn't exist, it stopped part-way: delete `outline.md.partial` and run it again.
 
 Then check that `split` reads the Outline, into a new empty temporary directory:
 
