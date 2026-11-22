@@ -12,6 +12,10 @@
 - Section Generators:
   - The index records the tree the next commit will hold.
 
+## Tags
+
+- [2.43](GIT-tags.md#243): Checked against the release notes of Git 2.43. (from GIT-01.02)
+
 ## Goal
 
 The next commit's tree is built from the index, not from the working tree.

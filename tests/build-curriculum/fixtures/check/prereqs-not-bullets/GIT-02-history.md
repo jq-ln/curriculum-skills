@@ -2,7 +2,7 @@
 
 ## Intro
 
-How commits link into the graph that every history command walks, using the objects of [GIT-01.01 Objects](GIT-01.01-objects.md).
+How commits link into the graph that every history command walks, using the objects of [GIT-01.01 Objects](GIT-01.01-objects.md). Its commands were checked against [2.46](GIT-tags.md#246).
 
 ## Sections
 

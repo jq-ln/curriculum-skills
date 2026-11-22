@@ -1,6 +1,6 @@
 # GIT-02.01.01 Ancestry
 
-[Index](index.md) · [GIT-02](GIT-02-history.md) · [GIT-02.01](GIT-02.01-the-commit-graph.md) · Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md)
+[Index](index.md) · [GIT-02](GIT-02-history.md) · [GIT-02.01](GIT-02.01-the-commit-graph.md) · Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md) · Next [GIT-03.01.01](GIT-03.01.01-cat-file.md)
 
 ## Context
 
@@ -11,6 +11,10 @@
 - Section: [GIT-02.01 The commit graph](GIT-02.01-the-commit-graph.md)
 - Section Generators:
   - Each commit names its parents, so history is a graph of commits.
+
+## Tags
+
+- [Synthesis](GIT-tags.md#synthesis): Derives how earlier units' facts follow from a few base facts, and adds no new facts of its own.
 
 ## Goal
 

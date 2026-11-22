@@ -125,12 +125,16 @@ The Subsection is the teachable unit. Its doc is:
 
 The Curriculum line takes the name and code from the index's H1. The Target version line is left out when the index has no Target version. The Section Generators are the Section's Generators bullets, in order.
 
-**Tags** lists every tag the unit carries: the Part's and the Section's Tags Field entries copied down, the unit's own tags, and every tag used inline in the unit. Tags used inline in a Part or Section aren't copied down. The own tag names are authored, one per bullet; deriving adds the rest and writes each entry as its tag link and Meaning copied from the tags doc, in the tags doc's order, each tag once:
+**Tags** lists every tag the unit carries: the Part's and the Section's Tags Field entries copied down, the unit's own tags, and every tag used inline in the unit. Tags used inline in a Part or Section aren't copied down. The own tag names are authored, one per bullet; deriving adds the rest and writes each entry as its tag link and Meaning copied from the tags doc, in the tags doc's order, each tag once.
+
+An entry deriving added ends, after a space, with where it came from: `(from <ID>)` for a tag copied down from the Part or Section with that ID, naming the Part when both carry it, or `(inline)` for a tag the unit only uses inline. An entry with neither ending is one of the unit's own tags, and a tag that's both its own and copied down or inline is written as its own. Deriving again keeps the own entries and recomputes the rest, so removing a tag from a Part, or a marker from the unit's prose, removes the entries it added:
 
 ```markdown
 ## Tags
 
 - [Synthesis](GIT-tags.md#synthesis): Derives how earlier units' facts follow from a few base facts, and adds no new facts of its own.
+- [Optional](GIT-tags.md#optional): No unit outside it depends on it, so a learner may skip it. (from GIT-07)
+- [2.43](GIT-tags.md#243): Checked against the release notes of Git 2.43. (inline)
 ```
 
 **Goal** is one proposition, as one paragraph: the understanding the unit installs, stated as a fact that should feel obviously true to the learner once the unit is taught. It states the fact itself, never a learner action such as "Understand…" or "Learn how…". It's the answer key for the Check.
@@ -290,13 +294,13 @@ The H1 is `# <CODE> Tags`. The doc holds one `## <tag>` heading per tag the Curr
 - Uses: 16
 ```
 
-- **Meaning** (authored) is one line, the text copied into each Tags Field entry.
-- **Where** (authored) says where the tag may be used: `doc` (named in a Tags Field) or `inline` (as a marker in prose), or `doc, inline`. A tag used as a marker when its Where lacks `inline` is invalid, so a stray `{Optional}` in prose can't make a unit Optional. A Tags Field entry for a tag whose Where lacks `doc` is invalid unless the unit uses that tag inline, since deriving adds every inline tag to the unit's Tags Field.
+- **Meaning** (authored) is one line, the text copied into each Tags Field entry. It can't end with `(from <ID>)` or `(inline)`, which would make an own entry read as one deriving added.
+- **Where** (authored) says where the tag may be used: `doc` (named in a Tags Field) or `inline` (as a marker in prose), or `doc, inline`. A tag used as a marker when its Where lacks `inline` is invalid, so a stray `{Optional}` in prose can't make a unit Optional. An own Tags Field entry, one without a `(from <ID>)` or `(inline)` ending, for a tag whose Where lacks `doc` is invalid. Deriving adds each tag a Subsection uses inline itself, marked `(inline)`.
 - **Uses** (derived) is the number of Subsections whose Tags Field lists the tag.
 
 The standard tags the Curriculum uses come first, in the order of [Standard tags](#standard-tags), copied from there. The Curriculum's own tags follow, in authored order. A Curriculum with no tags of its own still has a tags doc.
 
-A tag name is the heading's text. It contains no `{`, `}`, `[`, `]` or backtick. Its anchor is GitHub's heading slug: lowercase the name, drop every character that isn't a letter, digit, space, `-` or `_`, then turn each space into `-`, so `2.43` gives `243` and `Host: Node` gives `host-node`. A tag is invalid when its anchor is empty, contains `_` or `--`, starts or ends with `-`, or equals another heading's anchor in the tags doc. These rules are deliberately stricter than needed: they're a simple test that guarantees GitHub's anchor and marksman's, which drops punctuation and collapses separators, are identical.
+A tag name is the heading's text. It contains no `{`, `}`, `[`, `]` or backtick, and, like a Meaning, can't end with `(from <ID>)` or `(inline)`, since an own Tags entry is just the name. Its anchor is GitHub's heading slug: lowercase the name, drop every character that isn't a letter, digit, space, `-` or `_`, then turn each space into `-`, so `2.43` gives `243` and `Host: Node` gives `host-node`. A tag is invalid when its anchor is empty, contains `_` or `--`, starts or ends with `-`, or equals another heading's anchor in the tags doc. These rules are deliberately stricter than needed: they're a simple test that guarantees GitHub's anchor and marksman's, which drops punctuation and collapses separators, are identical.
 
 ## Standard tags
 
