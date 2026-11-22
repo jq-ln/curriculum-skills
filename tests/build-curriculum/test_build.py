@@ -305,6 +305,7 @@ class Check(TempDirTestCase):
         self.assertErrors(
             INVALID / "filename-slug",
             f"GIT-01.01.01-objects.md: filename should be {SUBSECTION_FILE}, from its title; run derive to rename it",
+            f"GIT-notes.md: link target {SUBSECTION_FILE} names no file in the doc set; run derive to rewrite it",
         )
 
     def test_reports_a_hand_edit_to_derived_content(self):
@@ -1026,8 +1027,11 @@ class Derive(TempDirTestCase):
     def test_renames_a_unit_whose_title_changed_and_relinks_it(self):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / SECTION_FILE, "# GIT-01.01 Objects", "# GIT-01.01 Object store")
-        self.assertErrors(
-            doc_set, f"{SECTION_FILE}: filename should be GIT-01.01-object-store.md, from its title; run derive to rename it"
+        check = run("check", doc_set)
+        self.assertEqual(check.returncode, 1)
+        self.assertIn(
+            f"{SECTION_FILE}: filename should be GIT-01.01-object-store.md, from its title; run derive to rename it",
+            check.stdout.splitlines(),
         )
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -1036,6 +1040,18 @@ class Derive(TempDirTestCase):
         self.assertIn("- Section: [GIT-01.01 Object store](GIT-01.01-object-store.md)\n", (doc_set / REFS_FILE).read_text(encoding="utf-8"))
         self.assertIn(" · [GIT-01.01](GIT-01.01-object-store.md) · ", (doc_set / REFS_FILE).read_text(encoding="utf-8"))
         self.assertPasses(doc_set)
+
+    def test_reports_a_hand_edit_to_derived_content_beside_a_rename(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / CAT_FILE, "# GIT-03.01.01 cat-file", "# GIT-03.01.01 Reading with cat-file")
+        replace(doc_set / "GIT-tags.md", "- Where: inline\n- Uses: 1\n", "- Where: inline\n- Uses: 9\n")
+        result = run("check", doc_set)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            f"{CAT_FILE}: filename should be GIT-03.01.01-reading-with-cat-file.md, from its title; run derive to rename it",
+            result.stdout.splitlines(),
+        )
+        self.assertIn("GIT-tags.md: tag 2.46 has `9` where derive writes `1`; edit its source and run derive", result.stdout.splitlines())
 
     def test_renames_a_misnamed_file_back_to_its_titles_filename(self):
         doc_set = self.copy(INVALID / "filename-slug")

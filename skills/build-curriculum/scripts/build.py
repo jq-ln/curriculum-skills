@@ -1451,11 +1451,11 @@ def derive(root):
         ds = load(root, renamed=True)  # so every link and copy names the new filenames
     changed = derived(ds, other_curricula(ds.root))
     for old, new in ds.renames.items():
-        changed.setdefault(new, ds.docs[new].text())
+        # Renamed, not written anew then unlinked: on a case-insensitive filesystem a
+        # rename that changes only case would unlink the file just written.
+        (ds.root / old).rename(ds.root / new)
     for name, text in changed.items():
         (ds.root / name).write_text(text, encoding="utf-8")
-    for old in ds.renames:
-        (ds.root / old).unlink()
 
 
 def structure_errors(ds):
@@ -1509,14 +1509,14 @@ def check(root):
     ds = load(root)
     renames = [(old, f"filename should be {new}, from its title; run derive to rename it") for old, new in ds.renames.items()]
     errors = errors_before_derive(ds)
-    if errors or renames:
-        # A rename also makes every copy of the title and link to the file stale, which derive rewrites.
+    if errors:
         return renames + errors
     stale = link_prose_everywhere(load(root))[1]
     if stale:
-        return stale
+        return renames + stale
     before = {name: doc.text() for name, doc in ds.docs.items()}
-    return [(name, message) for name in derived(ds) for message in edited_spans(ds, name, before[name])]
+    # Diffed under the filenames on disk, so a rename alone shows only as the copies of the new title.
+    return renames + [(name, message) for name in derived(ds) for message in edited_spans(ds, name, before[name])]
 
 
 SPAN_LIMIT = 100  # the most characters of a span an error line quotes
@@ -1537,9 +1537,7 @@ def edited_spans(ds, name, old):
     for op, i1, i2, j1, j2 in matcher.get_opcodes():
         if op == "equal":
             continue
-        # A deletion is placed by the word before it, so text cut from a Field's end stays in that Field.
-        at = new_words[j1] if j2 > j1 or not j1 else new_words[j1 - 1]
-        where = place(places, at.start())
+        where = place(places, new_words[anchor(j1, j2)].start())
         was, now = quoted(old, old_words[i1:i2]), quoted(new, new_words[j1:j2])
         if op == "replace":
             out.append(f"{where} has {was} where derive writes {now}{suffix}")
@@ -1556,11 +1554,19 @@ def edited_spans(ds, name, old):
     matcher = difflib.SequenceMatcher(None, old_lines, new_lines, autojunk=False)
     for op, _, _, j1, j2 in matcher.get_opcodes():
         if op != "equal":
-            where = place(places, starts[j1 if j2 > j1 or not j1 else j1 - 1])
+            where = place(places, starts[anchor(j1, j2)])
             message = f"{where} differs in whitespace from what derive writes{suffix}"
             if message not in out:
                 out.append(message)
     return out
+
+
+def anchor(j1, j2):
+    """The index in the derived text that places a differing span j1:j2.
+
+    A deletion is placed by the item before it, so text cut from a Field's end stays in that Field.
+    """
+    return j1 if j2 > j1 or not j1 else j1 - 1
 
 
 def quoted(text, words):
