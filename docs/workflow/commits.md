@@ -40,7 +40,7 @@ Closes #
 - **What and why** says what changed and why, for someone reading `main`'s history later.
 - **How verified** says what you ran or checked, and what you saw.
 
-End the description with any footers, as its last paragraph, one per line.
+End the description with any footers, as its last paragraph, one per line. Write each footer in git's `Token: value` trailer form, such as `Refs: #<issue>`. That paragraph becomes the squash commit's trailers, and one line outside the form, such as `Refs #<issue>`, can stop git parsing any of them.
 
 ## Breaking changes
 
