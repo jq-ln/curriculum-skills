@@ -256,7 +256,7 @@ class Check(TempDirTestCase):
     def test_reports_a_link_between_docs_naming_no_unit(self):
         self.assertErrors(
             INVALID / "link-names-no-unit",
-            "GIT-notes.md: link [the overview](GIT-overview.md) names no unit; write the unit's bare ID instead",
+            "GIT-notes.md: link [the overview](GIT-overview.md) names no unit or tag; write the unit's bare ID or the tag's marker instead",
         )
 
     def test_reports_a_link_target_naming_a_missing_heading(self):
@@ -281,6 +281,80 @@ class Check(TempDirTestCase):
             INVALID / "prereqs-not-bullets",
             f"{ANCESTRY_FILE}: Field Prereqs holds content other than bullets, or None alone",
         )
+
+    # One fixture per rule #20 names.
+
+    def test_reports_two_tags_with_one_anchor(self):
+        self.assertErrors(INVALID / "tag-anchor-collision", "GIT-tags.md: tag 243 has the anchor 243, as tag 2.43 does")
+
+    def test_reports_a_tag_whose_github_and_marksman_anchors_can_differ(self):
+        self.assertErrors(
+            INVALID / "tag-anchor-unstable",
+            "GIT-tags.md: tag 2.46 — rc has the anchor 246--rc, on which GitHub's and marksman's slugs can differ",
+        )
+
+    def test_reports_a_tags_entry_naming_no_tag(self):
+        self.assertErrors(INVALID / "tag-unknown", f"{INDEX_SECTION_FILE}: Tags entry 2.44 names no tag in GIT-tags.md")
+
+    def test_reports_a_prereq_inside_an_optional_unit_the_subsection_is_outside(self):
+        self.assertErrors(
+            INVALID / "optional-dependant",
+            f"{ANCESTRY_FILE}: Prereq GIT-01.02.01 is inside Optional Section GIT-01.02, which no unit outside it may depend on",
+        )
+
+    def test_reports_a_tag_marker_whose_where_lacks_inline(self):
+        self.assertErrors(
+            INVALID / "tag-inline-not-allowed",
+            f"{REFS_FILE}: tag Synthesis is used inline, but its Where in GIT-tags.md lacks inline",
+        )
+
+    def test_reports_a_tags_entry_whose_where_lacks_doc(self):
+        self.assertErrors(
+            INVALID / "tag-entry-not-doc",
+            f"{SECTION_FILE}: Tags entry 2.46: its Where in GIT-tags.md lacks doc, and the unit doesn't use it inline",
+        )
+
+    # The other tag rules, each on a copy of the golden doc set.
+
+    def test_reports_a_tag_name_with_a_character_that_breaks_markers_or_links(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-tags.md", "## 2.46\n", "## 2.46 [rc]\n")
+        self.assertErrors(doc_set, "GIT-tags.md: tag 2.46 [rc] contains [ ], which a tag name can't")
+
+    def test_reports_a_tag_whose_anchor_is_a_standard_tags(self):
+        doc_set = self.copy(GOLDEN)
+        with open(doc_set / "GIT-tags.md", "a", encoding="utf-8") as f:
+            f.write("\n## optional\n\n- Meaning: Lower case.\n- Where: inline\n")
+        self.assertErrors(doc_set, "GIT-tags.md: tag optional has the anchor optional, as tag Optional does")
+
+    def test_reports_a_tag_with_content_other_than_its_bullets(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-tags.md", "- Where: inline\n", "- Where: inline\n\nA family of release tags.\n")
+        self.assertErrors(doc_set, "GIT-tags.md: tag 2.46 holds content other than its Meaning, Where, Uses bullets, in that order")
+
+    def test_reports_a_tag_with_no_meaning_or_an_unknown_where(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-tags.md", "- Meaning: Checked against the release notes of Git 2.46.\n- Where: inline\n", "- Where: prose\n")
+        self.assertErrors(
+            doc_set,
+            "GIT-tags.md: tag 2.46 has no Meaning",
+            "GIT-tags.md: tag 2.46 has Where `prose`; use doc, inline or `doc, inline`",
+        )
+
+    def test_reports_a_tags_field_that_isnt_bullets(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / INDEX_SECTION_FILE, "## Tags\n\n", "## Tags\n\nRelease tags:\n\n")
+        self.assertErrors(doc_set, f"{INDEX_SECTION_FILE}: Field Tags holds content other than bullets")
+
+    def test_passes_braces_around_text_that_isnt_a_tag(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "ref; branch; HEAD\n", "ref; branch; HEAD; {not a tag}; `{2.43}`\n")
+        self.assertPasses(doc_set)
+
+    def test_passes_a_tags_entry_whose_where_lacks_doc_in_a_subsection_using_it_inline(self):
+        doc_set = self.copy(GOLDEN)
+        self.assertIn("- [2.46](GIT-tags.md#246)", (doc_set / "GIT-03.01.01-cat-file.md").read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
 
     # The other rules check enforces, each on a copy of the golden doc set.
 
@@ -571,6 +645,47 @@ class Derive(TempDirTestCase):
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(f"- two [GIT-01.01.01 {SUBSECTION_TITLE}]({SUBSECTION_FILE}) here\n", (doc_set / REFS_FILE).read_text(encoding="utf-8"))
+
+    def test_links_a_hand_added_tag_marker_and_lists_it_in_the_units_tags(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / REFS_FILE, "Stops before history,", "Checked against {2.43}. Stops before history,")
+        replace(doc_set / "GIT-notes.md", "None so far.", "None so far, beyond {2.43}.")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        refs = (doc_set / REFS_FILE).read_text(encoding="utf-8")
+        self.assertIn("Checked against [2.43](#tags). Stops before history,", refs)
+        self.assertIn(
+            "  - A commit names one tree and its parent commits.\n\n"
+            "## Tags\n\n- [2.43](GIT-tags.md#243): Checked against the release notes of Git 2.43.\n\n## Goal\n",
+            refs,
+        )
+        self.assertIn("None so far, beyond [2.43](GIT-tags.md#243).", (doc_set / "GIT-notes.md").read_text(encoding="utf-8"))
+        self.assertIn("## 2.43\n\n- Meaning: Checked against the release notes of Git 2.43.\n- Where: doc, inline\n- Uses: 2\n",
+                      (doc_set / "GIT-tags.md").read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
+
+    def test_drops_a_standard_tag_no_unit_carries_any_more(self):
+        doc_set = self.copy(GOLDEN)
+        synthesis = "- [Synthesis](GIT-tags.md#synthesis): Derives how earlier units' facts follow from a few base facts, and adds no new facts of its own."
+        replace(doc_set / ANCESTRY_FILE, f"## Tags\n\n{synthesis}\n\n", "")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("## Tags", (doc_set / ANCESTRY_FILE).read_text(encoding="utf-8"))
+        self.assertTrue((doc_set / "GIT-tags.md").read_text(encoding="utf-8").startswith("# GIT Tags\n\n## Optional\n"))
+        self.assertIn("- Synthesis: 0\n- Optional: 1\n", (doc_set / "index.md").read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
+
+    def test_copies_an_edited_meaning_into_every_tags_field(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-tags.md", "- Meaning: Checked against the release notes of Git 2.43.", "- Meaning: Checked against Git 2.43.")
+        check = run("check", doc_set)
+        self.assertEqual(check.returncode, 1)
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for name in (INDEX_SECTION_FILE, INDEX_SUBSECTION_FILE):
+            with self.subTest(name):
+                self.assertIn("- [2.43](GIT-tags.md#243): Checked against Git 2.43.\n", (doc_set / name).read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
 
     def test_stops_on_content_beside_a_nav_line(self):
         for fixture in NAV_LINE_EXTRA:

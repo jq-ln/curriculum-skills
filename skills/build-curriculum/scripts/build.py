@@ -58,10 +58,11 @@ FIELDS = {
         ("Build notes", True),
         ("Open questions", False),
     ],
-    PART: [("Intro", True), ("Sections", True)],
-    SECTION: [("Generators", True), ("Subsections", True)],
+    PART: [("Intro", True), ("Tags", False), ("Sections", True)],
+    SECTION: [("Generators", True), ("Tags", False), ("Subsections", True)],
     SUBSECTION: [
         ("Context", True),
+        ("Tags", False),
         ("Goal", True),
         ("Generators", False),
         ("Foundations", False),
@@ -77,8 +78,8 @@ FIELDS = {
 # as derived content that differs from what derive writes.
 DERIVED_FIELDS = {"Context", "Counts", "Parts", "Sections", "Subsections"}
 # Fields whose content isn't authored prose, so markers in them aren't linked: the derived ones,
-# Prereqs, whose IDs derive links as entries, and Format version.
-NOT_PROSE = DERIVED_FIELDS | {"Prereqs", "Format version"}
+# Prereqs and Tags, whose IDs and tag names derive links as entries, and Format version.
+NOT_PROSE = DERIVED_FIELDS | {"Prereqs", "Tags", "Format version"}
 # Doc types whose H2s after their Fields are free content. In the tags doc every H2 is a tag.
 FREE_H2 = {NOTES, APPENDIX}
 
@@ -104,6 +105,15 @@ HTML_BLOCKS = [
     (re.compile(r" {0,3}<!\[CDATA\["), re.compile(r"\]\]>")),
 ]
 MARKSMAN = ".marksman.toml"
+# The format doc's standard tags, in its order: (name, Meaning, Where).
+STANDARD_TAGS = [
+    ("Synthesis", "Derives how earlier units' facts follow from a few base facts, and adds no new facts of its own.", "doc"),
+    ("Optional", "No unit outside it depends on it, so a learner may skip it.", "doc"),
+]
+OPTIONAL = "Optional"
+WHERE = {"doc": {"doc"}, "inline": {"inline"}, "doc, inline": {"doc", "inline"}}
+TAG_KEYS = ["Meaning", "Where", "Uses"]  # the bullets under a tag's heading, in order
+FORBIDDEN_IN_TAG = "{}[]`"
 # Deriving copies titles unescaped into link text and table rows, which these would break.
 FORBIDDEN_IN_TITLE = "[]|\\<&`"
 
@@ -447,6 +457,7 @@ class DocSet:
     units: dict = dataclass_field(default_factory=dict)  # UnitId -> filename
     unit_ids: set = dataclass_field(default_factory=set)  # every UnitId a filename names, readable or not
     bad_unit_id: bool = False  # some unit filename has an ID that doesn't parse, so its place is unknown
+    tags: dict = dataclass_field(default_factory=dict)  # tag name -> Tag, in the tags doc's order
     errors: list = dataclass_field(default_factory=list)  # (filename, message)
 
     def error(self, name, message):
@@ -457,6 +468,10 @@ class DocSet:
 
     def title(self, uid):
         return split_unit_h1(self.doc(uid).h1)[1]
+
+    @property
+    def tags_file(self):
+        return f"{self.code}-tags.md"
 
 
 def load(root):
@@ -535,6 +550,7 @@ def load(root):
         ds.error(MARKSMAN, "isn't a file")
     elif marksman.stat().st_size:
         ds.error(MARKSMAN, "isn't empty")
+    ds.tags = read_tags(ds)
     return ds
 
 
@@ -604,6 +620,7 @@ INLINE_RE = re.compile(
     | (?P<link>(?P<bang>!?)\[(?P<text>{LINK_TEXT})\]\(\s*(?P<dest>{LINK_DEST})(?:\s+(?:"[^"]*"|'[^']*'))?\s*\))
     | !?\[{LINK_TEXT}\]\[[^\[\]]*\]  # a full or collapsed reference link
     | \\.  # an escaped character
+    | (?P<tag>\{{(?P<tagname>[^{{}}\[\]`\n]+)\}})  # a tag marker, if it names a tag
     | (?P<id>\b[A-Z][A-Z0-9]*-[0-9][0-9.-]*\w*)
     """,
     re.S | re.X,
@@ -696,18 +713,36 @@ def unit_link(ds, uid):
 
 def goal_entry(ds, uid):
     """A list entry linking a Subsection, with its Goal copied."""
-    return f"- {unit_link(ds, uid)}: {one_line(ds.doc(uid).field('Goal').body())}"
+    return f"- {unit_link(ds, uid)}: {copied(ds, one_line(ds.doc(uid).field('Goal').body()))}"
 
 
-def link_prose(ds, name, text, errors, stale):
-    """text with every own-code marker linked and every unit link refreshed.
-
-    Appends (name, message) to errors for a malformed own-code token, an own-code ID
-    naming no unit, and a link between docs that's malformed, broken or names no
-    unit. A unit link with a bad target goes to stale instead: derive rewrites it.
-    """
+def copied(ds, text):
+    """A Subsection's text as copied elsewhere: each tag link to its own #tags points at the tags doc instead."""
 
     def replace(m):
+        return tag_link(ds, None, m.group(1)) if m.group(1) in ds.tags else m.group()
+
+    return re.sub(r"\[([^\[\]]*)\]\(#tags\)", replace, text)
+
+
+def link_prose(ds, name, text, errors, stale, used):
+    """text with every own-code and tag marker linked and every unit and tag link refreshed.
+
+    Appends (name, message) to errors for a malformed own-code token, an own-code ID
+    naming no unit, a tag whose Where lacks inline, and a link between docs that's
+    malformed, broken or names no unit or tag. A unit or tag link with a bad target
+    goes to stale instead: derive rewrites it. Adds each tag used to the set used.
+    """
+
+    def use_tag(tag):
+        used.add(tag)
+        if "inline" not in WHERE.get(ds.tags[tag].where, ()):
+            errors.append((name, f"tag {tag} is used inline, but its Where in {ds.tags_file} lacks inline"))
+        return tag_link(ds, name, tag)
+
+    def replace(m):
+        if m.group("tag"):
+            return use_tag(m.group("tagname")) if m.group("tagname") in ds.tags else m.group()
         if m.group("id"):
             token = m.group("id")
             if not token.startswith(f"{ds.code}-"):
@@ -728,13 +763,17 @@ def link_prose(ds, name, text, errors, stale):
             if SCHEME_RE.match(dest):
                 return m.group()  # a link out of the Curriculum is authored
             problem = target_error(ds, name, dest)
+            if m.group("text") in ds.tags:
+                if problem:
+                    stale.append((name, f"{problem}; run derive to rewrite it"))
+                return use_tag(m.group("text"))
             words = m.group("text").split()
             uid = own_unit(ds, words[0]) if words else None
             if uid:
                 if problem:
                     stale.append((name, f"{problem}; run derive to rewrite it"))
                 return unit_link(ds, uid)
-            errors.append((name, problem or f"link {m.group()} names no unit; write the unit's bare ID instead"))
+            errors.append((name, problem or f"link {m.group()} names no unit or tag; write the unit's bare ID or the tag's marker instead"))
         return m.group()
 
     return "".join(INLINE_RE.sub(replace, chunk) if prose else chunk for prose, chunk in prose_chunks(text))
@@ -775,15 +814,19 @@ def prose_blocks(ds, name):
 
 
 def link_prose_everywhere(ds):
-    """(errors, stale) from link_prose() over every doc's authored prose, rewriting it in place."""
-    errors, stale = [], []
+    """(errors, stale, used) from link_prose() over every doc's authored prose, rewriting it in place.
+
+    used maps each filename to the set of tags its prose uses.
+    """
+    errors, stale, used = [], [], {}
     for name in ds.docs:
+        used[name] = set()
         for block in prose_blocks(ds, name):
             old = "".join(block.lines[1:])
-            new = link_prose(ds, name, old, errors, stale)
+            new = link_prose(ds, name, old, errors, stale, used[name])
             if new != old:
                 block.lines[1:] = new.splitlines(keepends=True)
-    return errors, stale
+    return errors, stale, used
 
 
 # --- Prereqs -----------------------------------------------------------------
@@ -902,6 +945,184 @@ def other_curricula(root):
     return find
 
 
+# --- Tags --------------------------------------------------------------------
+
+
+@dataclass
+class Tag:
+    meaning: str
+    where: str
+    standard: bool = False
+
+
+def tag_anchor(name):
+    """GitHub's heading slug for a tag name."""
+    return re.sub(r"[^\w\- ]", "", name.lower()).replace(" ", "-")
+
+
+def tag_link(ds, name, tag):
+    """A link to a tag from the doc name: its own #tags in a Subsection, else the tag's heading in the tags doc."""
+    if name and ds.types[name] == SUBSECTION:
+        return f"[{tag}](#tags)"
+    return f"[{tag}]({ds.tags_file}#{tag_anchor(tag)})"
+
+
+def tag_bullets(block):
+    """A tags doc heading's bullets as {key: value}, or None when it holds anything else."""
+    items = entries(block.body())
+    if items is None:
+        return None
+    out = {}
+    for item in items:
+        key, sep, value = item.partition(": ")
+        if not sep or key not in TAG_KEYS or key in out or "\n" in item:
+            return None
+        out[key] = value
+    if list(out) != [k for k in TAG_KEYS if k in out]:
+        return None
+    return out
+
+
+def read_tags(ds):
+    """Every tag a marker or Tags Field may name, standard tags first, then the tags doc's own in its order."""
+    tags = {name: Tag(meaning, where, True) for name, meaning, where in STANDARD_TAGS}
+    doc = ds.docs.get(ds.tags_file) if ds.code else None
+    for block in doc.blocks if doc else []:
+        if block.name not in tags:
+            bullets = tag_bullets(block) or {}
+            tags[block.name] = Tag(bullets.get("Meaning", ""), bullets.get("Where", ""))
+    return tags
+
+
+def tags_doc_errors(ds):
+    """A tag name or anchor that breaks links, a shared anchor, and a tag's bullets out of form."""
+    name = ds.tags_file
+    doc = ds.docs.get(name)
+    if not doc:
+        return []
+    errors = []
+    standard = {tag for tag, _, _ in STANDARD_TAGS}
+    anchors_seen = {tag_anchor(tag): tag for tag in standard}
+    for block in doc.blocks:
+        tag = block.name
+        bad = sorted(set(tag) & set(FORBIDDEN_IN_TAG))
+        anchor = tag_anchor(tag)
+        if bad:
+            errors.append((name, f"tag {tag} contains {' '.join(bad)}, which a tag name can't"))
+        elif not anchor:
+            errors.append((name, f"tag {tag} has an empty anchor"))
+        elif "_" in anchor or "--" in anchor or anchor[0] == "-" or anchor[-1] == "-":
+            errors.append((name, f"tag {tag} has the anchor {anchor}, on which GitHub's and marksman's slugs can differ"))
+        elif anchor in anchors_seen and anchors_seen[anchor] != tag:
+            errors.append((name, f"tag {tag} has the anchor {anchor}, as tag {anchors_seen[anchor]} does"))
+        anchors_seen.setdefault(anchor, tag)
+        bullets = tag_bullets(block)
+        if bullets is None:
+            errors.append((name, f"tag {tag} holds content other than its {', '.join(TAG_KEYS)} bullets, in that order"))
+        elif tag not in standard:
+            if not bullets.get("Meaning"):
+                errors.append((name, f"tag {tag} has no Meaning"))
+            if bullets.get("Where") not in WHERE:
+                errors.append((name, f"tag {tag} has Where `{bullets.get('Where', '')}`; use doc, inline or `doc, inline`"))
+    return errors
+
+
+def tag_entries(ds, name):
+    """(the tag names a unit's Tags Field lists, in its order, each once; the errors in it)."""
+    f = ds.docs[name].field("Tags")
+    if not f:
+        return [], []
+    items = entries(f.body())
+    if items is None:
+        return [], [(name, "Field Tags holds content other than bullets")]
+    out, errors = [], []
+    for item in items:
+        tag = entry_text(item)
+        if tag not in ds.tags:
+            errors.append((name, f"Tags entry {tag} names no tag in {ds.tags_file}"))
+        elif tag not in out:
+            out.append(tag)
+    return out, errors
+
+
+def unit_names(ds, *doc_types):
+    return [name for name, t in ds.types.items() if t in doc_types]
+
+
+def tag_entry_errors(ds):
+    return [e for name in unit_names(ds, PART, SECTION, SUBSECTION) for e in tag_entries(ds, name)[1]]
+
+
+def tag_where_errors(ds, used):
+    """A Tags entry whose Where lacks doc, unless it's in a Subsection that uses the tag inline."""
+    errors = []
+    for name in unit_names(ds, PART, SECTION, SUBSECTION):
+        for tag in tag_entries(ds, name)[0]:
+            inline = ds.types[name] == SUBSECTION and tag in used[name]
+            if "doc" not in WHERE.get(ds.tags[tag].where, ()) and not inline:
+                errors.append((name, f"Tags entry {tag}: its Where in {ds.tags_file} lacks doc, and the unit doesn't use it inline"))
+    return errors
+
+
+def unit_tags(ds, used):
+    """Each unit's tags by filename, in tags doc order: a Part's and Section's own; a Subsection's own,
+    its Part's and Section's, and those it uses inline."""
+    own = {name: tag_entries(ds, name)[0] for name in unit_names(ds, PART, SECTION, SUBSECTION)}
+    out = {}
+    for name, tags in own.items():
+        if ds.types[name] == SUBSECTION:
+            uid = split_unit_h1(ds.docs[name].h1)[0]
+            section, part = uid.parent(), uid.parent().parent()
+            tags = set(tags) | set(own[ds.units[section]]) | set(own[ds.units[part]]) | used[name]
+        out[name] = [tag for tag in ds.tags if tag in tags]
+    return out
+
+
+def optional_errors(ds):
+    """A Subsection with a Prereq inside an Optional unit that the Subsection is outside."""
+    own = {split_unit_h1(ds.docs[n].h1)[0]: tag_entries(ds, n)[0] for n in unit_names(ds, PART, SECTION, SUBSECTION)}
+    # A Subsection's Tags Field also lists the tags copied down, so only one its Part and Section lack is its own.
+    optional = sorted(
+        (uid for uid, tags in own.items() if OPTIONAL in tags and not any(OPTIONAL in own.get(a, ()) for a in ancestors(uid))),
+        key=lambda u: u.levels,
+    )
+    errors = []
+    for name in unit_names(ds, SUBSECTION):
+        uid = split_unit_h1(ds.docs[name].h1)[0]
+        for _, prereq in prereq_ids(ds, name)[0]:
+            if not prereq or prereq.code != ds.code:
+                continue
+            for o in optional:
+                n = len(o.levels)
+                if prereq.levels[:n] == o.levels and uid.levels[:n] != o.levels:
+                    kind = UNIT_TYPES[n]
+                    errors.append((name, f"Prereq {prereq} is inside Optional {kind} {o}, which no unit outside it may depend on"))
+                    break
+    return errors
+
+
+def ancestors(uid):
+    return [UnitId(uid.code, uid.levels[:i]) for i in range(1, len(uid.levels))]
+
+
+def tags_field(ds, tags):
+    return "\n".join(f"- {tag_link(ds, None, tag)}: {ds.tags[tag].meaning}" for tag in tags)
+
+
+def write_tags_doc(ds, uses, carried):
+    """Rewrite the tags doc: the standard tags carried, then its own, each with Meaning, Where and Uses."""
+    doc = ds.docs[ds.tags_file]
+    blocks = []
+    for tag, t in ds.tags.items():
+        if t.standard and tag not in carried:
+            continue
+        lines = [f"## {tag}\n", "\n", f"- Meaning: {t.meaning}\n", f"- Where: {t.where}\n", f"- Uses: {uses.get(tag, 0)}\n", "\n"]
+        blocks.append(Block(tag, lines))
+    if blocks and doc.head[-1].strip():
+        doc.head.append("\n")
+    doc.blocks = blocks
+
+
 # --- derive ------------------------------------------------------------------
 
 
@@ -914,7 +1135,16 @@ def derived(ds, other=lambda code: None):
     code is kept as it is and never compared.
     """
     before = {name: doc.text() for name, doc in ds.docs.items()}
-    link_prose_everywhere(ds)  # first, so every copy below takes the linked text
+    used = link_prose_everywhere(ds)[2]  # first, so every copy below takes the linked text
+    ds.tags = read_tags(ds)  # again, so each Meaning copied is the linked one
+    tags = unit_tags(ds, used)
+    uses = {}
+    for name, unit in tags.items():
+        if ds.types[name] == SUBSECTION:
+            for tag in unit:
+                uses[tag] = uses.get(tag, 0) + 1
+        set_field(ds.docs[name], ds.types[name], "Tags", tags_field(ds, unit) if unit else None)
+    write_tags_doc(ds, uses, {tag for unit in tags.values() for tag in unit})
     subsections = sorted((uid for uid in ds.units if len(uid.levels) == 3), key=lambda u: u.levels)
     for name, doc in ds.docs.items():
         doc_type = ds.types[name]
@@ -930,7 +1160,7 @@ def derived(ds, other=lambda code: None):
         elif doc_type == PART:
             set_field(doc, PART, "Sections", section_list(ds, split_unit_h1(doc.h1)[0]))
         elif doc_type == INDEX:
-            set_field(doc, INDEX, "Counts", counts(ds))
+            set_field(doc, INDEX, "Counts", counts(ds, uses))
             set_field(doc, INDEX, "Parts", parts_table(ds))
     return {name: doc.text() for name, doc in ds.docs.items() if doc.text() != before[name]}
 
@@ -966,9 +1196,10 @@ def section_list(ds, part):
     return "\n".join(lines)
 
 
-def counts(ds):
+def counts(ds, uses):
     n = [sum(len(uid.levels) == level for uid in ds.units) for level in (1, 2, 3)]
-    return f"- Parts: {n[0]}\n- Sections: {n[1]}\n- Subsections: {n[2]}"
+    lines = [f"- Parts: {n[0]}", f"- Sections: {n[1]}", f"- Subsections: {n[2]}"]
+    return "\n".join(lines + [f"- {tag}: {uses.get(tag, 0)}" for tag, _, _ in STANDARD_TAGS])
 
 
 def parts_table(ds):
@@ -981,8 +1212,13 @@ def parts_table(ds):
 
 
 def set_field(doc, doc_type, name, body):
-    lines = [f"## {name}\n", "\n"] + [line + "\n" for line in body.split("\n")] + ["\n"]
+    """Write a Field's content, adding the Field in its place; a body of None removes it."""
     existing = doc.field(name)
+    if body is None:
+        if existing:
+            doc.blocks.remove(existing)
+        return
+    lines = [f"## {name}\n", "\n"] + [line + "\n" for line in body.split("\n")] + ["\n"]
     if existing:
         existing.lines = lines
         return
@@ -1053,8 +1289,12 @@ def errors_before_derive(ds):
         # The rest of the doc set may follow another format, which this script can't read.
         return [("index.md", e) for e in version]
     errors = ds.errors + structure_errors(ds) + field_errors(ds) + head_errors(ds)
-    # A missing or misnamed unit already reported would also break every link and Prereq naming it.
-    return errors or link_prose_everywhere(load(ds.root))[0] + prereq_errors(ds)
+    errors = errors or tags_doc_errors(ds) or tag_entry_errors(ds)
+    if errors:
+        # A missing or misnamed unit or tag already reported would also break every link and Prereq naming it.
+        return errors
+    link_errors, _, used = link_prose_everywhere(load(ds.root))
+    return link_errors + prereq_errors(ds) + tag_where_errors(ds, used) + optional_errors(ds)
 
 
 def check(root):

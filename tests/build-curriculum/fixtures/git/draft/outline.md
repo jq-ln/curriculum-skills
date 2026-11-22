@@ -24,6 +24,16 @@ The object model comes first, because every later command reads or writes object
 
 # GIT Tags
 
+## 2.43
+
+- Meaning: Checked against the release notes of Git 2.43.
+- Where: doc, inline
+
+## 2.46
+
+- Meaning: Checked against the release notes of Git 2.46.
+- Where: inline
+
 # GIT Sources
 
 ## Families
@@ -93,6 +103,10 @@ A branch is a movable name for a commit, so moving it rewrites no object.
 
 - The index records the tree the next commit will hold.
 
+## Tags
+
+- 2.43
+
 # GIT-01.02.01 The index as a staging snapshot
 
 ## Goal
@@ -107,7 +121,7 @@ The next commit's tree is built from the index, not from the working tree.
 
 ## Intro
 
-How commits link into the graph that every history command walks, using the objects of GIT-01.01.
+How commits link into the graph that every history command walks, using the objects of GIT-01.01. Its commands were checked against {2.46}.
 
 # GIT-02.01 The commit graph
 
@@ -116,6 +130,10 @@ How commits link into the graph that every history command walks, using the obje
 - Each commit names its parents, so history is a graph of commits.
 
 # GIT-02.01.01 Ancestry
+
+## Tags
+
+- Synthesis
 
 ## Goal
 
@@ -126,3 +144,29 @@ A commit's history is every commit reachable from it through parent links, so it
 - GIT-01.01.02
 - GIT-01.02.01
 - MATH-03.01.02
+
+# GIT-03 Plumbing
+
+## Intro
+
+Low-level commands that read objects directly. No unit outside this Part depends on them.
+
+## Tags
+
+- Optional
+
+# GIT-03.01 Reading objects
+
+## Generators
+
+- Plumbing commands print objects as Git stores them.
+
+# GIT-03.01.01 cat-file
+
+## Goal
+
+`git cat-file -p` prints any object by its ID, as checked against {2.46}.
+
+## Prereqs
+
+- GIT-01.01.01
