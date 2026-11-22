@@ -469,6 +469,10 @@ class DocSet:
     def title(self, uid):
         return split_unit_h1(self.doc(uid).h1)[1]
 
+    def uid(self, name):
+        """The UnitId of the unit doc name."""
+        return split_unit_h1(self.docs[name].h1)[0]
+
     @property
     def tags_file(self):
         return f"{self.code}-tags.md"
@@ -620,7 +624,7 @@ INLINE_RE = re.compile(
     | (?P<link>(?P<bang>!?)\[(?P<text>{LINK_TEXT})\]\(\s*(?P<dest>{LINK_DEST})(?:\s+(?:"[^"]*"|'[^']*'))?\s*\))
     | !?\[{LINK_TEXT}\]\[[^\[\]]*\]  # a full or collapsed reference link
     | \\.  # an escaped character
-    | (?P<tag>\{{(?P<tagname>[^{{}}\[\]`\n]+)\}})  # a tag marker, if it names a tag
+    | (?P<tag>\{{(?P<tagname>[^{re.escape(FORBIDDEN_IN_TAG)}\n]+)\}})  # a tag marker, if it names a tag
     | (?P<id>\b[A-Z][A-Z0-9]*-[0-9][0-9.-]*\w*)
     """,
     re.S | re.X,
@@ -713,16 +717,17 @@ def unit_link(ds, uid):
 
 def goal_entry(ds, uid):
     """A list entry linking a Subsection, with its Goal copied."""
-    return f"- {unit_link(ds, uid)}: {copied(ds, one_line(ds.doc(uid).field('Goal').body()))}"
+    return f"- {unit_link(ds, uid)}: {retarget_tag_links(ds, one_line(ds.doc(uid).field('Goal').body()))}"
 
 
-def copied(ds, text):
-    """A Subsection's text as copied elsewhere: each tag link to its own #tags points at the tags doc instead."""
+def retarget_tag_links(ds, text):
+    """A Subsection's text to copy into another doc: each tag link to its own #tags points at the tags doc instead."""
 
     def replace(m):
-        return tag_link(ds, None, m.group(1)) if m.group(1) in ds.tags else m.group()
+        own = m.group("link") and not m.group("bang") and m.group("dest") == "#tags"
+        return tag_link(ds, None, m.group("text")) if own and m.group("text") in ds.tags else m.group()
 
-    return re.sub(r"\[([^\[\]]*)\]\(#tags\)", replace, text)
+    return INLINE_RE.sub(replace, text)
 
 
 def link_prose(ds, name, text, errors, stale, used):
@@ -736,7 +741,7 @@ def link_prose(ds, name, text, errors, stale, used):
 
     def use_tag(tag):
         used.add(tag)
-        if "inline" not in WHERE.get(ds.tags[tag].where, ()):
+        if "inline" not in ds.tags[tag].places:
             errors.append((name, f"tag {tag} is used inline, but its Where in {ds.tags_file} lacks inline"))
         return tag_link(ds, name, tag)
 
@@ -951,8 +956,12 @@ def other_curricula(root):
 @dataclass
 class Tag:
     meaning: str
-    where: str
+    where: str  # as written; WHERE maps each valid form to its places
     standard: bool = False
+
+    @property
+    def places(self):
+        return WHERE.get(self.where, set())
 
 
 def tag_anchor(name):
@@ -1002,7 +1011,8 @@ def tags_doc_errors(ds):
         return []
     errors = []
     standard = {tag for tag, _, _ in STANDARD_TAGS}
-    anchors_seen = {tag_anchor(tag): tag for tag in standard}
+    anchors_seen = {tag_anchor(tag): f"tag {tag}" for tag in standard}
+    anchors_seen.setdefault(tag_anchor(doc.h1), "the H1")
     for block in doc.blocks:
         tag = block.name
         bad = sorted(set(tag) & set(FORBIDDEN_IN_TAG))
@@ -1013,9 +1023,9 @@ def tags_doc_errors(ds):
             errors.append((name, f"tag {tag} has an empty anchor"))
         elif "_" in anchor or "--" in anchor or anchor[0] == "-" or anchor[-1] == "-":
             errors.append((name, f"tag {tag} has the anchor {anchor}, on which GitHub's and marksman's slugs can differ"))
-        elif anchor in anchors_seen and anchors_seen[anchor] != tag:
-            errors.append((name, f"tag {tag} has the anchor {anchor}, as tag {anchors_seen[anchor]} does"))
-        anchors_seen.setdefault(anchor, tag)
+        elif anchor in anchors_seen and anchors_seen[anchor] != f"tag {tag}":
+            errors.append((name, f"tag {tag} has the anchor {anchor}, as {anchors_seen[anchor]} does"))
+        anchors_seen.setdefault(anchor, f"tag {tag}")
         bullets = tag_bullets(block)
         if bullets is None:
             errors.append((name, f"tag {tag} holds content other than its {', '.join(TAG_KEYS)} bullets, in that order"))
@@ -1059,7 +1069,7 @@ def tag_where_errors(ds, used):
     for name in unit_names(ds, PART, SECTION, SUBSECTION):
         for tag in tag_entries(ds, name)[0]:
             inline = ds.types[name] == SUBSECTION and tag in used[name]
-            if "doc" not in WHERE.get(ds.tags[tag].where, ()) and not inline:
+            if "doc" not in ds.tags[tag].places and not inline:
                 errors.append((name, f"Tags entry {tag}: its Where in {ds.tags_file} lacks doc, and the unit doesn't use it inline"))
     return errors
 
@@ -1071,7 +1081,7 @@ def unit_tags(ds, used):
     out = {}
     for name, tags in own.items():
         if ds.types[name] == SUBSECTION:
-            uid = split_unit_h1(ds.docs[name].h1)[0]
+            uid = ds.uid(name)
             section, part = uid.parent(), uid.parent().parent()
             tags = set(tags) | set(own[ds.units[section]]) | set(own[ds.units[part]]) | used[name]
         out[name] = [tag for tag in ds.tags if tag in tags]
@@ -1080,7 +1090,7 @@ def unit_tags(ds, used):
 
 def optional_errors(ds):
     """A Subsection with a Prereq inside an Optional unit that the Subsection is outside."""
-    own = {split_unit_h1(ds.docs[n].h1)[0]: tag_entries(ds, n)[0] for n in unit_names(ds, PART, SECTION, SUBSECTION)}
+    own = {ds.uid(n): tag_entries(ds, n)[0] for n in unit_names(ds, PART, SECTION, SUBSECTION)}
     # A Subsection's Tags Field also lists the tags copied down, so only one its Part and Section lack is its own.
     optional = sorted(
         (uid for uid, tags in own.items() if OPTIONAL in tags and not any(OPTIONAL in own.get(a, ()) for a in ancestors(uid))),
@@ -1088,15 +1098,14 @@ def optional_errors(ds):
     )
     errors = []
     for name in unit_names(ds, SUBSECTION):
-        uid = split_unit_h1(ds.docs[name].h1)[0]
+        uid = ds.uid(name)
         for _, prereq in prereq_ids(ds, name)[0]:
             if not prereq or prereq.code != ds.code:
                 continue
             for o in optional:
                 n = len(o.levels)
                 if prereq.levels[:n] == o.levels and uid.levels[:n] != o.levels:
-                    kind = UNIT_TYPES[n]
-                    errors.append((name, f"Prereq {prereq} is inside Optional {kind} {o}, which no unit outside it may depend on"))
+                    errors.append((name, f"Prereq {prereq} is inside Optional {o.doc_type} {o}, which no unit outside it may depend on"))
                     break
     return errors
 

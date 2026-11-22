@@ -66,6 +66,12 @@ class TempDirTestCase(unittest.TestCase):
         result = run("check", doc_set)
         self.assertEqual((result.returncode, result.stdout), (0, ""))
 
+    def assertErrors(self, doc_set, *lines):
+        """check exits 1 and prints exactly these error lines, in any order."""
+        result = run("check", doc_set)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertCountEqual(result.stdout.splitlines(), lines)
+
     def copy(self, src):
         dst = self.tmp / src.name
         shutil.copytree(src, dst)
@@ -173,12 +179,6 @@ class Split(TempDirTestCase):
 
 
 class Check(TempDirTestCase):
-    def assertErrors(self, doc_set, *lines):
-        """check exits 1 and prints exactly these error lines, in any order."""
-        result = run("check", doc_set)
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertCountEqual(result.stdout.splitlines(), lines)
-
     def test_passes_the_golden_doc_set(self):
         result = run("check", GOLDEN)
         self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
@@ -332,14 +332,21 @@ class Check(TempDirTestCase):
         replace(doc_set / "GIT-tags.md", "- Where: inline\n", "- Where: inline\n\nA family of release tags.\n")
         self.assertErrors(doc_set, "GIT-tags.md: tag 2.46 holds content other than its Meaning, Where, Uses bullets, in that order")
 
-    def test_reports_a_tag_with_no_meaning_or_an_unknown_where(self):
+    def test_reports_a_tag_with_no_meaning(self):
         doc_set = self.copy(GOLDEN)
-        replace(doc_set / "GIT-tags.md", "- Meaning: Checked against the release notes of Git 2.46.\n- Where: inline\n", "- Where: prose\n")
-        self.assertErrors(
-            doc_set,
-            "GIT-tags.md: tag 2.46 has no Meaning",
-            "GIT-tags.md: tag 2.46 has Where `prose`; use doc, inline or `doc, inline`",
-        )
+        replace(doc_set / "GIT-tags.md", "- Meaning: Checked against the release notes of Git 2.46.\n", "")
+        self.assertErrors(doc_set, "GIT-tags.md: tag 2.46 has no Meaning")
+
+    def test_reports_a_tag_with_an_unknown_where(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / "GIT-tags.md", "- Where: inline\n", "- Where: prose\n")
+        self.assertErrors(doc_set, "GIT-tags.md: tag 2.46 has Where `prose`; use doc, inline or `doc, inline`")
+
+    def test_reports_a_tag_whose_anchor_is_the_h1s(self):
+        doc_set = self.copy(GOLDEN)
+        with open(doc_set / "GIT-tags.md", "a", encoding="utf-8") as f:
+            f.write("\n## git tags\n\n- Meaning: Tags of the git tool.\n- Where: inline\n")
+        self.assertErrors(doc_set, "GIT-tags.md: tag git tags has the anchor git-tags, as the H1 does")
 
     def test_reports_a_tags_field_that_isnt_bullets(self):
         doc_set = self.copy(GOLDEN)
@@ -664,6 +671,17 @@ class Derive(TempDirTestCase):
                       (doc_set / "GIT-tags.md").read_text(encoding="utf-8"))
         self.assertPasses(doc_set)
 
+    def test_keeps_a_tag_link_in_a_code_span_when_copying_a_goal(self):
+        doc_set = self.copy(GOLDEN)
+        cat_file = doc_set / "GIT-03.01.01-cat-file.md"
+        replace(cat_file, "as checked against [2.46](#tags).", "as checked against [2.46](#tags), not `[2.46](#tags)`.")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "as checked against [2.46](GIT-tags.md#246), not `[2.46](#tags)`.\n",
+            (doc_set / "GIT-03.01-reading-objects.md").read_text(encoding="utf-8"),
+        )
+
     def test_drops_a_standard_tag_no_unit_carries_any_more(self):
         doc_set = self.copy(GOLDEN)
         synthesis = "- [Synthesis](GIT-tags.md#synthesis): Derives how earlier units' facts follow from a few base facts, and adds no new facts of its own."
@@ -678,8 +696,8 @@ class Derive(TempDirTestCase):
     def test_copies_an_edited_meaning_into_every_tags_field(self):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / "GIT-tags.md", "- Meaning: Checked against the release notes of Git 2.43.", "- Meaning: Checked against Git 2.43.")
-        check = run("check", doc_set)
-        self.assertEqual(check.returncode, 1)
+        stale = "derived content differs from what derive writes; edit its source and run derive"
+        self.assertErrors(doc_set, f"{INDEX_SECTION_FILE}: {stale}", f"{INDEX_SUBSECTION_FILE}: {stale}")
         result = run("derive", doc_set)
         self.assertEqual(result.returncode, 0, result.stderr)
         for name in (INDEX_SECTION_FILE, INDEX_SUBSECTION_FILE):
