@@ -15,6 +15,8 @@ Every piece of a doc is one of these:
 - A **mixed** Field, such as Prereqs or Tags, holds authored IDs or tag names with derived links and copies beside them.
 - The index's **Format version** Field is written once, when the doc set is first built, and is neither authored nor derived.
 
+A doc set holds no learner state, such as which units a learner has finished. A tool that tracks progress keeps it outside the doc set, keyed by ID.
+
 To change a copy, edit its source and derive again. A doc set is invalid when any derived content differs, word for word, from what deriving it from its sources gives. The one exception is a Prereqs entry naming another Curriculum, whose copy depends on the machine; see [Subsection](#subsection).
 
 Deriving is idempotent and runs in place over the doc set. It rewrites only derived content, renames a file when its title changes, and keeps everything authored as it is.
@@ -55,7 +57,7 @@ A unit is a Part, Section or Subsection. An ID names a unit: the code, a hyphen,
 - No level exceeds `99`. A Part or Section that would need a 100th child is split instead.
 - A Subsection's ID always has three levels. A subject with no natural Sections still gets them.
 - An ID takes the same form everywhere: prose, H1s, filenames, the Context Field and references from another Curriculum.
-- An ID changes only when units are renumbered, as when a Subsection is inserted mid-Section or a level is split at 99. Every reference to a moved unit then has to be rewritten.
+- An ID changes only when units are renumbered, as when a Subsection is inserted mid-Section or a level is split at 99. Every reference to a moved unit then has to be rewritten, and a tool that keys progress by ID has to match the moved unit itself.
 
 **Global ID order** compares IDs level by level, numerically, with a parent before its children. It's the teaching order, and it equals byte order, so `LC_ALL=C ls` lists a Curriculum in teaching order.
 
