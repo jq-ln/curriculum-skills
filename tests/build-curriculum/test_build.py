@@ -31,6 +31,7 @@ SECTION_FILE = "GIT-01.01-objects.md"
 CAT_FILE = "GIT-03.01.01-cat-file.md"  # in the Optional Part, using a tag inline
 APPENDIX_FILE = "GIT-appendix-manual-coverage.md"  # applies to GIT-01 and GIT-02.01
 COMMIT_GRAPH_FILE = "GIT-02.01-the-commit-graph.md"
+PLUMBING_FILE = "GIT-03-plumbing.md"  # the Optional Part
 
 
 def run(*args):
@@ -303,14 +304,14 @@ class Check(TempDirTestCase):
     def test_reports_a_missing_format_version(self):
         self.assertErrors(
             INVALID / "format-version-missing",
-            "index.md: Format version is missing; this script reads Format version 1. "
+            "index.md: Format version is missing; this script reads Format version 2. "
             "Restore it from the history of index.md, such as `git log -p index.md`",
         )
 
-    def test_names_both_numbers_when_the_format_version_differs(self):
+    def test_rejects_a_format_version_1_doc_set_naming_both_numbers(self):
         self.assertErrors(
             INVALID / "format-version-mismatch",
-            "index.md: Format version is 2, but this script reads Format version 1",
+            "index.md: Format version is 1, but this script reads Format version 2",
         )
 
     def test_reports_a_missing_required_field(self):
@@ -556,11 +557,39 @@ class Check(TempDirTestCase):
 
     def test_reports_a_hand_edit_to_a_nav_line(self):
         doc_set = self.copy(GOLDEN)
-        replace(doc_set / ANCESTRY_FILE, " · Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md)", "")
+        replace(doc_set / REFS_FILE, f" · Prev [GIT-01.01.01]({SUBSECTION_FILE})", "")
         self.assertErrors(
             doc_set,
-            f"{ANCESTRY_FILE}: the nav line lacks `· Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md)`, "
+            f"{REFS_FILE}: the nav line lacks `· Prev [GIT-01.01.01]({SUBSECTION_FILE})`, "
             "which derive writes; edit its source and run derive",
+        )
+
+    def test_reports_a_prev_link_across_a_part_boundary(self):
+        self.assertErrors(
+            INVALID / "nav-line-across-part",
+            f"{ANCESTRY_FILE}: the nav line has `· Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md)`, "
+            "which derive doesn't write; edit its source and run derive",
+        )
+
+    def test_reports_a_hand_edit_to_a_parts_needs(self):
+        self.assertErrors(
+            INVALID / "needs-edited",
+            f"{PART_2_FILE}: Field Needs has `- [GIT-03 Plumbing](GIT-03-plumbing.md)`, which derive doesn't write; "
+            "edit its source and run derive",
+        )
+
+    def test_reports_needs_written_on_a_part_that_has_none(self):
+        # A Field derive doesn't write is placed by the text before it, here the end of Intro.
+        self.assertErrors(
+            INVALID / "needs-unexpected",
+            f"{PART_FILE}: Field Intro has `## Needs - [GIT-02 History](GIT-02-history.md)`, which derive doesn't write; "
+            "edit its source and run derive",
+        )
+
+    def test_reports_a_hand_edit_to_a_needs_cell(self):
+        self.assertErrors(
+            INVALID / "needs-cell-edited",
+            "index.md: Field Parts lacks `[GIT-01](GIT-01-repository-internals.md)`, which derive writes; edit its source and run derive",
         )
 
     def test_reports_content_beside_a_nav_line(self):
@@ -816,9 +845,9 @@ class Check(TempDirTestCase):
 
     def test_reports_a_multi_line_format_version_on_one_line(self):
         doc_set = self.copy(GOLDEN)
-        replace(doc_set / "index.md", "## Format version\n\n1\n", "## Format version\n\n1\n\nSet by split.\n")
+        replace(doc_set / "index.md", "## Format version\n\n2\n", "## Format version\n\n2\n\nSet by split.\n")
         self.assertErrors(
-            doc_set, "index.md: Format version is '1\\n\\nSet by split.', but this script reads Format version 1"
+            doc_set, "index.md: Format version is '2\\n\\nSet by split.', but this script reads Format version 2"
         )
 
 
@@ -834,13 +863,13 @@ class Derive(TempDirTestCase):
     def test_stops_when_the_format_version_differs(self):
         self.assertStops(
             INVALID / "format-version-mismatch",
-            "derive: index.md: Format version is 2, but this script reads Format version 1",
+            "derive: index.md: Format version is 1, but this script reads Format version 2",
         )
 
     def test_stops_when_the_format_version_is_missing(self):
         self.assertStops(
             INVALID / "format-version-missing",
-            "derive: index.md: Format version is missing; this script reads Format version 1. "
+            "derive: index.md: Format version is missing; this script reads Format version 2. "
             "Restore it from the history of index.md, such as `git log -p index.md`",
         )
 
@@ -1143,6 +1172,53 @@ class Derive(TempDirTestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"derive: {REFS_FILE}: GIT-09.01 names no unit", result.stderr.splitlines())
         self.assertTrue((doc_set / SECTION_FILE).exists())
+
+    def test_lists_the_part_of_a_new_prereq_in_needs(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / CAT_FILE, "## Prereqs\n\n- [GIT-01.01.01", "## Prereqs\n\n- GIT-02.01.01\n- [GIT-01.01.01")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "## Needs\n\n- [GIT-01 Repository internals](GIT-01-repository-internals.md)\n- [GIT-02 History](GIT-02-history.md)\n\n## Tags\n",
+            (doc_set / PLUMBING_FILE).read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            "| [GIT-03](GIT-03-plumbing.md) | Plumbing | 1 | 1 | [GIT-01](GIT-01-repository-internals.md), [GIT-02](GIT-02-history.md) |\n",
+            (doc_set / "index.md").read_text(encoding="utf-8"),
+        )
+        self.assertPasses(doc_set)
+
+    def test_drops_needs_when_no_prereq_lands_in_another_part(self):
+        doc_set = self.copy(GOLDEN)
+        text = (doc_set / CAT_FILE).read_text(encoding="utf-8")
+        start, end = text.index("## Prereqs\n"), text.index("## Check\n")
+        (doc_set / CAT_FILE).write_text(text[:start] + "## Prereqs\n\nNone\n\n" + text[end:], encoding="utf-8")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("## Needs", (doc_set / PLUMBING_FILE).read_text(encoding="utf-8"))
+        self.assertIn("| [GIT-03](GIT-03-plumbing.md) | Plumbing | 1 | 1 | |\n", (doc_set / "index.md").read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
+
+    def test_adds_no_needs_for_a_prereq_in_the_same_part(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / INDEX_SUBSECTION_FILE, "## Prereqs\n\n", "## Prereqs\n\n- GIT-01.01.02\n")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(filecmp.dircmp(doc_set, GOLDEN).diff_files, [INDEX_SUBSECTION_FILE])
+        self.assertPasses(doc_set)
+
+    def test_copies_a_retitled_part_into_needs(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / PART_FILE, "# GIT-01 Repository internals", "# GIT-01 Object database")
+        result = run("derive", doc_set)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for name in (PART_2_FILE, PLUMBING_FILE):
+            with self.subTest(name):
+                self.assertIn(
+                    "## Needs\n\n- [GIT-01 Object database](GIT-01-object-database.md)\n", (doc_set / name).read_text(encoding="utf-8")
+                )
+        self.assertIn("| History | 1 | 1 | [GIT-01](GIT-01-object-database.md) |\n", (doc_set / "index.md").read_text(encoding="utf-8"))
+        self.assertPasses(doc_set)
 
     def write_math(self, name="math"):
         """A second Curriculum beside the copied doc set, holding the Subsection its Prereq names."""

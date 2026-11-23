@@ -1,6 +1,6 @@
 # GIT-03.01.01 cat-file
 
-[Index](index.md) · [GIT-03](GIT-03-plumbing.md) · [GIT-03.01](GIT-03.01-reading-objects.md) · Prev [GIT-02.01.01](GIT-02.01.01-ancestry.md)
+[Index](index.md) · [GIT-03](GIT-03-plumbing.md) · [GIT-03.01](GIT-03.01-reading-objects.md)
 
 ## Context
 

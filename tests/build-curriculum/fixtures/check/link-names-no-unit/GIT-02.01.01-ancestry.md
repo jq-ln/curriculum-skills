@@ -1,6 +1,6 @@
 # GIT-02.01.01 Ancestry
 
-[Index](index.md) · [GIT-02](GIT-02-history.md) · [GIT-02.01](GIT-02.01-the-commit-graph.md) · Prev [GIT-01.02.01](GIT-01.02.01-the-index-as-a-staging-snapshot.md) · Next [GIT-03.01.01](GIT-03.01.01-cat-file.md)
+[Index](index.md) · [GIT-02](GIT-02-history.md) · [GIT-02.01](GIT-02.01-the-commit-graph.md)
 
 ## Context
 

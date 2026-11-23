@@ -1,6 +1,6 @@
 # Curriculum format
 
-Format version: 1
+Format version: 2
 
 This doc defines the curriculum format: the docs a Curriculum holds, the Fields in each, how IDs, filenames and links are formed, and how to parse a doc. It's the single source of truth: read and write a Curriculum from this doc alone. It defines every term it uses.
 
@@ -194,11 +194,25 @@ The H1 is `# <ID> <title>`. A Part has no Prereqs or Sources: those belong to it
 | Field | Kind | Required |
 | --- | --- | --- |
 | Intro | authored | required |
+| Needs | derived | when a Subsection in it has a prereq in another Part of the Curriculum |
 | Tags | mixed | optional |
 | Appendices | derived | when an Appendix names it |
 | Sections | derived | required |
 
 **Intro** is prose saying what the Part covers and why it sits where it does in the Curriculum.
+
+**Needs** lists the other Parts of the Curriculum that the Prereqs of the Part's Subsections land in, so a learner can tell which Parts they're ready for. It's present when at least one Subsection in the Part lists, in Prereqs, a Subsection in another Part. Each such Part is listed once, in ID order, linked as in the child lists, with no copied text:
+
+```markdown
+## Needs
+
+- [GIT-01 Essentials](GIT-01-essentials.md)
+- [GIT-06 The object model](GIT-06-the-object-model.md)
+```
+
+- Needs is direct and unreduced: a Part appears whenever a Subsection's prereq lands in it, even when another listed Part needs it too.
+- A prereq with another code adds no entry, because its copy depends on the machine.
+- Only a Part has Needs, and it lists only the Parts it needs, never the Parts that need it.
 
 **Tags** and **Appendices** are as in a Section. A Part's tags are copied down into every Subsection in it.
 
@@ -257,14 +271,15 @@ The H1 is `# <ID> <title>`. A Part has no Prereqs or Sources: those belong to it
 - [Appendix: Manual coverage](GIT-appendix-manual-coverage.md): <its Purpose>
 ```
 
-**Parts** is a table with one row per Part, in ID order:
+**Parts** is a table with one row per Part, in ID order. The Needs cell holds the Part's Needs as linked IDs separated by a comma and a space, and is empty when the Part has no Needs:
 
 ```markdown
 ## Parts
 
-| Part | Title | Sections | Subsections |
-| --- | --- | --- | --- |
-| [GIT-07](GIT-07-branching-and-merging.md) | Branching and merging | 4 | 21 |
+| Part | Title | Sections | Subsections | Needs |
+| --- | --- | --- | --- | --- |
+| [GIT-01](GIT-01-essentials.md) | Essentials | 6 | 39 | |
+| [GIT-07](GIT-07-branching-and-merging.md) | Branching and merging | 4 | 21 | [GIT-01](GIT-01-essentials.md), [GIT-06](GIT-06-the-object-model.md) |
 ```
 
 The index has no reading paths: why the Curriculum is ordered as it is belongs in the overview.
@@ -419,6 +434,7 @@ Deriving copies authored text, such as a Goal into a Prereqs entry or a Section'
 | Child lists in Part and Section docs | `<ID> <title>` | `[GIT-07.02 Merging](…)` |
 | Units in prose | `<ID> <title>` | `[GIT-07.02 Merging](…)` |
 | Nav line | `<ID>` | `[GIT-07.02](…)` |
+| Needs cell in the Parts table | `<ID>` | `[GIT-06](…)` |
 | Tags | the tag name | `[Synthesis](…)` |
 
 ### Nav line
@@ -429,7 +445,7 @@ Each Subsection has one nav line, between its H1 and its first Field:
 [Index](index.md) · [GIT-07](GIT-07-branching-and-merging.md) · [GIT-07.02](GIT-07.02-merging.md) · Prev [GIT-07.02.02](GIT-07.02.02-fast-forward-merges.md) · Next [GIT-07.02.04](GIT-07.02.04-resolving-conflicts.md)
 ```
 
-Prev and Next follow global ID order across Section and Part boundaries, Optional Parts included. The first Subsection has no Prev and the last has no Next; an empty slot is left out with its ` · ` separator.
+Prev and Next follow ID order within the Subsection's Part, across Section boundaries. They stop at Part boundaries, because the next Part in ID order isn't necessarily the next one a learner is ready for; a Part's Needs says that. A Part's first Subsection has no Prev and its last has no Next; an empty slot is left out with its ` · ` separator. The Index, Part and Section links are always there.
 
 ## Parsing
 
@@ -448,3 +464,4 @@ Every reader parses a doc this way.
 ## Version history
 
 - **1**: Initial format.
+- **2**: A Part has a derived Needs Field listing the other Parts its Subsections' Prereqs land in. The index's Parts table ends with a Needs column. The nav line's Prev and Next stop at Part boundaries.
