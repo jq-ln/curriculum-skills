@@ -19,7 +19,7 @@ import unicodedata
 from dataclasses import dataclass, field as dataclass_field
 from pathlib import Path
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 
 # Doc types, as the format doc names them.
 INDEX = "Index"
@@ -56,7 +56,7 @@ FIELDS = {
         ("Build notes", True),
         ("Open questions", False),
     ],
-    PART: [("Intro", True), ("Tags", False), ("Appendices", False), ("Sections", True)],
+    PART: [("Intro", True), ("Needs", False), ("Tags", False), ("Appendices", False), ("Sections", True)],
     SECTION: [("Generators", True), ("Tags", False), ("Appendices", False), ("Subsections", True)],
     SUBSECTION: [
         ("Context", True),
@@ -78,7 +78,7 @@ OUTLINE_FIELDS = {"Tags", "Goal", "Prereqs"}
 NOT_IN_APPENDIX = ["Tags", "Prereqs", "Check"]
 # Fields derive writes. A missing one isn't a Field error: derive adds it, and check reports it
 # as derived content that differs from what derive writes.
-DERIVED_FIELDS = {"Context", "Counts", "Docs", "Parts", "Appendices", "Sections", "Subsections"}
+DERIVED_FIELDS = {"Context", "Counts", "Docs", "Parts", "Needs", "Appendices", "Sections", "Subsections"}
 # The Subsection Fields a part file holds, in order.
 FILL_FIELDS = [n for n, _ in FIELDS[SUBSECTION] if n not in OUTLINE_FIELDS | DERIVED_FIELDS]
 # Fields whose content isn't authored prose, so markers in them aren't linked: the derived ones,
@@ -1302,8 +1302,9 @@ def derived(ds, other=lambda code: None):
         doc_type = ds.types[name]
         if doc_type == SUBSECTION:
             uid = split_unit_h1(doc.h1)[0]
-            i = subsections.index(uid)
-            neighbours = (subsections[i - 1] if i else None, subsections[i + 1] if i + 1 < len(subsections) else None)
+            in_part = [u for u in subsections if u.levels[0] == uid.levels[0]]  # Prev and Next stop at Part boundaries
+            i = in_part.index(uid)
+            neighbours = (in_part[i - 1] if i else None, in_part[i + 1] if i + 1 < len(in_part) else None)
             doc.head[1:] = ["\n", nav(ds, uid, *neighbours) + "\n", "\n"]
             set_field(doc, SUBSECTION, "Context", context(ds, doc))
             set_field(doc, SUBSECTION, "Prereqs", prereqs(ds, name, other))
@@ -1311,6 +1312,7 @@ def derived(ds, other=lambda code: None):
             set_field(doc, SECTION, "Appendices", appendix_list(ds, ds.uid(name)))
             set_field(doc, SECTION, "Subsections", subsection_list(ds, split_unit_h1(doc.h1)[0]))
         elif doc_type == PART:
+            set_field(doc, PART, "Needs", "\n".join(f"- {unit_link(ds, uid)}" for uid in needs(ds, ds.uid(name))) or None)
             set_field(doc, PART, "Appendices", appendix_list(ds, ds.uid(name)))
             set_field(doc, PART, "Sections", section_list(ds, split_unit_h1(doc.h1)[0]))
         elif doc_type == INDEX:
@@ -1406,12 +1408,28 @@ def counts(ds, uses):
     return "\n".join(lines + [f"- {tag}: {uses.get(tag, 0)}" for tag, _, _ in STANDARD_TAGS])
 
 
+def needs(ds, part):
+    """The other Parts of this Curriculum that Prereqs of the Subsections in part land in, in ID order.
+
+    Direct and unreduced; a Prereq with another code adds nothing, since its copy depends on the machine.
+    """
+    out = set()
+    for name, doc_type in ds.types.items():
+        if doc_type == SUBSECTION and ds.uid(name).levels[0] == part.levels[0]:
+            for _, prereq in prereq_ids(ds, name)[0]:
+                if prereq.code == ds.code and prereq.levels[0] != part.levels[0]:
+                    out.add(UnitId(ds.code, prereq.levels[:1]))
+    return sorted(out, key=lambda u: u.levels)
+
+
 def parts_table(ds):
-    lines = ["| Part | Title | Sections | Subsections |", "| --- | --- | --- | --- |"]
+    lines = ["| Part | Title | Sections | Subsections | Needs |", "| --- | --- | --- | --- | --- |"]
     for part in sorted((u for u in ds.units if len(u.levels) == 1), key=lambda u: u.levels):
         sections = children(ds, part)
         subsections = sum(len(children(ds, s)) for s in sections)
-        lines.append(f"| [{part}]({ds.units[part]}) | {ds.title(part)} | {len(sections)} | {subsections} |")
+        cell = ", ".join(f"[{uid}]({ds.units[uid]})" for uid in needs(ds, part))
+        row = f"| [{part}]({ds.units[part]}) | {ds.title(part)} | {len(sections)} | {subsections} |"
+        lines.append(f"{row} {cell} |" if cell else f"{row} |")
     return "\n".join(lines)
 
 

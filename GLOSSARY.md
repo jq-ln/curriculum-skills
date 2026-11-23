@@ -11,6 +11,10 @@ _Avoid_: Session Map
 **Part**:
 A top-level portion of a Curriculum. Its doc lists its Sections.
 
+**Needs**:
+The derived Part Field listing the other Parts of the Curriculum its Subsections' Prereqs land in. The index's Parts table repeats it as a column.
+_Avoid_: Part Prereqs, Needed by
+
 **Section**:
 A portion of a Part. Its doc holds its Generators and lists its Subsections.
 

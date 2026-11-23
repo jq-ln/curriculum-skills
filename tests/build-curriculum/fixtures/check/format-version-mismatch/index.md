@@ -14,7 +14,7 @@ How Git stores a project's history, from the object database up.
 
 ## Format version
 
-2
+1
 
 ## Counts
 
@@ -34,8 +34,8 @@ How Git stores a project's history, from the object database up.
 
 ## Parts
 
-| Part | Title | Sections | Subsections |
-| --- | --- | --- | --- |
-| [GIT-01](GIT-01-repository-internals.md) | Repository internals | 2 | 3 |
-| [GIT-02](GIT-02-history.md) | History | 1 | 1 |
-| [GIT-03](GIT-03-plumbing.md) | Plumbing | 1 | 1 |
+| Part | Title | Sections | Subsections | Needs |
+| --- | --- | --- | --- | --- |
+| [GIT-01](GIT-01-repository-internals.md) | Repository internals | 2 | 3 | |
+| [GIT-02](GIT-02-history.md) | History | 1 | 1 | [GIT-01](GIT-01-repository-internals.md) |
+| [GIT-03](GIT-03-plumbing.md) | Plumbing | 1 | 1 | [GIT-01](GIT-01-repository-internals.md) |

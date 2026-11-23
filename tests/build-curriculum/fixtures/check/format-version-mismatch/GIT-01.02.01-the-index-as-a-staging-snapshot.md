@@ -1,6 +1,6 @@
 # GIT-01.02.01 The index as a staging snapshot
 
-[Index](index.md) · [GIT-01](GIT-01-repository-internals.md) · [GIT-01.02](GIT-01.02-the-index.md) · Prev [GIT-01.01.02](GIT-01.01.02-refs.md) · Next [GIT-02.01.01](GIT-02.01.01-ancestry.md)
+[Index](index.md) · [GIT-01](GIT-01-repository-internals.md) · [GIT-01.02](GIT-01.02-the-index.md) · Prev [GIT-01.01.02](GIT-01.01.02-refs.md)
 
 ## Context
 

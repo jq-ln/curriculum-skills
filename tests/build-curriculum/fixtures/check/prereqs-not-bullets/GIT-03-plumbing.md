@@ -4,6 +4,10 @@
 
 Low-level commands that read objects directly. No unit outside this Part depends on them.
 
+## Needs
+
+- [GIT-01 Repository internals](GIT-01-repository-internals.md)
+
 ## Tags
 
 - [Optional](GIT-tags.md#optional): No unit outside it depends on it, so a learner may skip it.
