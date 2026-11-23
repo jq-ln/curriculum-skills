@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.0](https://github.com/jq-ln/curriculum-skills/compare/v0.0.1...v0.1.0) (2026-11-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **build-curriculum:** `check` and `derive` reject a Format version 1 doc set, naming both versions. Rebuild existing Curriculums with `build-curriculum` to get Format version 2. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Features
+
+* **build-curriculum:** fill units true but incomplete ([#60](https://github.com/jq-ln/curriculum-skills/issues/60)) ([45fa34e](https://github.com/jq-ln/curriculum-skills/commit/45fa34e9688071751e019980e245e8a35f99cbb1))
+* **build-curriculum:** Format version 2 with Part-level Needs ([#58](https://github.com/jq-ln/curriculum-skills/issues/58)) ([d18e9d3](https://github.com/jq-ln/curriculum-skills/commit/d18e9d389dc46225bd6be8282ce22156c6854732))
+* **build-curriculum:** outline adds internals and capstones ([#64](https://github.com/jq-ln/curriculum-skills/issues/64)) ([d38ef2f](https://github.com/jq-ln/curriculum-skills/commit/d38ef2f6cc45d30fa73f69fa2a81a3687b7a98ef))
+* **build-curriculum:** outline draws a core Part first ([#63](https://github.com/jq-ln/curriculum-skills/issues/63)) ([6c8ecbe](https://github.com/jq-ln/curriculum-skills/commit/6c8ecbe2f82da71290a951e3445e4d34891b58b5))
+* **build-curriculum:** show each unit beside dependants' Goals ([#72](https://github.com/jq-ln/curriculum-skills/issues/72)) ([1511ed7](https://github.com/jq-ln/curriculum-skills/commit/1511ed79a457a27101ddf06d7a7b7363fd410405))
+
+
+### Bug Fixes
+
+* **build-curriculum:** outline Goals stay true at their depth ([#71](https://github.com/jq-ln/curriculum-skills/issues/71)) ([de51d3c](https://github.com/jq-ln/curriculum-skills/commit/de51d3cb3b373a824e7b35ae09231e145452dcff))
+* **build-curriculum:** qualify Scope rules a later Goal breaks ([#70](https://github.com/jq-ln/curriculum-skills/issues/70)) ([cf78c95](https://github.com/jq-ln/curriculum-skills/commit/cf78c95e1c8113cea265b56e659026c5c3b4a54e))
+
 ## 0.0.1 (2026-11-22)
 
 
