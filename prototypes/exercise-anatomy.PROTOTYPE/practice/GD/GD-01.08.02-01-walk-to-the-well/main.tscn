@@ -1,7 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://lvqcgaluphoi"]
 
 [ext_resource type="PackedScene" path="res://villager.tscn" id="1_0xm2m"]
-[ext_resource type="Script" path="res://villager.gd" id="2_h2yge"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_1bvp3"]
 size = Vector3(12, 1, 60)
@@ -84,9 +83,8 @@ mesh = SubResource("BoxMesh_vivmo")
 [node name="Well" type="Marker3D" parent="." unique_id=1034637884]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, -16)
 
-[node name="Villager" type="CharacterBody3D" parent="." unique_id=785512721 node_paths=PackedStringArray("target") instance=ExtResource("1_0xm2m")]
+[node name="Villager" parent="." unique_id=785512721 node_paths=PackedStringArray("target") instance=ExtResource("1_0xm2m")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 8)
-script = ExtResource("2_h2yge")
 target = NodePath("../Well")
 
 [node name="Sun" type="DirectionalLight3D" parent="." unique_id=1208974881]

@@ -16,3 +16,10 @@ func heading() -> Vector3:
 
 
 # Your code goes here.
+
+func _physics_process(delta: float) -> void:
+	var walk := heading() * speed
+	velocity.x = walk.x
+	velocity.z = walk.z
+	velocity += get_gravity() * delta
+	move_and_slide()

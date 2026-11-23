@@ -55,11 +55,11 @@ The call needed the Goal, the Scope and the closure together, and the format hel
 
 **Missing from the format**: nothing these three needed. The old format's per-unit Build field wasn't missed: Goal plus Scope decided practical or not, and suggested a task. The one gap, GD-06.03.01's Goal using calls its closure lacks, is a Prereq question about the Curriculum, not a missing Field.
 
-## Open questions for the human
+## Answers from the human
 
-1. Scaffold line: the strict closure, the closure plus what the anchor's Scope names, or everything before the anchor in teaching order?
-2. Should the reference solution ship, such as behind a fourth hint tier, or stay generation-only?
-3. Are hint files hidden only by convention enough?
-4. Is the "no Exercise" verdict for GD-01.02.01 right, and is its wording what the skill should print?
-5. The colony's "Done when" says each line names its scene file and parent, which is the manual's method, not only the outcome. It mirrors the Subsection's Goal. Should a Goal that names a method set the target, or only the outcome it achieves?
-6. Should an Exercise cover every Key concept, or only those its task naturally needs?
+1. Scaffold line: the Prereq closure plus any API the anchor's own Scope names.
+2. The reference solution and near-misses are generation-only and don't ship.
+3. Hints hidden by convention, numbered files kept out of the editor through `.gdignore`, are enough.
+4. The GD-01.02.01 verdict and its wording stand.
+5. What the Goal states sets the target, a named method included; the route beyond it is the learner's.
+6. Not settled: whether an Exercise covers every Key concept or only those its task needs.
