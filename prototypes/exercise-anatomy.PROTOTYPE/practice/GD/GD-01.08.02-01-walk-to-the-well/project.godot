@@ -1,0 +1,11 @@
+config_version=5
+
+[application]
+
+config/name="GD-01.08.02-01 Walk to the well"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.7")
+
+[physics]
+
+3d/physics_engine="Jolt Physics"

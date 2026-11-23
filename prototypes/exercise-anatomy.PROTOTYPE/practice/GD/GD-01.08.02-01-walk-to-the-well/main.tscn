@@ -1,0 +1,96 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://villager.tscn" id="1_0xm2m"]
+[ext_resource type="Script" path="res://villager.gd" id="2_h2yge"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1bvp3"]
+size = Vector3(12, 1, 60)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lquwl"]
+albedo_color = Color(0.35, 0.55, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_7mycd"]
+material = SubResource("StandardMaterial3D_lquwl")
+size = Vector3(12, 1, 60)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_272bh"]
+size = Vector3(4, 0.5, 4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5vw27"]
+albedo_color = Color(0.35, 0.55, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_kek77"]
+material = SubResource("StandardMaterial3D_5vw27")
+size = Vector3(4, 0.5, 4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_4c57u"]
+size = Vector3(4, 2, 4.535898)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_efxa6"]
+albedo_color = Color(0.35, 0.55, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_dg77c"]
+material = SubResource("StandardMaterial3D_efxa6")
+size = Vector3(4, 2, 4.535898)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ycdy4"]
+size = Vector3(4, 0.5, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_w48qg"]
+albedo_color = Color(0.55, 0.55, 0.55, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_vivmo"]
+material = SubResource("StandardMaterial3D_w48qg")
+size = Vector3(4, 0.5, 6)
+
+[node name="Main" type="Node3D" unique_id=1086319394]
+
+[node name="Ground" type="StaticBody3D" parent="." unique_id=88682365]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -10)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground" unique_id=1520060755]
+shape = SubResource("BoxShape3D_1bvp3")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground" unique_id=1525304330]
+mesh = SubResource("BoxMesh_7mycd")
+
+[node name="GentleRamp" type="StaticBody3D" parent="." unique_id=2021753805]
+transform = Transform3D(1, 0, 0, 0, 0.8660254, -0.5, 0, 0.5, 0.8660254, 0, 0.78349364, -1.8570508)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GentleRamp" unique_id=1054176431]
+shape = SubResource("BoxShape3D_272bh")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="GentleRamp" unique_id=622778085]
+mesh = SubResource("BoxMesh_kek77")
+
+[node name="Plateau" type="StaticBody3D" parent="." unique_id=71707557]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -5.732051)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Plateau" unique_id=566997032]
+shape = SubResource("BoxShape3D_4c57u")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Plateau" unique_id=1826788700]
+mesh = SubResource("BoxMesh_dg77c")
+
+[node name="SteepSlope" type="StaticBody3D" parent="." unique_id=195307060]
+transform = Transform3D(1, 0, 0, 0, 0.49999997, -0.86602545, 0, 0.86602545, 0.49999997, 0, 4.4730763, -9.716506)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SteepSlope" unique_id=340783848]
+shape = SubResource("BoxShape3D_ycdy4")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="SteepSlope" unique_id=1542959526]
+mesh = SubResource("BoxMesh_vivmo")
+
+[node name="Well" type="Marker3D" parent="." unique_id=1034637884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, -16)
+
+[node name="Villager" type="CharacterBody3D" parent="." unique_id=785512721 node_paths=PackedStringArray("target") instance=ExtResource("1_0xm2m")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 8)
+script = ExtResource("2_h2yge")
+target = NodePath("../Well")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1208974881]
+transform = Transform3D(0.8660254, -0.38302222, 0.32139382, 0, 0.64278764, 0.76604444, -0.5, -0.66341394, 0.5566704, 0, 10, 0)
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=638144455]
+transform = Transform3D(-4.371139e-08, -0.34202012, 0.9396926, 0, 0.9396926, 0.34202012, -1, 1.4950174e-08, -4.1075268e-08, 16, 6, -2)
