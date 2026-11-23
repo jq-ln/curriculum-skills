@@ -22,6 +22,10 @@ A portion of a Part. Its doc holds its Generators and lists its Subsections.
 A portion of a Section, and the teachable unit. Its doc carries everything an agent needs to teach it, so it can be loaded alone.
 _Avoid_: Session, Topic, Chapter
 
+**Capstone**:
+A Synthesis Subsection that traces one scenario end to end through several Parts, such as the life of a commit in git. A Curriculum's capstones sit together in one Part, after every Part they cross.
+_Avoid_: Final project
+
 **ID**:
 The stable identifier of a Part, Section or Subsection, such as `GIT-07`, `GIT-07.02` or `GIT-07.02.03`: the code, a hyphen, then each level padded to two digits. It changes only when a split or a mid-Section insertion renumbers units. It takes the same form in prose, H1s, filenames, the Context Field and references from another Curriculum. A Subsection's ID always has three levels, so a flat subject gains Sections.
 
