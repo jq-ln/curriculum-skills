@@ -38,16 +38,17 @@ Closes #
 
 - `Closes #<issue>` names the one issue this PR closes. The `issue-link` check enforces it; see [`issues.md`](issues.md#one-issue-per-pr).
 - **What and why** says what changed and why, for someone reading `main`'s history later.
-- **How verified** says what you ran or checked, and what you saw, for each [acceptance criterion](#acceptance-criteria) the PR ticks.
+- **How verified** says what you ran or checked, and what you saw, covering each [acceptance criterion](#acceptance-criteria) the PR ticks.
 
 End the description with any footers, as its last paragraph, one per line. Write each footer in git's `Token: value` trailer form, such as `Refs: #<issue>`. That paragraph becomes the squash commit's trailers, and one line outside the form, such as `Refs #<issue>`, can stop git parsing any of them.
 
 ## Acceptance criteria
 
-Before opening a PR, or marking a draft PR ready for review, the author updates the acceptance criteria in its issue's body, if the issue lists any. GitHub leaves an issue's task list as it is when a PR closes it, so only these ticks show which criteria were met and which were deferred:
+Before opening a PR, or marking a draft PR ready for review, the author updates the acceptance criteria in its issue's body, if the issue lists any. GitHub leaves an issue's task list as it is when a PR closes it, so only these ticks show which criteria were met, deferred or dropped:
 
 - Tick each criterion the PR meets.
 - Leave a criterion the PR defers unticked, and append the [Follow-up](issues.md#follow-ups) that carries it, such as `→ #61`.
+- Leave a criterion that's dropped unticked, such as one the work showed was wrong or the maintainer decided against, and append `→ dropped: <reason>`.
 
 Issues closed before this rule stay as they are. To edit the body, see [Editing an issue's body](issues.md#editing-an-issues-body).
 
