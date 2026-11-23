@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Fails when a skill disagrees with docs/curriculum-format.md: a skill directory
-# (skills/*/), shipped or not yet, without references/curriculum-format.md, a copy that
-# differs from the doc, a .py under skills/*/scripts/ whose FORMAT_VERSION
-# differs from its Format version, or a skills/*/scripts/ whose .py files don't
-# define it.
+# Fails when a skill disagrees with docs/curriculum-format.md: a skill
+# directory (skills/*/), shipped or not yet, without
+# references/curriculum-format.md, a copy that differs from the doc, a .py
+# under skills/*/scripts/ whose FORMAT_VERSION differs from its Format version,
+# or a skills/*/scripts/ whose .py files don't define it.
 # Run from the repo root. Written for Bash 3.2, macOS's /bin/bash.
 set -euo pipefail
 shopt -s nullglob

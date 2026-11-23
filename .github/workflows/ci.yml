@@ -180,7 +180,7 @@ jobs:
       - name: Run the build script's tests
         run: python3 -m unittest discover -s tests/build-curriculum -v
       - name: Run the exercises script's tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() }} # still runs when the build script's tests fail, so one run reports both
         run: python3 -m unittest discover -s tests/build-exercises -v
 
   # The only required check. Add new jobs to `needs:`; leave the ruleset alone.

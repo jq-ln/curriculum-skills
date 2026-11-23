@@ -103,7 +103,7 @@ class Context(TempDirTestCase):
         result = run("context", "RUST-01.01.01", "--curriculums", CURRICULUMS)
         self.assertEqual(
             (result.returncode, result.stdout, result.stderr),
-            (1, "", f"context: {CURRICULUMS} holds no single Curriculum with code RUST; found: none\n"),
+            (1, "", "context: no Curriculum in the Curriculums directory has code RUST\n"),
         )
 
     def test_stops_when_the_anchors_curriculum_doesnt_load(self):

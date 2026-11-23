@@ -29,23 +29,29 @@ LINKS_KEPT = {"Sources"}
 # --- Finding Curriculums -----------------------------------------------------
 
 
+def curriculum_dir(directory, code):
+    """The one Curriculum in directory with this code, or a string saying why there isn't one."""
+    matches = build.curricula_with_code(directory, code)
+    if not matches:
+        return f"no Curriculum in the Curriculums directory has code {code}"
+    if len(matches) > 1:
+        names = ", ".join(d.name for d in matches)
+        return f"several Curriculums in the Curriculums directory have code {code}: {names}"
+    return matches[0]
+
+
 def subsections_by_code(directory):
     """A function from a code to that Curriculum's {UnitId: Unit}, or a string saying why it can't be read."""
     found = {}
 
     def find(code):
         if code not in found:
-            matches = build.curricula_with_code(directory, code)
-            if not matches:
-                found[code] = f"no Curriculum in the Curriculums directory has code {code}"
-            elif len(matches) > 1:
-                names = ", ".join(d.name for d in matches)
-                found[code] = f"several Curriculums in the Curriculums directory have code {code}: {names}"
-            else:
+            found[code] = curriculum_dir(directory, code)
+            if isinstance(found[code], Path):
                 try:
-                    found[code] = build.doc_set_subsections(matches[0])
+                    found[code] = build.doc_set_subsections(found[code])
                 except BuildError:
-                    found[code] = f"{code} doesn't load; run build.py check on {matches[0].name}"
+                    found[code] = f"{code} doesn't load; run build.py check on {found[code].name}"
         return found[code]
 
     return find
@@ -58,13 +64,12 @@ def anchor_units(directory, token):
         raise BuildError(f"{token} isn't an ID")
     if len(uid.levels) != 3:
         raise BuildError(f"{token} isn't a Subsection ID")
-    matches = build.curricula_with_code(directory, uid.code)
-    if len(matches) != 1:
-        found = ", ".join(d.name for d in matches) or "none"
-        raise BuildError(f"{directory} holds no single Curriculum with code {uid.code}; found: {found}")
-    units = build.doc_set_subsections(matches[0])
+    root = curriculum_dir(directory, uid.code)
+    if isinstance(root, str):
+        raise BuildError(root)
+    units = build.doc_set_subsections(root)  # its errors are printed in full: this run can't go on without them fixed
     if uid not in units:
-        raise BuildError(f"{token} names no Subsection in {matches[0].name}")
+        raise BuildError(f"{token} names no Subsection in {root.name}")
     return uid, units
 
 
