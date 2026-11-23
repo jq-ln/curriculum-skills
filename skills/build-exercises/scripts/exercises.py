@@ -5,6 +5,10 @@ Subcommands:
   context <ID> [--curriculums <dir>]  print the Subsection and its Prereq closure
   existing <ID> [--curriculums <dir>] [--practice <dir>]
                                       list the Subsection's Exercises and the next <NN>
+  renumber <CODE> [--curriculums <dir>] [--practice <dir>]
+                                      report each Exercise as valid, moved or broken; writes nothing
+  rename <exercise dir> <ID> [--curriculums <dir>]
+                                      point an Exercise at a new anchor, once the learner confirms
   gate <exercise-dir> <gen-dir>       run the Exercise check on every case and judge its lines
 
 Reads doc sets through build-curriculum's build.py, so both skills parse a
@@ -137,21 +141,163 @@ def context(directory, token):
 # --- existing ----------------------------------------------------------------
 
 
+# Any slug, even an empty one, so a misnamed Exercise still holds its number.
+EXERCISE_NAME_RE = re.compile(rf"({build.CODE}-[0-9]{{2}}\.[0-9]{{2}}\.[0-9]{{2}})-([0-9]{{2,}})-(.*)")
+
+
+def exercise_numbers(code_dir, uid):
+    """{Exercise name: <NN>} for each of the anchor's Exercises in code_dir."""
+    out = {}
+    if Path(code_dir).is_dir():
+        for d in Path(code_dir).iterdir():
+            m = EXERCISE_NAME_RE.fullmatch(d.name)
+            if m and m[1] == str(uid) and d.is_dir():
+                out[d.name] = int(m[2])
+    return out
+
+
+def exercise_name_id(name):
+    """The anchor ID an Exercise's directory name starts with, or None when it isn't named <ID>-<NN>-<slug>."""
+    m = EXERCISE_NAME_RE.fullmatch(name)
+    return build.parse_id(m[1]) if m else None
+
+
+def next_number(code_dir, uid):
+    """The highest <NN> plus one, never a gap's number, so a deleted Exercise's number isn't reused."""
+    return max(exercise_numbers(code_dir, uid).values(), default=0) + 1
+
+
 def existing(practice, token):
     """The anchor's Exercises, lowest <NN> first, then the next <NN>."""
     uid = subsection_id(token)
-    # Any slug, even an empty one, so a misnamed Exercise still holds its number.
-    exercise = re.compile(rf"{re.escape(str(uid))}-([0-9]{{2,}})-.*")
     code_dir = Path(practice) / uid.code
-    numbers = {}
-    if code_dir.is_dir():
-        for d in code_dir.iterdir():
-            m = exercise.fullmatch(d.name)
-            if m and d.is_dir():
-                numbers[d.name] = int(m[1])
-    # The highest plus one, never a gap's number, so a deleted Exercise's number isn't reused.
-    next_nn = max(numbers.values(), default=0) + 1
-    return "\n".join(sorted(numbers, key=numbers.get) or ["None"]) + f"\nNext: {next_nn:02d}\n"
+    found = exercise_numbers(code_dir, uid)
+    return "\n".join(sorted(found, key=found.get) or ["None"]) + f"\nNext: {next_number(code_dir, uid):02d}\n"
+
+
+# --- renumber ----------------------------------------------------------------
+
+EXERCISE = "EXERCISE.md"
+RECORD_KEYS = ["Curriculum", "Anchor", "Anchor title"]  # the anchor record's bullets renumber needs
+
+
+def record_lines(text):
+    """{key: line index} for the anchor record's bullets: the `- <key>: <value>` lines straight after the H1."""
+    lines = text.split("\n")
+    h1 = next((i for i, line in enumerate(lines) if line.strip()), None)
+    if h1 is None or not lines[h1].startswith("# "):
+        return {}
+    out = {}
+    for i in range(h1 + 1, len(lines)):
+        if not lines[i].strip() and not out:
+            continue
+        key, sep, _ = lines[i].removeprefix("- ").partition(": ")
+        if not lines[i].startswith("- ") or not sep:
+            break
+        out.setdefault(key, i)
+    return out
+
+
+def anchor_record(exercise_dir, code):
+    """(UnitId, anchor title) from an Exercise's anchor record, or a string saying why it can't be read."""
+    path = Path(exercise_dir) / EXERCISE
+    if not path.is_file():
+        return f"no {EXERCISE}"
+    try:
+        text = build.read(path)
+    except (BuildError, OSError):
+        return f"{EXERCISE} can't be read"
+    lines = text.split("\n")
+    record = {key: lines[i].partition(": ")[2] for key, i in record_lines(text).items()}
+    uid = build.parse_id(record.get("Anchor", ""))
+    if any(key not in record for key in RECORD_KEYS) or not uid or len(uid.levels) != 3:
+        return f"{EXERCISE} has no anchor record"
+    if record["Curriculum"] != code:
+        return f"{EXERCISE} records Curriculum {record['Curriculum']}"
+    if uid.code != code:
+        return f"{EXERCISE} records anchor {uid}, outside {code}"
+    return uid, record["Anchor title"]
+
+
+def status(exercise_dir, units, code):
+    """The lines renumber prints for one Exercise."""
+    name = Path(exercise_dir).name
+    record = anchor_record(exercise_dir, code)
+    if isinstance(record, str):
+        return [f"{name}: broken: {record}"]
+    uid, title = record
+    titled = [u for u in sorted(units, key=lambda u: u.levels) if units[u].title == title]
+    found = uid if uid in titled else titled[0] if len(titled) == 1 else None
+    # The record and the name must both agree with the anchor. Either can lag, as when a rename stops between
+    # rewriting the record and renaming the directory, and the lagging one gives the old ID.
+    named = exercise_name_id(name)
+    if found and found == named == uid:
+        return [f"{name}: valid"]
+    if found:
+        return [f"{name}: moved: {uid if uid != found else named} → {found}"]
+    if titled:
+        out = [f'{name}: broken: {len(titled)} Subsections are titled "{title}"']
+    else:
+        out = [f'{name}: broken: no Subsection is titled "{title}"']
+        # A retitle keeps the ID, so the Subsection there is the likely anchor, but only the learner can say so.
+        titled = [uid] if uid in units else []
+    return out + [f"  candidate: {u} {units[u].title}" for u in titled]
+
+
+def renumber(directory, practice, code):
+    """Whether each of the Curriculum's Exercises is valid, moved or broken, in name order. Writes nothing."""
+    root = curriculum_dir(directory, code)
+    if isinstance(root, str):
+        raise BuildError(root)
+    units = build.doc_set_subsections(root)
+    code_dir = Path(practice) / code
+    dirs = sorted(d for d in code_dir.iterdir() if d.is_dir()) if code_dir.is_dir() else []
+    # Only Exercises of this code, so a generation directory or a learner's own folder isn't reported as broken.
+    dirs = [d for d in dirs if (uid := exercise_name_id(d.name)) and uid.code == code]
+    return "\n".join([line for d in dirs for line in status(d, units, code)] or ["None"]) + "\n"
+
+
+# --- rename ------------------------------------------------------------------
+
+
+def rename(directory, exercise_dir, token):
+    """Point an Exercise at a new anchor: rewrite its anchor record, then rename its directory.
+
+    Run only once the learner has confirmed the move. The slug stays, and the <NN> is the next
+    free one under the new ID, so the renamed Exercise never collides with one already there.
+    """
+    exercise_dir = Path(exercise_dir).resolve()  # so `rename . <ID>` from inside the Exercise has a name to read
+    name = exercise_dir.name
+    if not exercise_dir.is_dir():
+        raise BuildError(f"{name} isn't a directory")
+    old = exercise_name_id(name)
+    if not old:
+        raise BuildError(f"{name} isn't named <ID>-<NN>-<slug>")
+    code = old.code
+    record = anchor_record(exercise_dir, code)
+    if isinstance(record, str):
+        raise BuildError(f"{name}: {record}")
+    new = subsection_id(token)
+    if new.code != code:
+        raise BuildError(f"{new} isn't in Curriculum {code}")
+    _, units = anchor_units(directory, token)
+
+    path = exercise_dir / EXERCISE
+    # Split on the same line endings build.read's read_text does, keeping each one, so the line
+    # numbers agree with anchor_record's and every line keeps its own ending.
+    parts = re.split(r"(\r\n|\r|\n)", path.read_bytes().decode("utf-8"))  # anchor_record has checked it decodes
+    lines, endings = parts[0::2], parts[1::2] + [""]
+    at = record_lines("\n".join(lines))
+    for key, value in (("Anchor", new), ("Anchor title", units[new].title)):
+        lines[at[key]] = f"- {key}: {value}"
+    path.write_bytes("".join(line + ending for line, ending in zip(lines, endings)).encode("utf-8"))
+
+    if old == new:
+        return f"renamed: {name} → {name}\n"
+    slug = EXERCISE_NAME_RE.fullmatch(name)[3]
+    new_name = f"{new}-{next_number(exercise_dir.parent, new):02d}-{slug}"
+    exercise_dir.rename(exercise_dir.parent / new_name)
+    return f"renamed: {name} → {new_name}\n"
 
 
 # --- gate --------------------------------------------------------------------
@@ -363,6 +509,14 @@ def main(argv=None):
     p.add_argument("id")
     p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
     p.add_argument("--practice", help="the Practice workspace (default: practice/ in the Curriculums directory)")
+    p = sub.add_parser("renumber", help="report whether each of the Curriculum's Exercises still names its anchor")
+    p.add_argument("code")
+    p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
+    p.add_argument("--practice", help="the Practice workspace (default: practice/ in the Curriculums directory)")
+    p = sub.add_parser("rename", help="point an Exercise at a new anchor, once the learner has confirmed it")
+    p.add_argument("exercise", help="the Exercise's directory")
+    p.add_argument("id", help="the new anchor's Subsection ID")
+    p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
     p = sub.add_parser("gate", help="run the Exercise check on every case and judge its lines")
     p.add_argument("exercise", type=Path, help="the Exercise, as it would ship")
     p.add_argument("gen", type=Path, help="the generation directory holding gate.json, reference/ and near-misses/")
@@ -371,13 +525,18 @@ def main(argv=None):
     try:
         if args.command == "context":
             sys.stdout.write(context(Path(args.curriculums), args.id))
+        elif args.command == "rename":
+            sys.stdout.write(rename(Path(args.curriculums), Path(args.exercise), args.id))
         elif args.command == "gate":
             report, code = gate(args.exercise, args.gen)
             sys.stdout.write(report)
             return code
         else:
             practice = Path(args.practice) if args.practice else Path(args.curriculums) / "practice"
-            sys.stdout.write(existing(practice, args.id))
+            if args.command == "existing":
+                sys.stdout.write(existing(practice, args.id))
+            else:
+                sys.stdout.write(renumber(Path(args.curriculums), practice, args.code))
     except BuildError as e:
         for line in str(e).split("\n"):
             print(f"{args.command}: {line}", file=sys.stderr)
