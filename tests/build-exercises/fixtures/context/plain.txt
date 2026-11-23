@@ -1,0 +1,51 @@
+# GIT-01.02.01 The index as a staging snapshot
+
+## Context
+
+- Curriculum: Git (GIT)
+- Target version: 2.47.1
+- Snapshot: 2026-11-19
+- Part: GIT-01 Repository internals
+- Section: GIT-01.02 The index
+- Section Generators:
+  - The index records the tree the next commit will hold.
+
+## Tags
+
+- 2.43: Checked against the release notes of Git 2.43. (from GIT-01.02)
+
+## Goal
+
+The next commit's tree is built from the index, not from the working tree.
+
+## Scope
+
+The index file, how `git add` updates it, and how `git commit` writes a tree from it.
+
+## Key concepts
+
+index; staging; tree
+
+## Prereqs
+
+- GIT-01.01.01 Content-addressed objects — blobs, trees, commits and the naïve view of a snapshot: A commit pins a whole project state, because it names a tree whose hash covers every file below it.
+
+## Check
+
+Why does a file edited after `git add` commit in its earlier state?
+
+## Sources
+
+- [man git-add](https://git-scm.com/docs/git-add)
+
+# Prereq closure
+
+## GIT-01.01.01 Content-addressed objects — blobs, trees, commits and the naïve view of a snapshot
+
+### Goal
+
+A commit pins a whole project state, because it names a tree whose hash covers every file below it.
+
+### Scope
+
+Blobs, trees and commits, how each names the next, and why changing one file changes the commit's hash. Stops before tags and packfiles.

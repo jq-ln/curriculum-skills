@@ -1066,22 +1066,30 @@ def other_prereq(root, uid):
     return f"{uid} {unit[1]}: {text}"
 
 
+def curricula_with_code(directory, code, exclude=None):
+    """Every directory in directory, other than exclude, whose index.md H1 ends `(<CODE>)`, sorted."""
+    exclude = Path(exclude).resolve() if exclude else None
+    matches = []
+    for d in sorted(Path(directory).resolve().iterdir()):
+        if d == exclude or not (d / "index.md").is_file():
+            continue
+        try:
+            m = INDEX_H1_RE.fullmatch(parse(read(d / "index.md")).h1)
+        except (BuildError, OSError):
+            continue
+        if m and m.group(2) == code:
+            matches.append(d)
+    return matches
+
+
 def other_curricula(root):
-    """A function from a code to the one directory beside root whose index.md H1 ends `(<CODE>)`."""
+    """A function from a code to the one directory beside root whose index.md H1 ends `(<CODE>)`, or None."""
+    root = Path(root).resolve()
     found = {}
 
     def find(code):
         if code not in found:
-            matches = []
-            for d in sorted(Path(root).resolve().parent.iterdir()):
-                if d == Path(root).resolve() or not (d / "index.md").is_file():
-                    continue
-                try:
-                    m = INDEX_H1_RE.fullmatch(parse(read(d / "index.md")).h1)
-                except (BuildError, OSError):
-                    continue
-                if m and m.group(2) == code:
-                    matches.append(d)
+            matches = curricula_with_code(root.parent, code, exclude=root)
             found[code] = matches[0] if len(matches) == 1 else None
         return found[code]
 
