@@ -23,7 +23,7 @@ A portion of a Section, and the teachable unit. Its doc carries everything an ag
 _Avoid_: Session, Topic, Chapter
 
 **Capstone**:
-A Subsection that traces one scenario end to end through several Parts, such as the life of a commit in git, and lists every unit the scenario passes through in its Prereqs. A Curriculum's capstones sit together in one Part, after every Part they need.
+A Subsection that traces one scenario end to end through several Parts, such as the life of a commit in git, and lists every unit the scenario passes through in its Prereqs. A capstone that passes through an Optional unit is Optional itself. A Curriculum's capstones sit together in one Part, after every Part they need.
 _Avoid_: Final project
 
 **ID**:
