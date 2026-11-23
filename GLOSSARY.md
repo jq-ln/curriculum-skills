@@ -43,6 +43,10 @@ The derived Field that copies a Subsection's surrounding facts into it: the Curr
 The derived Part Field listing the other Parts of the Curriculum its Subsections' Prereqs land in. The index's Parts table repeats it as a column.
 _Avoid_: Part Prereqs
 
+**Dependant**:
+A Subsection that lists another directly in its Prereqs. The build script's `dependants` lists a Subsection's dependants.
+_Avoid_: Dependent, successor
+
 **Appendix**:
 An optional, repeatable doc of non-teaching reference material, named `<CODE>-appendix-<description>.md`. It never holds Subsections: teaching material that would go in an appendix becomes a Part tagged Optional.
 

@@ -15,6 +15,8 @@ Every unit you fill is true but incomplete: its claims stay true under every uni
 - Target version: {{target_version}}
 - Fill: Sections {{sections}} of {{part}}
 - Outline: `{{outline}}`
+- Draft directory: `{{draft_dir}}`
+- Build script: `{{build_script}}`
 - Write to: `{{part_file}}.partial`, renamed to `{{part_file}}` when you're done
 - Draft format: `{{draft_format}}`
 - Curriculum format: `{{curriculum_format}}`
@@ -34,7 +36,7 @@ Write the part file as the Draft format's Part files section lays it out. For ea
 - Copy its H1 from the Outline character for character, since `split` merges your Fields into the Outline's by H1.
 - Write the Fields the Draft format gives a part file, each with the meaning and form the Curriculum format gives it.
 - Build Scope toward the Goal from what the Prereqs' Goals already give the learner. A fact the unit needs that a Prereq doesn't give is a Foundation or part of Scope; a unit the Goal can't be reached in is a Judgement call in your Part notes, naming its ID.
-- Read the Goals of the Outline units that list this unit directly in Prereqs, and keep its Scope and Key concepts true under each of them. Where Scope deliberately stops short of detail one of those units teaches, name that unit by ID in Scope as a preview, such as "how refs are stored is GIT-09.02.01" in a git Curriculum.
+- Read the Goals of the Outline units that list this unit directly in Prereqs, and keep its Scope and Key concepts true under each of them. `python3 {{build_script}} dependants {{draft_dir}} <ID>...` prints them beside each unit's Goal, so you needn't search the Outline for them. Where Scope deliberately stops short of detail one of those units teaches, name that unit by ID in Scope as a preview, such as "how refs are stored is GIT-09.02.01" in a git Curriculum.
 - A general rule is the claim those units' Goals most easily break: a closed list of kinds, or a claim that something always, only or never happens. A Goal that teaches a new kind, case or exception of what the rule covers breaks it, even when the Goal doesn't state the rule, so qualify the rule to the cases it holds for and preview that unit as the exception, such as "changes to lines of a text file that unchanged lines separate merge cleanly; files git can't merge by lines need a custom merge driver, GIT-06.02.03".
 - When a Prereq's Goal is false at this unit's depth, keep this unit true and record a Judgement call in your Part notes naming both IDs.
 - Write the Check so that only a learner holding the Goal can answer it.
