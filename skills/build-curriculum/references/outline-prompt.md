@@ -70,7 +70,7 @@ Goals, Generators, Prereqs, IDs and tags follow the Curriculum format's Subsecti
 
 - Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a unit that needs more into several Subsections. Merge a unit too thin to carry its own Goal, such as the thin remainder of a split topic, into its neighbour.
 - When a topic has a core slice and a deeper remainder, split it into two Subsections, each titled for what it teaches and with its own Goal, the deep one listing the shallow one in Prereqs.
-- State core Goals at the model level, saying what a thing is and does, never how it's stored, so no later unit has to retract them.
+- State core Goals at the model level, saying what a thing is and does, never how it's represented or implemented, so no later unit has to retract them.
 - Add a Synthesis Subsection wherever loose facts collapse into a structure, such as at the end of a Section.
 - Teaching material a textbook would put in an appendix becomes a Part tagged `Optional`. Reference material that teaches nothing, such as a coverage table, stays out of the Outline.
 - A Prereq is a unit whose Goal this unit's Goal can't be reached without. Ask that of every Prereq you list, so each later Part opens as early as its content allows.

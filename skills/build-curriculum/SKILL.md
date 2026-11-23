@@ -49,7 +49,7 @@ Show the user:
 - the path to `outline.md`, which they can edit directly;
 - when there are more than about 400 Subsections, a warning that the fill will be large, and that a narrower Brief would shrink it.
 
-Ask the user whether the core should hold more or less, or aim at a different capability. Ask them to edit `outline.md` or tell you what to change, and to say go when it's right. Make each change they ask for in `outline.md`, renumbering as [IDs](references/curriculum-format.md#ids) says, run the `split` check of step 2 again, and show the checkpoint again. Wait for go.
+Ask the user whether the core should hold more or less, or aim at a different capability. Ask them to edit `outline.md` or tell you what to change, and to say go when it's right. Make each change they ask for in `outline.md`, renumbering as [IDs](references/curriculum-format.md#ids) says. When a change moves the core cut, the capability target or the order of Parts, rewrite the capability target sentence, the cut and the Parts that open straight after the core in the overview's Ordering rationale to match, since the checkpoint and the fill agents read them there. Then run the `split` check of step 2 again, and show the checkpoint again. Wait for go.
 
 On go, create an empty file `.approved` in the Draft directory, so a resumed run doesn't ask again. The step is done when it exists.
 
