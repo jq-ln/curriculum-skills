@@ -436,6 +436,17 @@ class Rename(TempDirTestCase):
             exercise_md("GIT-01.01.02", "Refs").replace("\n", "\r\n").encode("utf-8"),
         )
 
+    def test_keeps_lone_cr_endings(self):
+        practice = self.workspace("GIT-01.01.01-01-list-refs")
+        md = practice / "GIT" / "GIT-01.01.01-01-list-refs" / "EXERCISE.md"
+        md.write_bytes(exercise_md("GIT-01.01.01", "Refs").replace("\n", "\r").encode("utf-8"))
+        result = self.rename(md.parent, "GIT-01.01.02")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            (practice / "GIT" / "GIT-01.01.02-01-list-refs" / "EXERCISE.md").read_bytes(),
+            exercise_md("GIT-01.01.02", "Refs").replace("\n", "\r").encode("utf-8"),
+        )
+
     def test_keeps_the_directory_when_the_id_is_unchanged(self):
         # Settling a retitled anchor: the ID stays and only the recorded title changes.
         practice = self.workspace("GIT-01.02.01-01-list-refs")

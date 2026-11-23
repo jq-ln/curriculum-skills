@@ -278,12 +278,14 @@ def rename(directory, exercise_dir, token):
     _, units = anchor_units(directory, token)
 
     path = exercise_dir / EXERCISE
-    lines = path.read_bytes().decode("utf-8").split("\n")  # anchor_record has checked it decodes
-    at = record_lines("\n".join(line.removesuffix("\r") for line in lines))
+    # Split on the same line endings build.read's read_text does, keeping each one, so the line
+    # numbers agree with anchor_record's and every line keeps its own ending.
+    parts = re.split(r"(\r\n|\r|\n)", path.read_bytes().decode("utf-8"))  # anchor_record has checked it decodes
+    lines, endings = parts[0::2], parts[1::2] + [""]
+    at = record_lines("\n".join(lines))
     for key, value in (("Anchor", new), ("Anchor title", units[new].title)):
-        ending = "\r" if lines[at[key]].endswith("\r") else ""  # so a CRLF file stays CRLF
-        lines[at[key]] = f"- {key}: {value}{ending}"
-    path.write_bytes("\n".join(lines).encode("utf-8"))
+        lines[at[key]] = f"- {key}: {value}"
+    path.write_bytes("".join(line + ending for line, ending in zip(lines, endings)).encode("utf-8"))
 
     if old == new:
         return f"renamed: {name} → {name}\n"
