@@ -116,7 +116,7 @@ Abandoning an issue means unassigning yourself, with a comment saying where the 
 
 ## Closing
 
-A standalone issue or Ticket is done when a merged PR closes it through `Closes #<issue>` in its description (see [`commits.md`](commits.md#pr-description)).
+A standalone issue or Ticket is done when a merged PR closes it through `Closes #<issue>` in its description (see [`commits.md`](commits.md#pr-description)). Its ticked and deferred acceptance criteria show what that PR met (see [`commits.md`](commits.md#acceptance-criteria)).
 
 An issue that won't be done is closed with a reason instead of a label:
 
@@ -192,6 +192,13 @@ gh api --method POST repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by -F 
 
 # Number of open blockers: 0 means unblocked
 gh api repos/{owner}/{repo}/issues/<n> --jq .issue_dependencies_summary.blocked_by
+```
+
+### Editing an issue's body
+
+```sh
+gh issue view <n> --json body --jq .body > body.md   # then edit body.md, such as to tick acceptance criteria
+gh issue edit <n> --body-file body.md
 ```
 
 ### Claiming, commenting and closing

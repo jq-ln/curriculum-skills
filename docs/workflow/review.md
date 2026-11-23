@@ -57,7 +57,7 @@ A later comment in the thread, such as a maintainer's question, reopens it until
 The maintainer starts each reviewer in a fresh session. It is never the author's session or a subagent the author spawned, so no one reviews their own work.
 
 1. **Read everything first.** Read the linked issue (`gh issue view <n> --comments`), every thread with `threads list <pr>`, resolved ones included, and the PR's earlier reviews and comments (`gh pr view <pr> --comments`). Raise a settled point again only by citing what is new.
-2. **Check the acceptance criteria.** Confirm that each ticked criterion in the issue is met by the diff, and that each unticked one names its Follow-up, as [`commits.md`](commits.md#acceptance-criteria) describes. Raise a mismatch as a `blocking:` finding in the review body.
+2. **Check the acceptance criteria**, if the issue lists any. Confirm that each ticked criterion in the issue is met by the diff, and that each unticked one names its Follow-up, as [`commits.md`](commits.md#acceptance-criteria) describes. Raise a mismatch as a `blocking:` finding in the review body.
 3. **Rule on declined blockers** (round 2). For each open declined `blocking:` thread, either accept it with `threads resolve --accept-decline <thread>`, or [escalate](#escalation) at once. Don't argue it again in the thread.
 4. **Post the round as one review.** Each round is exactly one GitHub review of type `COMMENT`, whose body starts `Round <n>`. Findings on a diff line are its comments. Findings with no diff line go in its body as a list, each with its marker, never only in chat:
 
