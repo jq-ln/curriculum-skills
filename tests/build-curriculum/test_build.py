@@ -1173,7 +1173,7 @@ class Derive(TempDirTestCase):
         self.assertIn(f"derive: {REFS_FILE}: GIT-09.01 names no unit", result.stderr.splitlines())
         self.assertTrue((doc_set / SECTION_FILE).exists())
 
-    def test_adds_a_part_a_new_prereq_lands_in_to_needs(self):
+    def test_lists_the_part_of_a_new_prereq_in_needs(self):
         doc_set = self.copy(GOLDEN)
         replace(doc_set / CAT_FILE, "## Prereqs\n\n- [GIT-01.01.01", "## Prereqs\n\n- GIT-02.01.01\n- [GIT-01.01.01")
         result = run("derive", doc_set)
@@ -1188,7 +1188,7 @@ class Derive(TempDirTestCase):
         )
         self.assertPasses(doc_set)
 
-    def test_drops_needs_when_its_last_prereq_into_another_part_goes(self):
+    def test_drops_needs_when_no_prereq_lands_in_another_part(self):
         doc_set = self.copy(GOLDEN)
         text = (doc_set / CAT_FILE).read_text(encoding="utf-8")
         start, end = text.index("## Prereqs\n"), text.index("## Check\n")

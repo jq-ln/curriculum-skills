@@ -194,7 +194,7 @@ The H1 is `# <ID> <title>`. A Part has no Prereqs or Sources: those belong to it
 | Field | Kind | Required |
 | --- | --- | --- |
 | Intro | authored | required |
-| Needs | derived | when a Subsection in it has a prereq in another Part |
+| Needs | derived | when a Subsection in it has a prereq in another Part of the Curriculum |
 | Tags | mixed | optional |
 | Appendices | derived | when an Appendix names it |
 | Sections | derived | required |
@@ -212,7 +212,7 @@ The H1 is `# <ID> <title>`. A Part has no Prereqs or Sources: those belong to it
 
 - Needs is direct and unreduced: a Part appears whenever a Subsection's prereq lands in it, even when another listed Part needs it too.
 - A prereq with another code adds no entry, because its copy depends on the machine.
-- Sections have no Needs, and no doc lists the Parts that need it.
+- Only a Part has Needs, and it lists only the Parts it needs, never the Parts that need it.
 
 **Tags** and **Appendices** are as in a Section. A Part's tags are copied down into every Subsection in it.
 
@@ -445,7 +445,7 @@ Each Subsection has one nav line, between its H1 and its first Field:
 [Index](index.md) · [GIT-07](GIT-07-branching-and-merging.md) · [GIT-07.02](GIT-07.02-merging.md) · Prev [GIT-07.02.02](GIT-07.02.02-fast-forward-merges.md) · Next [GIT-07.02.04](GIT-07.02.04-resolving-conflicts.md)
 ```
 
-Prev and Next follow global ID order within the Subsection's Part, across Section boundaries. They stop at Part boundaries, because the next Part in ID order isn't necessarily the next one a learner is ready for; a Part's Needs says that. A Part's first Subsection has no Prev and its last has no Next; an empty slot is left out with its ` · ` separator. The Index, Part and Section links are always there.
+Prev and Next follow ID order within the Subsection's Part, across Section boundaries. They stop at Part boundaries, because the next Part in ID order isn't necessarily the next one a learner is ready for; a Part's Needs says that. A Part's first Subsection has no Prev and its last has no Next; an empty slot is left out with its ` · ` separator. The Index, Part and Section links are always there.
 
 ## Parsing
 
