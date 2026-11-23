@@ -77,11 +77,13 @@ Goals, Generators, Prereqs, IDs and tags follow the Curriculum format's Subsecti
 
 - Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a unit that needs more into several Subsections. Merge a unit too thin to carry its own Goal, such as the thin remainder of a split topic, into its neighbour.
 - When a topic has a core slice and a deeper remainder, split it into two Subsections, each titled for what it teaches and with its own Goal, the deep one listing the shallow one in Prereqs.
-- State core Goals at the model level, saying what a thing is and does, never how it's represented or implemented, so no later unit has to retract them.
+- State core Goals at the model level, saying what a thing is and does, never how it's represented or implemented.
+- Make every Goal true at its unit's depth, so no later unit has to retract it: a Goal may leave detail out, but the primary source at the Target version never contradicts it. A general rule is the claim most easily overstated: a closed list of kinds, a claim that something always, only or never happens, or one that something can't be done. Before writing one, check it against the primary source, then qualify it to the cases it holds for. A default that configuration or a build option changes is stated as the default, and advice the source gives, such as "shouldn't be modified directly", stays advice rather than becoming a constraint, such as "read-only".
 - Add a Synthesis Subsection wherever loose facts collapse into a structure, such as at the end of a Section.
 - Add a capstone Part, unless the Brief excludes it or too few Parts follow the core for a scenario to span several. Each of its Subsections traces one scenario end to end through several Parts, such as the life of a commit in git from edit to push, and its Prereqs list every unit the scenario passes through. A capstone that passes through an Optional unit is tagged `Optional` itself. A capstone isn't a Synthesis unit, since it may teach how those units' facts hand off to each other; define a tag of your own for capstones if you want them counted. Like any later Part, it comes after every Part it needs.
 - Teaching material a textbook would put in an appendix becomes a Part tagged `Optional`. Reference material that teaches nothing, such as a coverage table, stays out of the Outline.
 - A Prereq is a unit whose Goal this unit's Goal can't be reached without. Ask that of every Prereq you list, so each later Part opens as early as its content allows.
+- Ask it the other way too: every topic a Goal relies on that another unit teaches is taught by one of its transitive Prereqs. A Goal that explains merge in terms of plumbing needs the unit that teaches merge among them, so list it, or a unit that leads to it, in Prereqs.
 - Fix the tag vocabulary now, because fill agents can't add tags.
 
 ## Coverage
@@ -102,6 +104,8 @@ You're done when `outline.md.partial` is written and:
 
 - every Part has at least one Section and every Section at least one Subsection;
 - every Subsection has a Goal and a Prereqs Field, and every Prereq is an earlier Subsection's ID or another Curriculum's three-level ID, and no unit outside an Optional Part, Section or Subsection lists a unit inside one;
+- every Goal is true at its unit's depth, and each general rule in one holds against the primary source at the Target version;
+- every topic a Goal relies on that another unit teaches is taught by one of its transitive Prereqs;
 - every tag used is defined in the tags doc;
 - each topic the Coverage walk found has a unit whose Goal reaches it;
 - there is a capstone Part, unless the Brief excludes it or too few Parts follow the core for a scenario to span several;
