@@ -1,0 +1,1 @@
+expect {{left as written}} outside a template

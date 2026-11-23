@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs the Exercise check for {{exercise_name}}.
+target="{{target_version}}"
+exec toy --check "$(dirname "$0")" --target "$target"

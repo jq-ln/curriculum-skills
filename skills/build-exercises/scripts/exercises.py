@@ -3,6 +3,8 @@
 
 Subcommands:
   context <ID> [--curriculums <dir>]  print the Subsection and its Prereq closure
+  assets <domain> <gen-dir> --exercise-name <ID>-<NN>-<slug> [--curriculums <dir>] [--domains <dir>]
+                                      fill a domain reference's assets/ into a generation directory
 
 Reads doc sets through build-curriculum's build.py, so both skills parse a
 Curriculum one way. FORMAT_VERSION is kept in step with ../references/curriculum-format.md,
@@ -10,6 +12,8 @@ and the script refuses to run when build.py's differs. Standard library only.
 """
 
 import argparse
+import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -24,6 +28,11 @@ FORMAT_VERSION = 2
 CLOSURE_FIELDS = ["Goal", "Scope"]
 # Fields printed with their links kept, because their links lead out of the doc set.
 LINKS_KEPT = {"Sources"}
+
+DOMAINS = Path(__file__).resolve().parents[1] / "references" / "domains"
+TEMPLATE_SUFFIX = ".tmpl"
+PLACEHOLDER_RE = re.compile(r"\{\{(.*?)\}\}")
+EXERCISE_NAME_RE = re.compile(rf"(?P<id>{build.CODE}-[0-9.]+)-(?P<nn>[0-9]{{2,}})-(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)")
 
 
 # --- Finding Curriculums -----------------------------------------------------
@@ -120,6 +129,73 @@ def context(directory, token):
     return "\n".join(out)
 
 
+# --- assets ------------------------------------------------------------------
+
+
+def target_version(root):
+    """The Curriculum's Target version, or "" when its index has none."""
+    field = build.parse(build.read(Path(root) / "index.md")).field("Target version")
+    return field.body().strip() if field else ""
+
+
+def fill(path, rel, values):
+    """A template's text with each placeholder filled. Raises BuildError on any placeholder not in values."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise BuildError(f"{rel}: a template must be UTF-8 text")
+    for n, line in enumerate(text.split("\n"), 1):
+        for name in PLACEHOLDER_RE.findall(line):
+            if name not in values:
+                known = " and ".join(f"{{{{{k}}}}}" for k in values)
+                raise BuildError(f"{rel}:{n}: unknown placeholder {{{{{name}}}}}; only {known} are filled")
+    return PLACEHOLDER_RE.sub(lambda m: values[m.group(1)], text)
+
+
+def assets(domains, domain, gen_dir, exercise_name, directory):
+    """Mirror the domain's assets/ into gen_dir, filling *.tmpl files. Returns the written paths, relative to gen_dir.
+
+    Checks everything before writing, so an error leaves gen_dir as it was.
+    """
+    m = EXERCISE_NAME_RE.fullmatch(exercise_name)
+    if not m:
+        raise BuildError(f"{exercise_name} isn't an Exercise name, <ID>-<NN>-<slug>")
+    uid, _ = anchor_units(directory, m.group("id"))
+    root = curriculum_dir(directory, uid.code)
+    values = {"target_version": target_version(root), "exercise_name": exercise_name}
+
+    source = Path(domains) / domain / "assets"
+    if not source.is_dir():
+        found = sorted(d.name for d in Path(domains).iterdir() if (d / "assets").is_dir()) if Path(domains).is_dir() else []
+        raise BuildError(f"no domain reference {domain} in {Path(domains).resolve()}; found: {', '.join(found) or 'none'}")
+    if not (source / f"check.sh{TEMPLATE_SUFFIX}").is_file():
+        raise BuildError(f"{domain}: assets/check.sh{TEMPLATE_SUFFIX} is missing; every domain reference needs it")
+    gen_dir = Path(gen_dir)
+    if gen_dir.exists() and (not gen_dir.is_dir() or any(gen_dir.iterdir())):
+        raise BuildError(f"{gen_dir} isn't an empty directory; assets fills a fresh generation directory")
+
+    planned = {}  # destination, relative to gen_dir -> (source file, filled text or None for a byte-for-byte copy)
+    for path in sorted(p for p in source.rglob("*") if p.is_file()):
+        rel = path.relative_to(source)
+        if rel.name.endswith(TEMPLATE_SUFFIX) and rel.name != TEMPLATE_SUFFIX:
+            dest, content = rel.with_name(rel.name[: -len(TEMPLATE_SUFFIX)]), fill(path, rel, values)
+        else:
+            dest, content = rel, None
+        if dest in planned:
+            raise BuildError(f"{rel}: fills {dest}, which {planned[dest][0].relative_to(source)} also writes")
+        planned[dest] = (path, content)
+
+    for dest, (path, content) in planned.items():
+        out = gen_dir / dest
+        out.parent.mkdir(parents=True, exist_ok=True)
+        if content is None:
+            shutil.copyfile(path, out)
+        else:
+            out.write_text(content, encoding="utf-8", newline="")
+        shutil.copymode(path, out)  # keeps check.sh executable
+    return sorted(planned, key=lambda p: p.as_posix())  # as `LC_ALL=C sort` orders them
+
+
 # --- CLI ---------------------------------------------------------------------
 
 
@@ -136,10 +212,20 @@ def main(argv=None):
     p = sub.add_parser("context", help="print the Subsection and its Prereq closure")
     p.add_argument("id")
     p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
+    p = sub.add_parser("assets", help="fill a domain reference's assets/ into a generation directory")
+    p.add_argument("domain")
+    p.add_argument("gen_dir")
+    p.add_argument("--exercise-name", required=True, help="<ID>-<NN>-<slug>, filled as {{exercise_name}}")
+    p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
+    p.add_argument("--domains", default=DOMAINS, help="the directory holding the domain references (default: the skill's)")
     args = parser.parse_args(argv)
 
     try:
-        sys.stdout.write(context(Path(args.curriculums), args.id))
+        if args.command == "context":
+            sys.stdout.write(context(Path(args.curriculums), args.id))
+        else:
+            for rel in assets(Path(args.domains), args.domain, Path(args.gen_dir), args.exercise_name, Path(args.curriculums)):
+                print(rel.as_posix())
     except BuildError as e:
         for line in str(e).split("\n"):
             print(f"{args.command}: {line}", file=sys.stderr)
