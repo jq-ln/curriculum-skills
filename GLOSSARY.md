@@ -23,7 +23,7 @@ A portion of a Section, and the teachable unit. Its doc carries everything an ag
 _Avoid_: Session, Topic, Chapter
 
 **Capstone**:
-A Synthesis Subsection that traces one scenario end to end through several Parts, such as the life of a commit in git. A Curriculum's capstones sit together in one Part, after every Part they cross.
+A Synthesis Subsection that traces one scenario end to end through several Parts, such as the life of a commit in git. A Curriculum's capstones sit together in one Part, after every Part they need.
 _Avoid_: Final project
 
 **ID**:

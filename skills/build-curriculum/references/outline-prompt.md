@@ -6,7 +6,7 @@ Write a structured, progressive topic list for learning {{subject}} in depth: th
 
 - internals, down to the on-disk and wire formats;
 - protocols and scaling;
-- for software, its own implementation: a tour of its source code and core APIs, how it's built and tested, and how to contribute to it;
+- for software whose source is public, its own implementation: a tour of its source code and core APIs, how it's built and tested, and how to contribute to it;
 - capstones that trace one scenario through several Parts.
 
 Leave a topic out only when it lies outside {{subject}} or the Brief excludes it. A `None.` Brief excludes nothing.
@@ -79,14 +79,14 @@ Goals, Generators, Prereqs, IDs and tags follow the Curriculum format's Subsecti
 - When a topic has a core slice and a deeper remainder, split it into two Subsections, each titled for what it teaches and with its own Goal, the deep one listing the shallow one in Prereqs.
 - State core Goals at the model level, saying what a thing is and does, never how it's represented or implemented, so no later unit has to retract them.
 - Add a Synthesis Subsection wherever loose facts collapse into a structure, such as at the end of a Section.
-- Close the Curriculum with a capstone Part, after every Part its units cross: Synthesis Subsections that each trace one scenario end to end through several Parts, such as the life of a commit in git from edit to push.
+- Add a capstone Part of Synthesis Subsections, each tracing one scenario end to end through several Parts, such as the life of a commit in git from edit to push. Like any later Part, it comes after every Part it needs.
 - Teaching material a textbook would put in an appendix becomes a Part tagged `Optional`. Reference material that teaches nothing, such as a coverage table, stays out of the Outline.
 - A Prereq is a unit whose Goal this unit's Goal can't be reached without. Ask that of every Prereq you list, so each later Part opens as early as its content allows.
 - Fix the tag vocabulary now, because fill agents can't add tags.
 
 ## Coverage
 
-Once the units are drafted, walk the subject's primary reference end to end, such as every page of a program's manual, its documented file formats and protocols, and its source tree's top-level layout, or a field's canonical texts. Give each topic it documents a unit whose Goal reaches it, adding units where none does, so the fill agents, who can't add units, never meet a topic with no home. Name the reference you walked in Methodology.
+Once the units are drafted, walk the subject's primary reference end to end, such as every page of a program's manual, its documented file formats and protocols, and its source tree's top-level layout, or a field's canonical texts. Give each topic it documents a unit whose Goal reaches it, adding units where none does, so the fill agents, who can't add units, never meet a topic with no home.
 
 ## Notes
 
@@ -104,8 +104,8 @@ You're done when `outline.md.partial` is written and:
 - every Subsection has a Goal and a Prereqs Field, and every Prereq is an earlier Subsection's ID or another Curriculum's three-level ID, and no unit outside an Optional Part, Section or Subsection lists a unit inside one;
 - every tag used is defined in the tags doc;
 - each topic the Coverage walk found has a unit whose Goal reaches it;
-- a capstone Part comes after every Part its units cross;
-- the overview's Methodology states the primary-source standard, how the Target version was established and the reference the Coverage walk used;
+- there is a capstone Part;
+- the overview's Methodology states the primary-source standard and how the Target version was established;
 - the overview's Ordering rationale states the capability target sentence, where the core cut falls and the Parts that open straight after the core.
 
 Then, as your last step, rename `outline.md.partial` to `outline.md`. An `outline.md` tells the orchestrator you finished, so rename it only once every item above holds.
