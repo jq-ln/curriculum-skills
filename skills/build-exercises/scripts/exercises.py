@@ -135,7 +135,8 @@ def context(directory, token):
 def existing(practice, token):
     """The anchor's Exercises, lowest <NN> first, then the next <NN>."""
     uid = subsection_id(token)
-    exercise = re.compile(rf"{re.escape(str(uid))}-([0-9]{{2,}})-.+")
+    # Any slug, even an empty one, so a misnamed Exercise still holds its number.
+    exercise = re.compile(rf"{re.escape(str(uid))}-([0-9]{{2,}})-.*")
     code_dir = Path(practice) / uid.code
     numbers = {}
     if code_dir.is_dir():

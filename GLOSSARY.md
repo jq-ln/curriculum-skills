@@ -81,8 +81,16 @@ The directory outside any doc set where a learner's practice items live, one sub
 _Avoid_: Exercise directory, sandbox
 
 **Exercise check**:
-The runnable command in an Exercise that measures its Done-when outcomes headless, one line per outcome, and exits 0 only when all of them pass. Prose says "Exercise check", never a bare "check", which already names a Subsection Field and `build.py check`.
+The runnable command in an Exercise that measures its Done-when outcomes headless, one line per outcome plus any Guard lines, and exits 0 only when every one of them passes. Prose says "Exercise check", never a bare "check", which already names a Subsection Field and `build.py check`.
 _Avoid_: Test, grader, autograder
+
+**Anchor**:
+The Subsection an Exercise is anchored to. Its ID and Curriculum code name the Exercise's directory, and its title and ID head `EXERCISE.md`.
+_Avoid_: Parent Subsection, target
+
+**Guard line**:
+An automated line of an Exercise check with no Done-when bullet, which catches an accident such as a script error or a changed given file.
+_Avoid_: Sanity check, assertion
 
 **Self-check bullet**:
 A Done-when bullet the learner confirms by running the scene, used only where an Exercise check can't measure the outcome.

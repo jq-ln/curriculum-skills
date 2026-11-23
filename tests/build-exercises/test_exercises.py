@@ -151,6 +151,11 @@ class Existing(TempDirTestCase):
             (0, "GIT-01.02.01-01-stage-one-file\nGIT-01.02.01-03-amend-a-snapshot\nNext: 04\n", ""),
         )
 
+    def test_counts_an_exercise_with_an_empty_slug(self):
+        practice = self.workspace("GIT/GIT-01.02.01-01-")
+        result = run("existing", "GIT-01.02.01", "--practice", practice)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "GIT-01.02.01-01-\nNext: 02\n", ""))
+
     def test_skips_another_subsections_exercises(self):
         practice = self.workspace("GIT/GIT-01.01.01-04-hash-a-blob", "GIT/GIT-01.02.01-01-stage-one-file")
         result = run("existing", "GIT-01.02.01", "--practice", practice)

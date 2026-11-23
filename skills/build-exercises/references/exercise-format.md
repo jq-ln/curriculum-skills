@@ -16,7 +16,7 @@ Each Exercise is one directory:
 - **`<CODE>`**: the anchor's Curriculum code. Exercises of different Curriculums never share a directory.
 - **`<ID>`**: the anchor's Subsection ID, such as `GD-01.08.02`, so `<ID>-*` finds a Subsection's Exercises and `LC_ALL=C ls` lists them in teaching order.
 - **`<NN>`**: the anchor's Exercise number, two digits or more, starting at `01`. A new Exercise takes the highest number among the anchor's existing Exercises plus one, as `exercises.py existing <ID>` prints it. A number is never reused, so a gap left by a deleted Exercise stays a gap.
-- **`<slug>`**: written once from the Exercise's title: lowercase it, turn each run of characters other than `a`-`z` and `0`-`9` into one `-`, and drop a leading or trailing `-`. `Walk to the well` gives `walk-to-the-well`. The slug stays when the anchor is renumbered and the directory is renamed.
+- **`<slug>`**: written once from the Exercise's title: lowercase it, turn each run of characters other than `a`-`z` and `0`-`9` into one `-`, and drop a leading or trailing `-`. When nothing is left, such as for a title in Japanese, the slug is `exercise`. `Walk to the well` gives `walk-to-the-well`. The slug stays when the anchor is renumbered and the directory is renamed.
 
 Each Exercise is self-contained: it runs on its own, and nothing in one Exercise reaches into another.
 
@@ -71,7 +71,7 @@ Each PASS means that bullet's outcome held when measured, as the line prints. Yo
 
 - **Anchor record**: the four bullets under the H1, in that order, before anything else. Curriculum is the anchor's code, Anchor its ID, and Anchor title the Subsection's title, the text after the ID in its H1, as it reads when the Exercise is written. Target version is the Curriculum's Target version; leave the line out when the Curriculum has none. The record keeps the Exercise traceable after the Curriculum changes.
 - **Task** states the outcome, not the steps to it: the route is the learner's. An outcome the anchor's Goal names, including a method such as "moves only on physics ticks", is the outcome the Task sets.
-- **Done when** maps one to one onto the Exercise check's lines, in the order the check prints them: each automated bullet is exactly one outcome line, and each Self-check bullet is exactly one line under `CHECK YOURSELF`. A Self-check bullet ends with **(check by eye)** and names a concrete run and what to see, such as "Run `main.tscn` and press F5: the colony reappears where it was. **(check by eye)**". Guard lines, such as "no script errors", have no bullet.
+- **Done when** maps one to one onto the Exercise check's outcome and Self-check lines, in the order the check prints them: each automated bullet is exactly one outcome line, and each Self-check bullet is exactly one line under `CHECK YOURSELF`. A Self-check bullet ends with **(check by eye)** and names a concrete run and what to see, such as "Run `main.tscn` and press F5: the colony reappears where it was. **(check by eye)**". Guard lines, such as "no script errors", have no bullet.
 - **Given** says what stays as given, so the learner spends their effort on the anchor's material.
 - **Check** carries the two paragraphs above verbatim: the note to leave `check/` as it is, and the promise paragraph.
 - **Stuck?** carries the paragraph above verbatim.
@@ -96,7 +96,7 @@ When the installed tool's version differs from the Curriculum's Target version, 
 
 It prints, in this order:
 
-1. One line per automated line, outcome or guard: `PASS` or `FAIL`, a space, the bullet's text as Done when has it, a space, and the measured value in parentheses.
+1. One line per automated line, outcome or guard: `PASS` or `FAIL`, a space, the line's text (an outcome line's bullet as Done when has it, or a guard line's own text as `gate.json` names it), a space, and the measured value in parentheses.
 
    ```text
    PASS It walks toward the well at `speed`, 3 meters per second, whatever the frame rate. (3.02 m/s)
@@ -128,7 +128,7 @@ reference/               the Reference solution
 near-misses/<name>/      one directory per Near-miss
 ```
 
-`reference/` and each `near-misses/<name>/` hold only the files they replace, each at its path in the Exercise. `<name>` is a short kebab-case name for the mistake, such as `moves-in-process`. None of these ship.
+`reference/` and each `near-misses/<name>/` hold only the files they replace or add, each at its path in the Exercise. `<name>` is a short kebab-case name for the mistake, such as `moves-in-process`. None of these ship.
 
 ### `gate.json`
 
@@ -152,6 +152,6 @@ near-misses/<name>/      one directory per Near-miss
 - **`lines`** lists every line in the order the Exercise check prints them, each with its `text` exactly as the check prints it, without the status or the measured value. Every text is distinct.
 - **`kind`** is one of:
   - `outcome`: an automated line for a Done-when bullet. The gate holds it to four rules: it fails on the starter, passes on the Reference solution, fails on each Near-miss targeting it, and gives the same result on every rerun of a case.
-  - `guard`: an automated line with no bullet, which catches accidents such as a script error or a changed given file. The gate doesn't hold it to the four rules.
+  - `guard`: an automated line with no bullet, which catches accidents such as a script error or a changed given file. The gate holds it to two of the four rules: it passes on the Reference solution and gives the same result on every rerun of a case.
   - `self-check`: a Self-check bullet, printed under `CHECK YOURSELF`. The gate doesn't run it.
 - **`near_misses`** maps each Near-miss's `<name>` to the `text` of the one `outcome` line it targets. Every `outcome` line is targeted by at least one Near-miss. Every directory under `near-misses/` has an entry, and every entry has a directory.
