@@ -15,8 +15,8 @@ Each check except `pr-title` and `issue-link` runs over the whole repo, not just
 | `actionlint` | Workflow syntax, expressions and `run:` scripts (through shellcheck). |
 | `shellcheck` | Every tracked `.sh` or `.bash` file, and every file with an `sh`, `bash`, `dash` or `ksh` shebang. |
 | `init-test` | That `.github/scripts/init` still removes the content this repo was created without, using `.template/test-init`. Init deletes both when it runs, so from then on the job passes without checking anything. |
-| `format-drift` | Every `skills/*/references/curriculum-format.md` is identical to `docs/curriculum-format.md`, each skill with `.py` files under `scripts/` defines a top-level `FORMAT_VERSION`, and every `FORMAT_VERSION` in any `.py` under `skills/*/scripts/` is a top-level assignment of the doc's `Format version`, using [`check-format-drift`](../../.github/scripts/check-format-drift). |
-| `script-test` | The build script, `skills/build-curriculum/scripts/build.py`, passes its `unittest` tests in `tests/build-curriculum/`, using the runner's `python3`. |
+| `format-drift` | Every skill directory under `skills/`, shipped or not yet, carries a `references/curriculum-format.md` identical to `docs/curriculum-format.md`, each skill with `.py` files under `scripts/` defines a top-level `FORMAT_VERSION`, and every `FORMAT_VERSION` in any `.py` under `skills/*/scripts/` is a top-level assignment of the doc's `Format version`, using [`check-format-drift`](../../.github/scripts/check-format-drift). |
+| `script-test` | The skills' scripts pass their `unittest` tests, using the runner's `python3`: `skills/build-curriculum/scripts/build.py` passes those in `tests/build-curriculum/`, and `skills/build-exercises/scripts/exercises.py` passes those in `tests/build-exercises/`. |
 
 To reproduce a check locally, run its command from the repo root with the version CI uses:
 
@@ -26,7 +26,7 @@ To reproduce a check locally, run its command from the repo root with the versio
 | actionlint | `ACTIONLINT_VERSION` in `ci.yml` |
 | markdownlint-cli2 | The one bundled with the pinned `markdownlint-cli2-action`. The job log's first line names it. |
 | shellcheck | The one on the runner image. The job log prints it. |
-| python3 | The one on the runner image. The script and tests need only the standard library. |
+| python3 | The one on the runner image. The scripts and their tests need only the standard library. |
 
 ```sh
 # markdownlint (add --fix to fix what it can)
@@ -43,6 +43,7 @@ actionlint
 
 # script-test
 python3 -m unittest discover -s tests/build-curriculum -v
+python3 -m unittest discover -s tests/build-exercises -v
 
 # shellcheck (needs GNU xargs; the same pipeline as in ci.yml)
 git ls-files -z \

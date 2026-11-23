@@ -66,6 +66,40 @@ _Avoid_: Scope notes
 **Format version**:
 The integer that identifies a revision of the curriculum format. A Curriculum records the one it follows in `index.md`.
 
+**Prereq closure**:
+Every Subsection a Subsection's Prereqs reach: its Prereqs, their Prereqs and so on, in any Curriculum. It's what the learner already holds when they take the Subsection.
+_Avoid_: Prereq tree, transitive Prereqs
+
+## Exercises
+
+**Exercise**:
+A practice item anchored to one Subsection, done in the subject's real environment, whose completion needs that Subsection's material. It is never a multiple-choice question or an explanation of a concept.
+_Avoid_: Practice problem, project
+
+**Practice workspace**:
+The directory outside any doc set where a learner's practice items live, one subdirectory per Curriculum code. It sits beside the Curriculums by default.
+_Avoid_: Exercise directory, sandbox
+
+**Exercise check**:
+The runnable command in an Exercise that measures its Done-when outcomes headless, one line per outcome, and exits 0 only when all of them pass. Prose says "Exercise check", never a bare "check", which already names a Subsection Field and `build.py check`.
+_Avoid_: Test, grader, autograder
+
+**Self-check bullet**:
+A Done-when bullet the learner confirms by running the scene, used only where an Exercise check can't measure the outcome.
+_Avoid_: Manual check, rubric item
+
+**Reference solution**:
+A finished Exercise that the solver writes from its task and starter without seeing its Exercise check, so the check can be shown to pass on a real solution. It never ships with the Exercise.
+_Avoid_: Answer key, model solution
+
+**Near-miss**:
+A solution the solver writes to fail one Done-when outcome the way a learner plausibly would, so the Exercise check's line for that outcome can be shown to fail. It never ships with the Exercise.
+_Avoid_: Mutant, wrong answer
+
+**Domain reference**:
+The swappable part of `build-exercises` for one subject's environment: a `domain.md` the prompts read and an `assets/` tree copied into each Exercise, chosen by its Applies-to line.
+_Avoid_: Plugin, adapter, backend
+
 ## Workflow
 
 **Accelerator**:

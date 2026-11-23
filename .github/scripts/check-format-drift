@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Fails when a shipped skill disagrees with docs/curriculum-format.md: a skill
-# (skills/*/SKILL.md) without references/curriculum-format.md, a copy that
-# differs from the doc, a .py under skills/*/scripts/ whose FORMAT_VERSION
-# differs from its Format version, or a skills/*/scripts/ whose .py files don't
-# define it.
+# Fails when a skill disagrees with docs/curriculum-format.md: a skill
+# directory (skills/*/), shipped or not yet, without
+# references/curriculum-format.md, a copy that differs from the doc, a .py
+# under skills/*/scripts/ whose FORMAT_VERSION differs from its Format version,
+# or a skills/*/scripts/ whose .py files don't define it.
 # Run from the repo root. Written for Bash 3.2, macOS's /bin/bash.
 set -euo pipefail
 shopt -s nullglob
@@ -19,9 +19,9 @@ if [[ -z $version ]]; then
 fi
 
 skills=0
-for skill in skills/*/SKILL.md; do
+for skill in skills/*/; do
   skills=$((skills + 1))
-  copy=${skill%SKILL.md}references/curriculum-format.md
+  copy=${skill}references/curriculum-format.md
   if [[ ! -f $copy ]]; then
     echo "check-format-drift: $copy is missing; run: mkdir -p ${copy%/*} && cp $doc $copy" >&2
     status=1
@@ -32,7 +32,7 @@ for skill in skills/*/SKILL.md; do
   fi
 done
 if ((skills == 0)); then
-  echo "check-format-drift: no skills/*/SKILL.md found; run from the repo root" >&2
+  echo "check-format-drift: no skills/*/ found; run from the repo root" >&2
   exit 1
 fi
 

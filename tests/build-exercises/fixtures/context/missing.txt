@@ -1,0 +1,78 @@
+# GIT-02.01.01 Ancestry
+
+## Context
+
+- Curriculum: Git (GIT)
+- Target version: 2.47.1
+- Snapshot: 2026-11-19
+- Part: GIT-02 History
+- Section: GIT-02.01 The commit graph
+- Section Generators:
+  - Each commit names its parents, so history is a graph of commits.
+
+## Tags
+
+- Synthesis: Derives how earlier units' facts follow from a few base facts, and adds no new facts of its own.
+
+## Goal
+
+A commit's history is every commit reachable from it through parent links, so it never changes once the commit is written.
+
+## Scope
+
+Reachability through parent links, the graph sense defined in MATH-03.01, and why a commit's ancestry is fixed. Stops before merge bases.
+
+## Key concepts
+
+ancestor; reachability; parent
+
+## Prereqs
+
+- GIT-01.01.02 Refs: A branch is a movable name for a commit, so moving it rewrites no object.
+- GIT-01.02.01 The index as a staging snapshot: The next commit's tree is built from the index, not from the working tree.
+- MATH-03.01.02 Reachability: A vertex reaches another when a path joins them, as in MATH-03.01.01 Paths.
+
+## Check
+
+Why can't a new commit change the history of an existing one?
+
+## Sources
+
+- [man gitrevisions](https://git-scm.com/docs/gitrevisions)
+- [src revision.c](https://github.com/git/git/blob/v2.47.1/revision.c)
+
+# Prereq closure
+
+## GIT-01.01.01 Content-addressed objects — blobs, trees, commits and the naïve view of a snapshot
+
+### Goal
+
+A commit pins a whole project state, because it names a tree whose hash covers every file below it.
+
+### Scope
+
+Blobs, trees and commits, how each names the next, and why changing one file changes the commit's hash. Stops before tags and packfiles.
+
+## GIT-01.01.02 Refs
+
+### Goal
+
+A branch is a movable name for a commit, so moving it rewrites no object.
+
+### Scope
+
+Branches and tags as files under `refs/`, and what moving one changes. Stops before history, which GIT-02.01.01 Ancestry covers.
+
+## GIT-01.02.01 The index as a staging snapshot
+
+### Goal
+
+The next commit's tree is built from the index, not from the working tree.
+
+### Scope
+
+The index file, how `git add` updates it, and how `git commit` writes a tree from it.
+
+## MATH-03.01.02
+
+Unresolved: no Curriculum in {curriculums} has code MATH
