@@ -2,7 +2,7 @@
 
 # Outline: {{subject}}
 
-Write a structured, progressive topic list for learning {{subject}} in depth: the table of contents of an exhaustive textbook on the subject. Cover the subject as fully as that textbook would, within the Brief, and let the subject set the number of units. Order it the way a learner meets the subject: first a core of what day-to-day work with it needs, then each topic in the order a learner reaches for it, practical use before internals.
+Write a structured, progressive topic list for learning {{subject}} in depth: the table of contents of an exhaustive textbook on the subject. Cover the subject as fully as that textbook would, within the Brief, and let the subject set the number of units. Order it the way a learner meets the subject: first a core of what day-to-day work with it needs, then each topic in the order a learner reaches for it, practical use before internals. The core and the order decide where a unit sits, never whether it's there: internals, protocols, scaling and the subject's own development get units in later Parts, just as that textbook would cover them.
 
 You write the Outline, the skeleton of a Curriculum that later agents fill in, one Part each and in parallel. They can't change what you fix here: the units, their IDs, titles, Goals and Prereqs, and the tags.
 
