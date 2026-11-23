@@ -140,7 +140,7 @@ def context(directory, token):
 EXERCISE_NAME_RE = re.compile(rf"({build.CODE}-[0-9]{{2}}\.[0-9]{{2}}\.[0-9]{{2}})-([0-9]{{2,}})-(.*)")
 
 
-def numbers(code_dir, uid):
+def exercise_numbers(code_dir, uid):
     """{Exercise name: <NN>} for each of the anchor's Exercises in code_dir."""
     out = {}
     if Path(code_dir).is_dir():
@@ -151,16 +151,22 @@ def numbers(code_dir, uid):
     return out
 
 
+def exercise_name_id(name):
+    """The anchor ID an Exercise's directory name starts with, or None when it isn't named <ID>-<NN>-<slug>."""
+    m = EXERCISE_NAME_RE.fullmatch(name)
+    return build.parse_id(m[1]) if m else None
+
+
 def next_number(code_dir, uid):
     """The highest <NN> plus one, never a gap's number, so a deleted Exercise's number isn't reused."""
-    return max(numbers(code_dir, uid).values(), default=0) + 1
+    return max(exercise_numbers(code_dir, uid).values(), default=0) + 1
 
 
 def existing(practice, token):
     """The anchor's Exercises, lowest <NN> first, then the next <NN>."""
     uid = subsection_id(token)
     code_dir = Path(practice) / uid.code
-    found = numbers(code_dir, uid)
+    found = exercise_numbers(code_dir, uid)
     return "\n".join(sorted(found, key=found.get) or ["None"]) + f"\nNext: {next_number(code_dir, uid):02d}\n"
 
 
@@ -216,10 +222,14 @@ def status(exercise_dir, units, code):
         return [f"{name}: broken: {record}"]
     uid, title = record
     titled = [u for u in sorted(units, key=lambda u: u.levels) if units[u].title == title]
-    if uid in titled:
+    found = uid if uid in titled else titled[0] if len(titled) == 1 else None
+    # The record and the name must both agree with the anchor. Either can lag, as when a rename stops between
+    # rewriting the record and renaming the directory, and the lagging one gives the old ID.
+    named = exercise_name_id(name)
+    if found and found == named == uid:
         return [f"{name}: valid"]
-    if len(titled) == 1:
-        return [f"{name}: moved: {uid} → {titled[0]}"]
+    if found:
+        return [f"{name}: moved: {uid if uid != found else named} → {found}"]
     if titled:
         out = [f'{name}: broken: {len(titled)} Subsections are titled "{title}"']
     else:
@@ -237,6 +247,8 @@ def renumber(directory, practice, code):
     units = build.doc_set_subsections(root)
     code_dir = Path(practice) / code
     dirs = sorted(d for d in code_dir.iterdir() if d.is_dir()) if code_dir.is_dir() else []
+    # Only Exercises of this code, so a generation directory or a learner's own folder isn't reported as broken.
+    dirs = [d for d in dirs if (uid := exercise_name_id(d.name)) and uid.code == code]
     return "\n".join([line for d in dirs for line in status(d, units, code)] or ["None"]) + "\n"
 
 
@@ -253,10 +265,10 @@ def rename(directory, exercise_dir, token):
     name = exercise_dir.name
     if not exercise_dir.is_dir():
         raise BuildError(f"{name} isn't a directory")
-    m = EXERCISE_NAME_RE.fullmatch(name)
-    if not m or not build.parse_id(m[1]):
+    old = exercise_name_id(name)
+    if not old:
         raise BuildError(f"{name} isn't named <ID>-<NN>-<slug>")
-    code = build.parse_id(m[1]).code
+    code = old.code
     record = anchor_record(exercise_dir, code)
     if isinstance(record, str):
         raise BuildError(f"{name}: {record}")
@@ -266,15 +278,17 @@ def rename(directory, exercise_dir, token):
     _, units = anchor_units(directory, token)
 
     path = exercise_dir / EXERCISE
-    text = build.read(path)
-    lines, at = text.split("\n"), record_lines(text)
-    lines[at["Anchor"]] = f"- Anchor: {new}"
-    lines[at["Anchor title"]] = f"- Anchor title: {units[new].title}"
-    path.write_text("\n".join(lines), encoding="utf-8")
+    lines = path.read_bytes().decode("utf-8").split("\n")  # anchor_record has checked it decodes
+    at = record_lines("\n".join(line.removesuffix("\r") for line in lines))
+    for key, value in (("Anchor", new), ("Anchor title", units[new].title)):
+        ending = "\r" if lines[at[key]].endswith("\r") else ""  # so a CRLF file stays CRLF
+        lines[at[key]] = f"- {key}: {value}{ending}"
+    path.write_bytes("\n".join(lines).encode("utf-8"))
 
-    if m[1] == str(new):
+    if old == new:
         return f"renamed: {name} → {name}\n"
-    new_name = f"{new}-{next_number(exercise_dir.parent, new):02d}-{m[3]}"
+    slug = EXERCISE_NAME_RE.fullmatch(name)[3]
+    new_name = f"{new}-{next_number(exercise_dir.parent, new):02d}-{slug}"
     exercise_dir.rename(exercise_dir.parent / new_name)
     return f"renamed: {name} → {new_name}\n"
 

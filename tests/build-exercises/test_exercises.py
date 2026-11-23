@@ -217,7 +217,8 @@ class Renumber(TempDirTestCase):
         for name, title in titles.items():
             path = curriculums / "git" / name
             first, rest = path.read_text(encoding="utf-8").split("\n", 1)
-            path.write_text(f"{first.split(' ', 2)[0]} {first.split(' ', 2)[1]} {title}\n{rest}", encoding="utf-8")
+            hashes, uid, _ = first.split(" ", 2)
+            path.write_text(f"{hashes} {uid} {title}\n{rest}", encoding="utf-8")
         return curriculums
 
     def test_reports_an_exercise_whose_anchor_still_has_its_id_and_title_as_valid(self):
@@ -289,7 +290,7 @@ class Renumber(TempDirTestCase):
             (result.returncode, result.stdout, result.stderr), (0, "GIT-01.01.02-01-list-refs: broken: EXERCISE.md can't be read\n", "")
         )
 
-    def test_reports_every_exercise_in_name_order_and_none_when_there_are_none(self):
+    def test_reports_every_exercise_in_name_order_and_skips_other_directories(self):
         practice = self.workspace(
             {
                 "GIT-01.01.02-02-list-tags": exercise_md("GIT-01.01.02", "Refs"),
@@ -297,13 +298,17 @@ class Renumber(TempDirTestCase):
             }
         )
         (practice / "GIT" / "notes.txt").write_text("not an Exercise\n", encoding="utf-8")
+        (practice / "GIT" / ".generating").mkdir()
+        (practice / "GIT" / "scratch").mkdir()
         result = self.renumber(practice)
         self.assertEqual(
             (result.returncode, result.stdout, result.stderr),
             (0, "GIT-01.01.01-01-list-refs: moved: GIT-01.01.01 → GIT-01.01.02\nGIT-01.01.02-02-list-tags: valid\n", ""),
         )
+
+    def test_reports_none_when_the_curriculum_has_no_exercises(self):
+        (self.tmp / "empty" / "GIT").mkdir(parents=True)
         for empty in (self.tmp / "empty", self.tmp / "missing"):
-            (self.tmp / "empty" / "GIT").mkdir(parents=True, exist_ok=True)
             with self.subTest(empty.name):
                 result = self.renumber(empty)
                 self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "None\n", ""))
@@ -323,6 +328,23 @@ class Renumber(TempDirTestCase):
         result = self.renumber(practice)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(snapshot(), before)
+
+    def test_reports_an_exercise_whose_name_lags_its_record_as_moved(self):
+        # A rename that rewrote the record but stopped before renaming the directory.
+        practice = self.workspace({"GIT-01.01.01-01-list-refs": exercise_md("GIT-01.01.02", "Refs")})
+        result = self.renumber(practice)
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (0, "GIT-01.01.01-01-list-refs: moved: GIT-01.01.01 → GIT-01.01.02\n", ""),
+        )
+
+    def test_reports_an_exercise_whose_record_lags_its_name_as_moved(self):
+        practice = self.workspace({"GIT-01.01.02-01-list-refs": exercise_md("GIT-01.01.01", "Refs")})
+        result = self.renumber(practice)
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (0, "GIT-01.01.02-01-list-refs: moved: GIT-01.01.01 → GIT-01.01.02\n", ""),
+        )
 
     def test_stops_when_the_curriculum_cant_be_found(self):
         result = self.renumber(self.workspace({}), self.tmp)
@@ -347,11 +369,12 @@ class Renumber(TempDirTestCase):
 
 class Rename(TempDirTestCase):
     def workspace(self, *names):
-        """A Practice workspace holding GIT/<name>/ for each name, recorded as anchored where its name says, titled Refs."""
+        """A Practice workspace holding GIT/<name>/ for each name, recorded as anchored at the ID its name starts with, titled Refs."""
         practice = self.tmp / "practice"
         for name in names:
+            anchor = name.split("-")[0] + "-" + name.split("-")[1]
             (practice / "GIT" / name / "hints").mkdir(parents=True)
-            (practice / "GIT" / name / "EXERCISE.md").write_text(exercise_md(name[:12], "Refs"), encoding="utf-8")
+            (practice / "GIT" / name / "EXERCISE.md").write_text(exercise_md(anchor, "Refs"), encoding="utf-8")
             (practice / "GIT" / name / "hints" / "1.md").write_text("Which ref moves?\n", encoding="utf-8")
         return practice
 
@@ -400,6 +423,17 @@ class Rename(TempDirTestCase):
         self.assertEqual(
             (practice / "GIT" / "GIT-01.02.01-01-list-refs" / "EXERCISE.md").read_text(encoding="utf-8"),
             exercise_md("GIT-01.02.01", "The index as a staging snapshot"),
+        )
+
+    def test_keeps_each_lines_ending(self):
+        practice = self.workspace("GIT-01.01.01-01-list-refs")
+        md = practice / "GIT" / "GIT-01.01.01-01-list-refs" / "EXERCISE.md"
+        md.write_bytes(exercise_md("GIT-01.01.01", "Refs").replace("\n", "\r\n").encode("utf-8"))
+        result = self.rename(md.parent, "GIT-01.01.02")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            (practice / "GIT" / "GIT-01.01.02-01-list-refs" / "EXERCISE.md").read_bytes(),
+            exercise_md("GIT-01.01.02", "Refs").replace("\n", "\r\n").encode("utf-8"),
         )
 
     def test_keeps_the_directory_when_the_id_is_unchanged(self):
