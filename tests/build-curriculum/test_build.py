@@ -1279,9 +1279,7 @@ class Dependants(TempDirTestCase):
 
     def test_shows_a_units_fields_beside_its_dependants_goals(self):
         result = run("dependants", DRAFT, "GIT-01.01.01")
-        self.assertEqual(result.stderr, "")
-        self.assertEqual(
-            result.stdout,
+        expected = (
             f"# GIT-01.01.01 {SUBSECTION_TITLE}\n\n"
             "## Goal\n\n"
             "A commit pins a whole project state, because it names a tree whose hash covers every file below it.\n\n"
@@ -1296,9 +1294,9 @@ class Dependants(TempDirTestCase):
             "- GIT-01.01.02 Refs: A branch is a movable name for a commit, so moving it rewrites no object.\n"
             "- GIT-01.02.01 The index as a staging snapshot: "
             "The next commit's tree is built from the index, not from the working tree.\n"
-            "- GIT-03.01.01 cat-file: `git cat-file -p` prints any object by its ID, as checked against {2.46}.\n",
+            "- GIT-03.01.01 cat-file: `git cat-file -p` prints any object by its ID, as checked against {2.46}.\n"
         )
-        self.assertEqual(result.returncode, 0)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, expected, ""))
 
     def test_shows_only_the_goal_of_a_unit_not_yet_filled(self):
         draft = self.copy(DRAFT)
@@ -1323,6 +1321,32 @@ class Dependants(TempDirTestCase):
                     (result.returncode, result.stdout, result.stderr),
                     (1, "", f"dependants: {token} names no Subsection\n"),
                 )
+
+    def test_stops_on_a_subsection_the_outline_holds_twice(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "outline.md", "# GIT-01.02.01 The index as a staging snapshot", "# GIT-01.01.02 Refs")
+        result = run("dependants", draft)
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (1, "", "dependants: outline.md: GIT-01.01.02 appears twice\n"),
+        )
+
+    def test_leaves_out_a_part_file_unit_the_outline_lacks(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "outline.md", "# GIT-03.01.01 cat-file", "# GIT-03.01.01 Cat-file")
+        result = run("dependants", draft, "GIT-03.01.01")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(result.stdout.startswith("# GIT-03.01.01 Cat-file\n\n## Goal\n"), result.stdout)
+        self.assertNotIn("## Scope", result.stdout)
+
+    def test_stops_on_a_doc_set_with_a_unit_it_cant_read(self):
+        doc_set = self.copy(GOLDEN)
+        replace(doc_set / INDEX_SUBSECTION_FILE, "# GIT-01.02.01 ", "# GIT-01.02.09 ")
+        result = run("dependants", doc_set)
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (1, "", f"dependants: {INDEX_SUBSECTION_FILE}: H1 ID GIT-01.02.09 differs from the filename's ID GIT-01.02.01\n"),
+        )
 
     def test_lists_the_same_from_a_built_doc_set(self):
         result = run("dependants", GOLDEN)

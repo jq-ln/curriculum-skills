@@ -44,7 +44,7 @@ The derived Part Field listing the other Parts of the Curriculum its Subsections
 _Avoid_: Part Prereqs
 
 **Dependant**:
-A Subsection that lists another directly in its Prereqs. The build script's `dependants` shows a Subsection beside its dependants' Goals, which its Scope and Key concepts must stay true under.
+A Subsection that lists another directly in its Prereqs. The build script's `dependants` lists a Subsection's dependants.
 _Avoid_: Dependent, successor
 
 **Appendix**:
