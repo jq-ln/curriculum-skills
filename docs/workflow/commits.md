@@ -42,6 +42,15 @@ Closes #
 
 End the description with any footers, as its last paragraph, one per line. Write each footer in git's `Token: value` trailer form, such as `Refs: #<issue>`. That paragraph becomes the squash commit's trailers, and one line outside the form, such as `Refs #<issue>`, can stop git parsing any of them.
 
+## Acceptance criteria
+
+Before a PR is ready for review, the author updates the acceptance criteria in its issue's body, so that once the PR closes the issue it still shows which criteria were met and which were deferred. GitHub leaves an issue's task list as it is when a PR closes it.
+
+- Tick each criterion the PR meets. **How verified** says how each was checked.
+- Leave a criterion the PR defers unticked, and append the [Follow-up](issues.md#follow-ups) that carries it, such as `→ #61`.
+
+Every criterion ends ticked or pointing at its Follow-up. Edit the body with `gh issue edit <n> --body-file <file>`, starting from `gh issue view <n> --json body --jq .body`.
+
 ## Breaking changes
 
 Mark a breaking change in both places:
