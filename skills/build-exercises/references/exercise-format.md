@@ -20,6 +20,16 @@ Each Exercise is one directory:
 
 Each Exercise is self-contained: it runs on its own, and nothing in one Exercise reaches into another.
 
+### When the Curriculum renumbers
+
+A renumber can give an Exercise's anchor a new ID, so the Exercise is traced by its [anchor record](#exercisemd), not its directory name. `exercises.py renumber <CODE>` reads every directory in `<Practice workspace>/<CODE>/` named `<ID>-<NN>-<slug>` with an ID of that code, and reports each as one of:
+
+- **valid**: the recorded anchor ID, and the ID the directory name starts with, still name a Subsection with the recorded title.
+- **moved**: exactly one Subsection has the recorded title, and the recorded ID or the directory name's ID differs from it. The line gives the old ID and the new one.
+- **broken**: none or several Subsections have the recorded title, or the record is missing or unreadable. Its candidates follow: each Subsection with the recorded title, or, when none has it, the Subsection still at the recorded ID. A retitled anchor is therefore broken, never moved, because a title match is the only evidence of a move.
+
+`renumber` writes nothing. Once the learner confirms a move, or picks the anchor of a broken Exercise whose record can be read, `exercises.py rename <dir> <new ID>` rewrites the record's Anchor and Anchor title from the new anchor, then renames the directory to `<new ID>-<NN>-<slug>`, keeping the slug and taking the next free `<NN>` under the new ID. When the ID is unchanged, as when settling a retitle, only the record changes. A missing or unreadable record is fixed by hand.
+
 ## What an Exercise ships
 
 ```text
