@@ -128,6 +128,58 @@ class Context(TempDirTestCase):
         self.assertEqual((result.returncode, result.stdout, result.stderr), (1, "", "context: .marksman.toml: is missing\n"))
 
 
+class Existing(TempDirTestCase):
+    def workspace(self, *names):
+        """A Practice workspace in the temp dir holding an Exercise directory for each <CODE>/<name>."""
+        practice = self.tmp / "practice"
+        practice.mkdir()
+        for name in names:
+            (practice / name).mkdir(parents=True)
+            (practice / name / "EXERCISE.md").write_text("# An Exercise\n", encoding="utf-8")
+        return practice
+
+    def test_an_anchor_with_no_exercises_starts_at_01(self):
+        practice = self.workspace()
+        result = run("existing", "GIT-01.02.01", "--practice", practice)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "None\nNext: 01\n", ""))
+
+    def test_next_follows_the_highest_number_and_never_fills_a_gap(self):
+        practice = self.workspace("GIT/GIT-01.02.01-03-amend-a-snapshot", "GIT/GIT-01.02.01-01-stage-one-file")
+        result = run("existing", "GIT-01.02.01", "--practice", practice)
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (0, "GIT-01.02.01-01-stage-one-file\nGIT-01.02.01-03-amend-a-snapshot\nNext: 04\n", ""),
+        )
+
+    def test_skips_another_subsections_exercises(self):
+        practice = self.workspace("GIT/GIT-01.01.01-04-hash-a-blob", "GIT/GIT-01.02.01-01-stage-one-file")
+        result = run("existing", "GIT-01.02.01", "--practice", practice)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", ""))
+
+    def test_skips_exercises_in_another_curriculums_directory(self):
+        practice = self.workspace("MATH/GIT-01.02.01-05-misfiled", "GIT/GIT-01.02.01-01-stage-one-file")
+        result = run("existing", "GIT-01.02.01", "--practice", practice)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", ""))
+
+    def test_reads_practice_in_the_curriculums_directory_by_default(self):
+        self.workspace("GIT/GIT-01.02.01-01-stage-one-file")
+        for args, cwd in [(["--curriculums", self.tmp], None), ([], self.tmp)]:
+            with self.subTest(args=args):
+                result = run("existing", "GIT-01.02.01", *args, cwd=cwd)
+                self.assertEqual(
+                    (result.returncode, result.stdout, result.stderr), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", "")
+                )
+
+    def test_stops_on_an_id_that_isnt_a_subsection(self):
+        for token, message in [
+            ("GIT-01.02", "existing: GIT-01.02 isn't a Subsection ID\n"),
+            ("git", "existing: git isn't an ID\n"),
+        ]:
+            with self.subTest(token):
+                result = run("existing", token, "--practice", self.tmp)
+                self.assertEqual((result.returncode, result.stdout, result.stderr), (1, "", message))
+
+
 class FormatVersion(TempDirTestCase):
     def test_refuses_to_run_when_build_py_reads_another_format_version(self):
         skills = self.tmp / "skills"

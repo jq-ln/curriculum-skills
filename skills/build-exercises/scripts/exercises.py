@@ -3,6 +3,8 @@
 
 Subcommands:
   context <ID> [--curriculums <dir>]  print the Subsection and its Prereq closure
+  existing <ID> [--curriculums <dir>] [--practice <dir>]
+                                      list the Subsection's Exercises and the next <NN>
 
 Reads doc sets through build-curriculum's build.py, so both skills parse a
 Curriculum one way. FORMAT_VERSION is kept in step with ../references/curriculum-format.md,
@@ -10,6 +12,7 @@ and the script refuses to run when build.py's differs. Standard library only.
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -58,13 +61,19 @@ def subsections_by_code(directory):
     return find
 
 
-def anchor_units(directory, token):
-    """(UnitId, {UnitId: Unit}) for the anchor's Curriculum. Raises BuildError when the anchor can't be read."""
+def subsection_id(token):
+    """The UnitId token names. Raises BuildError when it isn't a Subsection ID."""
     uid = build.parse_id(token)
     if not uid:
         raise BuildError(f"{token} isn't an ID")
     if len(uid.levels) != 3:
         raise BuildError(f"{token} isn't a Subsection ID")
+    return uid
+
+
+def anchor_units(directory, token):
+    """(UnitId, {UnitId: Unit}) for the anchor's Curriculum. Raises BuildError when the anchor can't be read."""
+    uid = subsection_id(token)
     root = curriculum_dir(directory, uid.code)
     if isinstance(root, str):
         raise BuildError(root)
@@ -120,6 +129,25 @@ def context(directory, token):
     return "\n".join(out)
 
 
+# --- existing ----------------------------------------------------------------
+
+
+def existing(practice, token):
+    """The anchor's Exercise directories in name order, then the next <NN>."""
+    uid = subsection_id(token)
+    name = re.compile(rf"{re.escape(token)}-([0-9]{{2,}})-.+")
+    code_dir = Path(practice) / uid.code
+    found = {}
+    if code_dir.is_dir():
+        for d in code_dir.iterdir():
+            m = name.fullmatch(d.name)
+            if m and d.is_dir():
+                found[d.name] = int(m[1])
+    # The highest plus one, never a gap's number, so a deleted Exercise's number isn't reused.
+    after = max(found.values(), default=0) + 1
+    return "\n".join(sorted(found, key=found.get) or ["None"]) + f"\nNext: {after:02d}\n"
+
+
 # --- CLI ---------------------------------------------------------------------
 
 
@@ -136,10 +164,18 @@ def main(argv=None):
     p = sub.add_parser("context", help="print the Subsection and its Prereq closure")
     p.add_argument("id")
     p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
+    p = sub.add_parser("existing", help="list the Subsection's Exercises and the next <NN>")
+    p.add_argument("id")
+    p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
+    p.add_argument("--practice", help="the Practice workspace (default: practice/ in the Curriculums directory)")
     args = parser.parse_args(argv)
 
     try:
-        sys.stdout.write(context(Path(args.curriculums), args.id))
+        if args.command == "context":
+            sys.stdout.write(context(Path(args.curriculums), args.id))
+        else:
+            practice = Path(args.practice) if args.practice else Path(args.curriculums) / "practice"
+            sys.stdout.write(existing(practice, args.id))
     except BuildError as e:
         for line in str(e).split("\n"):
             print(f"{args.command}: {line}", file=sys.stderr)
