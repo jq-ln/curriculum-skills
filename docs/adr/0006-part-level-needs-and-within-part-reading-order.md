@@ -14,7 +14,7 @@ A Curriculum now starts with a core Part of what day-to-day practice needs, and 
 - The index's Parts table ends with a Needs column holding the same Parts as linked IDs, so the whole branch structure shows on one page.
 - Needs is direct and unreduced, mirroring Subsection Prereqs: the core appears wherever a unit needs it directly.
 - A Prereq in another Curriculum adds no entry, because whether its copy is found depends on the machine, and Needs must derive the same everywhere.
-- Prev and Next follow ID order only within a Part. A Part's first Subsection has no Prev and its last has no Next. The Index and Part links stay, so a learner moves on to another Part from there.
+- Prev and Next follow ID order only within a Part. A Part's first Subsection has no Prev and its last has no Next. The Index, Part and Section links stay, so a learner moves on to another Part from there.
 
 Alternatives weighed in #41 and rejected:
 
