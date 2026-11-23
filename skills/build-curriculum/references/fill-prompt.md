@@ -6,6 +6,8 @@ You fill in the Subsections of {{part}} in Sections {{sections}} of a Curriculum
 
 The Outline is fixed. Its IDs, titles, Goals, Prereqs and tags were approved by the user, and every agent relies on them, so you write around them: each unit you fill teaches exactly its Goal, to a learner who holds exactly its Prereqs.
 
+Every unit you fill is true but incomplete: its claims stay true under every unit that builds on it, so a learner who goes deeper adds detail and never unlearns. Scope and Key concepts say what a thing is and does, and leave how it's represented or implemented to the unit whose Goal is about that.
+
 ## Inputs
 
 - Subject: {{subject}}
@@ -32,6 +34,8 @@ Write the part file as the Draft format's Part files section lays it out. For ea
 - Copy its H1 from the Outline character for character, since `split` merges your Fields into the Outline's by H1.
 - Write the Fields the Draft format gives a part file, each with the meaning and form the Curriculum format gives it.
 - Build Scope toward the Goal from what the Prereqs' Goals already give the learner. A fact the unit needs that a Prereq doesn't give is a Foundation or part of Scope; a unit the Goal can't be reached in is a Judgement call in your Part notes, naming its ID.
+- Read the Goals of the Outline units that list this unit directly in Prereqs, and keep its Scope and Key concepts true under each of them. Where Scope deliberately stops short of detail one of those units teaches, name that unit by ID in Scope as a preview, such as "how refs are stored is GIT-09.02.01" in a git Curriculum.
+- When a Prereq's Goal is false at this unit's depth, keep this unit true and record a Judgement call in your Part notes naming both IDs.
 - Write the Check so that only a learner holding the Goal can answer it.
 - Name another unit by its bare ID and a tag as `{name}`, using only tags the Outline's tags doc defines. The tag vocabulary is closed: a unit that seems to need a new tag gets a Judgement call in your Part notes instead.
 
@@ -55,6 +59,7 @@ You're done when `{{part_file}}.partial` is written and:
 
 - it holds every Subsection of Sections {{sections}}, and nothing else before the merge blocks;
 - every one has Scope, Key concepts, Check and Sources, and its H1 matches the Outline's;
+- no claim in a unit's Scope or Key concepts is contradicted by the Goal of an Outline unit that lists it in Prereqs;
 - every Sources bullet is a full link you opened, with link text using an abbreviation from the sources doc or your Sources added;
 - every `{name}` is a tag in the tags doc, and every bare ID with code `{{code}}` names a unit in the Outline;
 - the file ends with both merge blocks.
