@@ -49,14 +49,14 @@ The first Part is the core: what day-to-day practice of {{subject}} needs. Every
 
 1. **Capability target.** Write one sentence saying what the learner the Brief describes can do once they've finished the core. When the Brief describes no learner, the target is what a typical practitioner of {{subject}} does day to day. A Brief that describes an experienced learner moves the target, and the core moves with it.
 2. **Frequency.** Keep the units that capability uses most often. Keep a rarely used unit too when the capability can't do without it, such as recovering a lost commit in git.
-3. **Load-bearing model.** Admit a fact about how {{subject}} works inside only when a core Goal depends on it.
+3. **Load-bearing model.** Admit a fact about how {{subject}} works internally only when a core Goal depends on it.
 4. **Record the cut.** Write the capability target sentence and where the core cut falls in the overview's Ordering rationale.
 
 Draw exactly one core Part, whatever the subject and the Brief. Grow it by Sections as the capability needs, and name it for what it holds, such as Essentials.
 
 ## Order
 
-Order every later Part by what it needs, so a learner can stop at the depth they need:
+Order the Curriculum by what each unit needs, so a learner can stop at the depth they need:
 
 - Within a Part, units run shallow to deep.
 - A deep unit sits in the Part of the topic it deepens, not in a Part about the mechanism underneath, so no two Parts need each other.
@@ -68,8 +68,8 @@ Order every later Part by what it needs, so a learner can stop at the depth they
 
 Goals, Generators, Prereqs, IDs and tags follow the Curriculum format's Subsection, IDs and Standard tags sections. On top of those:
 
-- Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a unit that needs more into several Subsections. Merge a unit too thin to carry its own Goal into its neighbour.
-- When a topic has a core slice and a deeper remainder, split it into two Subsections, each titled for what it teaches and with its own Goal, the deep one listing the shallow one in Prereqs. Merge a remainder too thin to carry its own Goal into a neighbour.
+- Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a unit that needs more into several Subsections. Merge a unit too thin to carry its own Goal, such as the thin remainder of a split topic, into its neighbour.
+- When a topic has a core slice and a deeper remainder, split it into two Subsections, each titled for what it teaches and with its own Goal, the deep one listing the shallow one in Prereqs.
 - State core Goals at the model level, saying what a thing is and does, never how it's stored, so no later unit has to retract them.
 - Add a Synthesis Subsection wherever loose facts collapse into a structure, such as at the end of a Section.
 - Teaching material a textbook would put in an appendix becomes a Part tagged `Optional`. Reference material that teaches nothing, such as a coverage table, stays out of the Outline.

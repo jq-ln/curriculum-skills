@@ -45,7 +45,7 @@ Show the user:
 - the capability target sentence, quoted from the overview's Ordering rationale in `outline.md`;
 - the number of Parts, Sections and Subsections, counted from the H1s in `outline.md` whose ID has one, two and three levels;
 - each Part's ID and title, with its Sections' IDs and titles nested under it, and the first Part labelled as the core;
-- the Parts that open straight after the core, as Ordering rationale names them;
+- the Parts that open straight after the core, as the overview's Ordering rationale names them;
 - the path to `outline.md`, which they can edit directly;
 - when there are more than about 400 Subsections, a warning that the fill will be large, and that a narrower Brief would shrink it.
 
