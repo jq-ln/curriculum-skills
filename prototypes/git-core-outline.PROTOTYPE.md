@@ -125,7 +125,7 @@ Needed by: GIT-03, GIT-20
 ### GIT-03 Inspecting history
 
 Needs: GIT-01 Essentials, GIT-02 Commands and versions
-Needed by: GIT-04, GIT-05, GIT-06, GIT-08, GIT-09, GIT-11, GIT-13, GIT-14, GIT-15, GIT-20
+Needed by: GIT-04, GIT-05, GIT-08, GIT-09, GIT-11, GIT-13, GIT-14, GIT-15, GIT-20
 
 
 **GIT-03.01 Naming and selecting commits**
@@ -192,117 +192,117 @@ Needed by: GIT-15, GIT-17
 | GIT-04.02.01 | Stash is commits | 22.1 | GIT-01.03.01, GIT-01.05.01 |
 | GIT-04.02.02 | Stash operations (beyond the core) | 22.2 (rest) | GIT-01.04.05, GIT-01.04.07 |
 
-### GIT-05 Merging in depth
-
-Needs: GIT-01 Essentials, GIT-03 Inspecting history
-Needed by: GIT-08, GIT-11, GIT-16, GIT-19
-
-
-**GIT-05.01 Conflicts and strategies**
-
-| ID | Title | From | Prereqs |
-| --- | --- | --- | --- |
-| GIT-05.01.01 | rerere: reuse recorded resolutions | 17.8 | GIT-01.04.06 |
-| GIT-05.01.02 | The ort strategy | 17.5 | GIT-01.04.05, GIT-03.01.02, GIT-03.03.04 |
-| GIT-05.01.03 | Strategies, strategy options and merge drivers | 17.6 | GIT-05.01.02 |
-| GIT-05.01.04 | Synthesis: why merges conflict (and why they don't) | 17.9 | GIT-05.01.01, GIT-05.01.03 |
-
-### GIT-06 Rebasing, cherry-pick and revert
+### GIT-05 Rebasing, cherry-pick and revert
 
 Needs: GIT-01 Essentials, GIT-03 Inspecting history
 Needed by: GIT-10, GIT-11, GIT-19, GIT-20
 
 
-**GIT-06.01 Rebase in depth**
+**GIT-05.01 Rebase in depth**
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-06.01.01 | `--onto` and choosing what to replay | 18.2 | GIT-01.07.01 |
-| GIT-06.01.02 | Interactive rebase and the sequencer (beyond the core) | 18.3 (rest) | GIT-01.07.03, GIT-06.01.01 |
-| GIT-06.01.03 | Fixup commits and autosquash | 18.4 | GIT-01.07.03 |
-| GIT-06.01.04 | Stacked branches: `--update-refs` | 18.5 | GIT-01.07.03 |
-| GIT-06.01.05 | Rebasing merges: `--rebase-merges` | 18.6 | GIT-01.04.04, GIT-01.07.03 |
-| GIT-06.01.06 | Rebase options and backends | 18.7 | GIT-01.07.03 |
-| GIT-06.01.07 | Rewriting shared history (beyond the core) | 18.8 (rest) | GIT-01.07.04, GIT-03.02.02, GIT-06.01.01 |
+| GIT-05.01.01 | `--onto` and choosing what to replay | 18.2 | GIT-01.07.01 |
+| GIT-05.01.02 | Interactive rebase and the sequencer (beyond the core) | 18.3 (rest) | GIT-01.07.03, GIT-05.01.01 |
+| GIT-05.01.03 | Fixup commits and autosquash | 18.4 | GIT-01.07.03 |
+| GIT-05.01.04 | Stacked branches: `--update-refs` | 18.5 | GIT-01.07.03 |
+| GIT-05.01.05 | Rebasing merges: `--rebase-merges` | 18.6 | GIT-01.04.04, GIT-01.07.03 |
+| GIT-05.01.06 | Rebase options and backends | 18.7 | GIT-01.07.03 |
+| GIT-05.01.07 | Rewriting shared history (beyond the core) | 18.8 (rest) | GIT-01.07.04, GIT-03.02.02, GIT-05.01.01 |
 
-**GIT-06.02 Cherry-pick and revert**
-
-| ID | Title | From | Prereqs |
-| --- | --- | --- | --- |
-| GIT-06.02.01 | Cherry-pick is a three-way merge | 19.1 | GIT-01.04.05, GIT-01.07.01 |
-| GIT-06.02.02 | Revert and reverting merges (beyond the core) | 19.2 (rest) | GIT-01.04.04, GIT-01.07.05, GIT-06.02.01 |
-| GIT-06.02.03 | Patch identity: `patch-id` and `range-diff` | 19.4 | GIT-03.02.02, GIT-06.02.01 |
-
-**GIT-06.03 Branching workflows**
+**GIT-05.02 Cherry-pick and revert**
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-06.03.01 | Topic branches and integration branches | 20.1 | GIT-01.04.04, GIT-01.07.04 |
+| GIT-05.02.01 | Cherry-pick is a three-way merge | 19.1 | GIT-01.04.05, GIT-01.07.01 |
+| GIT-05.02.02 | Revert and reverting merges (beyond the core) | 19.2 (rest) | GIT-01.04.04, GIT-01.07.05, GIT-05.02.01 |
+| GIT-05.02.03 | Patch identity: `patch-id` and `range-diff` | 19.4 | GIT-03.02.02, GIT-05.02.01 |
 
-### GIT-07 The object model
+**GIT-05.03 Branching workflows**
+
+| ID | Title | From | Prereqs |
+| --- | --- | --- | --- |
+| GIT-05.03.01 | Topic branches and integration branches | 20.1 | GIT-01.04.04, GIT-01.07.04 |
+
+### GIT-06 The object model
 
 Needs: GIT-01 Essentials
-Needed by: GIT-08, GIT-09, GIT-10, GIT-11, GIT-14, GIT-16, GIT-18, GIT-21
+Needed by: GIT-07, GIT-09, GIT-10, GIT-11, GIT-14, GIT-16, GIT-18, GIT-21
 
 
-**GIT-07.01 Content-addressed objects**
-
-| ID | Title | From | Prereqs |
-| --- | --- | --- | --- |
-| GIT-07.01.01 | Object IDs are hashes of content | 3.1 | GIT-01.02.01, GIT-01.02.02 |
-| GIT-07.01.02 | Blobs | 3.2 | GIT-01.02.02 |
-| GIT-07.01.03 | Trees | 3.3 | GIT-07.01.02 |
-| GIT-07.01.04 | Commits | 3.4 | GIT-01.02.02, GIT-07.01.03 |
-| GIT-07.01.05 | Annotated tag objects | 3.5 | GIT-01.02.02 |
-| GIT-07.01.06 | Synthesis: the Merkle DAG | 3.6 | GIT-07.01.05 |
-
-**GIT-07.02 Storing and naming objects**
+**GIT-06.01 Content-addressed objects**
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-07.02.01 | Loose objects on disk | 4.1 | GIT-01.02.02 |
-| GIT-07.02.02 | Abbreviated IDs and object-name lookup | 4.2 | GIT-07.02.01 |
-| GIT-07.02.03 | Hash functions: SHA-1, collision detection and SHA-256 repositories | 4.3 | GIT-07.02.01 |
+| GIT-06.01.01 | Object IDs are hashes of content | 3.1 | GIT-01.02.01, GIT-01.02.02 |
+| GIT-06.01.02 | Blobs | 3.2 | GIT-01.02.02 |
+| GIT-06.01.03 | Trees | 3.3 | GIT-06.01.02 |
+| GIT-06.01.04 | Commits | 3.4 | GIT-01.02.02, GIT-06.01.03 |
+| GIT-06.01.05 | Annotated tag objects | 3.5 | GIT-01.02.02 |
+| GIT-06.01.06 | Synthesis: the Merkle DAG | 3.6 | GIT-06.01.05 |
 
-**GIT-07.03 The hash-function transition**
-
-| ID | Title | From | Prereqs |
-| --- | --- | --- | --- |
-| GIT-07.03.01 | The hash-function transition | 4.4 | GIT-07.01.06, GIT-07.02.03 |
-
-### GIT-08 The index
-
-Needs: GIT-01 Essentials, GIT-03 Inspecting history, GIT-05 Merging in depth, GIT-07 The object model
-Needed by: GIT-10, GIT-11, GIT-15, GIT-17
-
-
-**GIT-08.01 The index file**
+**GIT-06.02 Storing and naming objects**
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-08.01.01 | The index is a flattened tree | 5.1 | GIT-01.01.03, GIT-07.01.03 |
-| GIT-08.01.02 | Stat data and change detection | 5.2 | GIT-08.01.01 |
-| GIT-08.01.03 | Per-entry flags: intent-to-add, assume-unchanged, skip-worktree | 5.3 | GIT-08.01.02 |
-| GIT-08.01.04 | Index format and extensions | 5.4 | GIT-08.01.03 |
+| GIT-06.02.01 | Loose objects on disk | 4.1 | GIT-01.02.02 |
+| GIT-06.02.02 | Abbreviated IDs and object-name lookup | 4.2 | GIT-06.02.01 |
+| GIT-06.02.03 | Hash functions: SHA-1, collision detection and SHA-256 repositories | 4.3 | GIT-06.02.01 |
 
-**GIT-08.02 The index during a merge**
-
-| ID | Title | From | Prereqs |
-| --- | --- | --- | --- |
-| GIT-08.02.01 | Conflicts: stages, markers and styles (beyond the core) | 17.3 (rest) | GIT-01.04.05, GIT-01.04.06, GIT-08.01.01 |
-| GIT-08.02.02 | Inspecting and resolving conflicts with tools | 17.4 | GIT-03.03.02, GIT-08.02.01 |
-
-**GIT-08.03 Commits and merges from plumbing**
+**GIT-06.03 The hash-function transition**
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-08.03.01 | A commit from plumbing | 6.1 | GIT-01.02.02, GIT-08.01.01 |
-| GIT-08.03.02 | Synthesis: what `add` and `commit` really do | 6.2 | GIT-08.03.01 |
-| GIT-08.03.03 | Merging without a working tree | 17.7 | GIT-05.01.02, GIT-08.03.01 |
+| GIT-06.03.01 | The hash-function transition | 4.4 | GIT-06.01.06, GIT-06.02.03 |
+
+### GIT-07 The index
+
+Needs: GIT-01 Essentials, GIT-06 The object model
+Needed by: GIT-08, GIT-11, GIT-15, GIT-17
+
+
+**GIT-07.01 The index file**
+
+| ID | Title | From | Prereqs |
+| --- | --- | --- | --- |
+| GIT-07.01.01 | The index is a flattened tree | 5.1 | GIT-01.01.03, GIT-06.01.03 |
+| GIT-07.01.02 | Stat data and change detection | 5.2 | GIT-07.01.01 |
+| GIT-07.01.03 | Per-entry flags: intent-to-add, assume-unchanged, skip-worktree | 5.3 | GIT-07.01.02 |
+| GIT-07.01.04 | Index format and extensions | 5.4 | GIT-07.01.03 |
+
+**GIT-07.02 Commits from plumbing**
+
+| ID | Title | From | Prereqs |
+| --- | --- | --- | --- |
+| GIT-07.02.01 | A commit from plumbing | 6.1 | GIT-01.02.02, GIT-07.01.01 |
+| GIT-07.02.02 | Synthesis: what `add` and `commit` really do | 6.2 | GIT-07.02.01 |
+
+### GIT-08 Merging in depth
+
+Needs: GIT-01 Essentials, GIT-03 Inspecting history, GIT-07 The index
+Needed by: GIT-10, GIT-11, GIT-16, GIT-19
+
+
+**GIT-08.01 Conflicts in depth**
+
+| ID | Title | From | Prereqs |
+| --- | --- | --- | --- |
+| GIT-08.01.01 | Conflicts: stages, markers and styles (beyond the core) | 17.3 (rest) | GIT-01.04.05, GIT-01.04.06, GIT-07.01.01 |
+| GIT-08.01.02 | Inspecting and resolving conflicts with tools | 17.4 | GIT-03.03.02, GIT-08.01.01 |
+| GIT-08.01.03 | rerere: reuse recorded resolutions | 17.8 | GIT-01.04.06 |
+
+**GIT-08.02 Strategies**
+
+| ID | Title | From | Prereqs |
+| --- | --- | --- | --- |
+| GIT-08.02.01 | The ort strategy | 17.5 | GIT-01.04.05, GIT-03.01.02, GIT-03.03.04 |
+| GIT-08.02.02 | Strategies, strategy options and merge drivers | 17.6 | GIT-08.02.01 |
+| GIT-08.02.03 | Merging without a working tree | 17.7 | GIT-07.02.01, GIT-08.02.01 |
+| GIT-08.02.04 | Synthesis: why merges conflict (and why they don't) | 17.9 | GIT-08.01.03, GIT-08.02.02 |
 
 ### GIT-09 References
 
-Needs: GIT-01 Essentials, GIT-03 Inspecting history, GIT-07 The object model
+Needs: GIT-01 Essentials, GIT-03 Inspecting history, GIT-06 The object model
 Needed by: GIT-10, GIT-11, GIT-12, GIT-14, GIT-16, GIT-17, GIT-20, GIT-21
 
 
@@ -310,7 +310,7 @@ Needed by: GIT-10, GIT-11, GIT-12, GIT-14, GIT-16, GIT-17, GIT-20, GIT-21
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-09.01.01 | Tags as refs | 7.3 | GIT-01.02.03, GIT-07.01.05 |
+| GIT-09.01.01 | Tags as refs | 7.3 | GIT-01.02.03, GIT-06.01.05 |
 | GIT-09.01.02 | Ref names, namespaces and pseudorefs | 7.4 | GIT-01.02.04 |
 | GIT-09.01.03 | Peeling, typed lookup, `describe` and `name-rev` | 10.3 | GIT-03.01.01, GIT-09.01.01 |
 | GIT-09.01.04 | Synthesis: the history query language | 10.4 | GIT-03.01.03, GIT-09.01.03 |
@@ -326,7 +326,7 @@ Needed by: GIT-10, GIT-11, GIT-12, GIT-14, GIT-16, GIT-17, GIT-20, GIT-21
 
 ### GIT-10 Rewriting and recovery
 
-Needs: GIT-01 Essentials, GIT-06 Rebasing, cherry-pick and revert, GIT-07 The object model, GIT-08 The index, GIT-09 References
+Needs: GIT-01 Essentials, GIT-05 Rebasing, cherry-pick and revert, GIT-06 The object model, GIT-08 Merging in depth, GIT-09 References
 Needed by: GIT-14, GIT-17, GIT-21
 
 
@@ -334,22 +334,22 @@ Needed by: GIT-14, GIT-17, GIT-21
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-10.01.01 | Commit-level rewriting and `git history` | 21.1 | GIT-06.01.03, GIT-06.01.04 |
-| GIT-10.01.02 | Repository-wide rewriting | 21.2 | GIT-07.01.06, GIT-10.01.01 |
+| GIT-10.01.01 | Commit-level rewriting and `git history` | 21.1 | GIT-05.01.03, GIT-05.01.04 |
+| GIT-10.01.02 | Repository-wide rewriting | 21.2 | GIT-06.01.06, GIT-10.01.01 |
 | GIT-10.01.03 | Replace refs and grafts | 21.3 | GIT-09.01.02, GIT-10.01.01 |
-| GIT-10.01.04 | `git replay`: server-side rebasing | 19.3 | GIT-06.01.04, GIT-08.03.03 |
+| GIT-10.01.04 | `git replay`: server-side rebasing | 19.3 | GIT-05.01.04, GIT-08.02.03 |
 
 **GIT-10.02 Recovery in depth**
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
 | GIT-10.02.01 | Nothing is lost until gc (beyond the core) | 23.1 (rest) | GIT-01.05.04, GIT-01.05.05, GIT-09.02.04 |
-| GIT-10.02.02 | Corruption and repair | 23.2 | GIT-07.02.01, GIT-10.02.01 |
+| GIT-10.02.02 | Corruption and repair | 23.2 | GIT-06.02.01, GIT-10.02.01 |
 | GIT-10.02.03 | Synthesis: disaster drills | 23.3 | GIT-01.07.04, GIT-10.02.02 |
 
 ### GIT-11 The repository, configuration and attributes
 
-Needs: GIT-01 Essentials, GIT-03 Inspecting history, GIT-05 Merging in depth, GIT-06 Rebasing, cherry-pick and revert, GIT-07 The object model, GIT-08 The index, GIT-09 References
+Needs: GIT-01 Essentials, GIT-03 Inspecting history, GIT-05 Rebasing, cherry-pick and revert, GIT-06 The object model, GIT-07 The index, GIT-08 Merging in depth, GIT-09 References
 Needed by: GIT-12, GIT-14, GIT-16, GIT-17, GIT-18
 
 
@@ -357,8 +357,8 @@ Needed by: GIT-12, GIT-14, GIT-16, GIT-17, GIT-18
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-11.01.01 | What lives in `.git` | 24.1 | GIT-01.05.01, GIT-08.01.01, GIT-09.02.01 |
-| GIT-11.01.02 | Repository discovery, format versions and extensions | 24.2 | GIT-07.02.03, GIT-09.02.02, GIT-11.01.01 |
+| GIT-11.01.01 | What lives in `.git` | 24.1 | GIT-01.05.01, GIT-07.01.01, GIT-09.02.01 |
+| GIT-11.01.02 | Repository discovery, format versions and extensions | 24.2 | GIT-06.02.03, GIT-09.02.02, GIT-11.01.01 |
 | GIT-11.01.03 | Environment variables | 24.3 | GIT-11.01.02 |
 
 **GIT-11.02 Configuration**
@@ -367,7 +367,7 @@ Needed by: GIT-12, GIT-14, GIT-16, GIT-17, GIT-18
 | --- | --- | --- | --- |
 | GIT-11.02.01 | Scopes and precedence | 25.1 | GIT-01.01.04, GIT-11.01.01 |
 | GIT-11.02.02 | Syntax, types and conditional includes | 25.2 | GIT-11.02.01 |
-| GIT-11.02.03 | Defaults that matter and feature bundles | 25.3 | GIT-06.01.03, GIT-11.02.02 |
+| GIT-11.02.03 | Defaults that matter and feature bundles | 25.3 | GIT-05.01.03, GIT-11.02.02 |
 
 **GIT-11.03 Attributes, filters and line endings**
 
@@ -376,7 +376,7 @@ Needed by: GIT-12, GIT-14, GIT-16, GIT-17, GIT-18
 | GIT-11.03.01 | How attributes work | 26.1 | GIT-01.03.03, GIT-11.02.01 |
 | GIT-11.03.02 | Line endings | 26.2 | GIT-11.03.01 |
 | GIT-11.03.03 | Clean/smudge filters and the long-running process protocol | 26.3 | GIT-11.03.02 |
-| GIT-11.03.04 | Diff, merge and export drivers | 26.4 | GIT-03.03.05, GIT-05.01.03, GIT-11.03.01 |
+| GIT-11.03.04 | Diff, merge and export drivers | 26.4 | GIT-03.03.05, GIT-08.02.02, GIT-11.03.01 |
 | GIT-11.03.05 | Large files: Git LFS | 26.5 | GIT-11.03.03 |
 
 ### GIT-12 Remotes in depth
@@ -435,7 +435,7 @@ Needed by: GIT-14, GIT-15, GIT-18, GIT-21
 
 ### GIT-14 Packfiles and repository maintenance
 
-Needs: GIT-03 Inspecting history, GIT-07 The object model, GIT-09 References, GIT-10 Rewriting and recovery, GIT-11 The repository, configuration and attributes, GIT-13 Transfer protocols
+Needs: GIT-03 Inspecting history, GIT-06 The object model, GIT-09 References, GIT-10 Rewriting and recovery, GIT-11 The repository, configuration and attributes, GIT-13 Transfer protocols
 Needed by: GIT-15, GIT-17, GIT-20
 
 
@@ -443,7 +443,7 @@ Needed by: GIT-15, GIT-17, GIT-20
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-14.01.01 | Why packs exist | 32.1 | GIT-07.02.01, GIT-13.01.02 |
+| GIT-14.01.01 | Why packs exist | 32.1 | GIT-06.02.01, GIT-13.01.02 |
 | GIT-14.01.02 | The pack and index formats | 32.2 | GIT-14.01.01 |
 | GIT-14.01.03 | Delta compression and base selection | 32.3 | GIT-14.01.02 |
 | GIT-14.01.04 | Thin packs, `index-pack` and verification | 32.4 | GIT-13.01.02, GIT-14.01.03 |
@@ -469,7 +469,7 @@ Needed by: GIT-15, GIT-17, GIT-20
 
 ### GIT-15 Partial data and large repositories
 
-Needs: GIT-03 Inspecting history, GIT-04 Recording and stashing in depth, GIT-08 The index, GIT-13 Transfer protocols, GIT-14 Packfiles and repository maintenance
+Needs: GIT-03 Inspecting history, GIT-04 Recording and stashing in depth, GIT-07 The index, GIT-13 Transfer protocols, GIT-14 Packfiles and repository maintenance
 Needed by: GIT-21
 
 
@@ -485,8 +485,8 @@ Needed by: GIT-21
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-15.02.01 | Sparse checkout | 36.1 | GIT-03.04.01, GIT-08.01.03 |
-| GIT-15.02.02 | The sparse index | 36.2 | GIT-08.01.04, GIT-15.02.01 |
+| GIT-15.02.01 | Sparse checkout | 36.1 | GIT-03.04.01, GIT-07.01.03 |
+| GIT-15.02.02 | The sparse index | 36.2 | GIT-07.01.04, GIT-15.02.01 |
 
 **GIT-15.03 Bundles**
 
@@ -499,14 +499,14 @@ Needed by: GIT-21
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-15.04.01 | fsmonitor and the untracked cache | 38.1 | GIT-04.01.02, GIT-08.01.04 |
+| GIT-15.04.01 | fsmonitor and the untracked cache | 38.1 | GIT-04.01.02, GIT-07.01.04 |
 | GIT-15.04.02 | Index and checkout scaling | 38.2 | GIT-15.04.01 |
 | GIT-15.04.03 | Scalar | 38.3 | GIT-14.02.03, GIT-15.01.02, GIT-15.02.01, GIT-15.04.02 |
 | GIT-15.04.04 | Synthesis: setting up a monorepo | 38.4 | GIT-14.03.05, GIT-15.02.02, GIT-15.03.02, GIT-15.04.03 |
 
 ### GIT-16 Worktrees and submodules
 
-Needs: GIT-01 Essentials, GIT-05 Merging in depth, GIT-07 The object model, GIT-09 References, GIT-11 The repository, configuration and attributes
+Needs: GIT-01 Essentials, GIT-06 The object model, GIT-08 Merging in depth, GIT-09 References, GIT-11 The repository, configuration and attributes
 Needed by: GIT-18
 
 
@@ -521,13 +521,13 @@ Needed by: GIT-18
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-16.02.01 | Submodules are gitlinks | 40.1 | GIT-01.06.01, GIT-07.01.03 |
+| GIT-16.02.01 | Submodules are gitlinks | 40.1 | GIT-01.06.01, GIT-06.01.03 |
 | GIT-16.02.02 | Working with submodules | 40.2 | GIT-01.04.06, GIT-16.02.01 |
-| GIT-16.02.03 | Subtree merges and `git subtree` | 40.3 | GIT-05.01.03, GIT-16.02.02 |
+| GIT-16.02.03 | Subtree merges and `git subtree` | 40.3 | GIT-08.02.02, GIT-16.02.02 |
 
 ### GIT-17 Automation: hooks, plumbing and metadata
 
-Needs: GIT-01 Essentials, GIT-04 Recording and stashing in depth, GIT-08 The index, GIT-09 References, GIT-10 Rewriting and recovery, GIT-11 The repository, configuration and attributes, GIT-12 Remotes in depth, GIT-14 Packfiles and repository maintenance
+Needs: GIT-01 Essentials, GIT-04 Recording and stashing in depth, GIT-07 The index, GIT-09 References, GIT-10 Rewriting and recovery, GIT-11 The repository, configuration and attributes, GIT-12 Remotes in depth, GIT-14 Packfiles and repository maintenance
 Needed by: GIT-18, GIT-19, GIT-20, GIT-21
 
 
@@ -545,7 +545,7 @@ Needed by: GIT-18, GIT-19, GIT-20, GIT-21
 | --- | --- | --- | --- |
 | GIT-17.02.01 | Porcelain, plumbing and stable output | 42.1 | GIT-04.01.02, GIT-09.02.03 |
 | GIT-17.02.02 | `cat-file --batch` and object queries | 42.2 | GIT-14.01.02, GIT-17.02.01 |
-| GIT-17.02.03 | Building history from scripts | 42.3 | GIT-08.03.01, GIT-09.02.01, GIT-17.02.01 |
+| GIT-17.02.03 | Building history from scripts | 42.3 | GIT-07.02.01, GIT-09.02.01, GIT-17.02.01 |
 | GIT-17.02.04 | fast-export, fast-import and migration | 42.4 | GIT-10.01.02, GIT-17.02.03 |
 
 **GIT-17.03 Notes, trailers and identities**
@@ -557,7 +557,7 @@ Needed by: GIT-18, GIT-19, GIT-20, GIT-21
 
 ### GIT-18 Trust and security
 
-Needs: GIT-07 The object model, GIT-11 The repository, configuration and attributes, GIT-13 Transfer protocols, GIT-16 Worktrees and submodules, GIT-17 Automation: hooks, plumbing and metadata
+Needs: GIT-06 The object model, GIT-11 The repository, configuration and attributes, GIT-13 Transfer protocols, GIT-16 Worktrees and submodules, GIT-17 Automation: hooks, plumbing and metadata
 Needed by: GIT-19, GIT-21
 
 
@@ -571,7 +571,7 @@ Needed by: GIT-19, GIT-21
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-18.02.01 | Signed tags and commits | 45.1 | GIT-07.01.05, GIT-07.01.06 |
+| GIT-18.02.01 | Signed tags and commits | 45.1 | GIT-06.01.05, GIT-06.01.06 |
 | GIT-18.02.02 | Signature formats: OpenPGP, X.509 and SSH | 45.2 | GIT-18.02.01 |
 | GIT-18.02.03 | What signatures do and don't prove | 45.3 | GIT-13.01.07, GIT-18.02.02 |
 
@@ -585,7 +585,7 @@ Needed by: GIT-19, GIT-21
 
 ### GIT-19 Collaboration workflows
 
-Needs: GIT-01 Essentials, GIT-05 Merging in depth, GIT-06 Rebasing, cherry-pick and revert, GIT-17 Automation: hooks, plumbing and metadata, GIT-18 Trust and security
+Needs: GIT-01 Essentials, GIT-05 Rebasing, cherry-pick and revert, GIT-08 Merging in depth, GIT-17 Automation: hooks, plumbing and metadata, GIT-18 Trust and security
 Needed by: GIT-20
 
 
@@ -593,20 +593,20 @@ Needed by: GIT-20
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-19.01.01 | `format-patch`: series as mail | 47.1 | GIT-01.03.05, GIT-06.02.03 |
+| GIT-19.01.01 | `format-patch`: series as mail | 47.1 | GIT-01.03.05, GIT-05.02.03 |
 | GIT-19.01.02 | Sending and applying: `send-email`, `am`, `apply` | 47.2 | GIT-01.04.05, GIT-19.01.01 |
-| GIT-19.01.03 | The maintainer's side | 47.3 | GIT-05.01.01, GIT-06.03.01, GIT-19.01.02 |
+| GIT-19.01.03 | The maintainer's side | 47.3 | GIT-05.03.01, GIT-08.01.03, GIT-19.01.02 |
 
 **GIT-19.02 Pull-request workflows**
 
 | ID | Title | From | Prereqs |
 | --- | --- | --- | --- |
-| GIT-19.02.01 | Fork-and-pull-request mechanics (beyond the core) | 48.1 (rest) | GIT-01.07.04, GIT-01.07.06, GIT-01.07.07, GIT-06.02.03 |
+| GIT-19.02.01 | Fork-and-pull-request mechanics (beyond the core) | 48.1 (rest) | GIT-01.07.04, GIT-01.07.06, GIT-01.07.07, GIT-05.02.03 |
 | GIT-19.02.02 | Synthesis: designing a team workflow | 48.2 | GIT-01.07.06, GIT-17.01.03, GIT-18.02.03 |
 
 ### GIT-20 Inside git: the codebase and contributing
 
-Needs: GIT-02 Commands and versions, GIT-03 Inspecting history, GIT-06 Rebasing, cherry-pick and revert, GIT-09 References, GIT-14 Packfiles and repository maintenance, GIT-17 Automation: hooks, plumbing and metadata, GIT-19 Collaboration workflows
+Needs: GIT-02 Commands and versions, GIT-03 Inspecting history, GIT-05 Rebasing, cherry-pick and revert, GIT-09 References, GIT-14 Packfiles and repository maintenance, GIT-17 Automation: hooks, plumbing and metadata, GIT-19 Collaboration workflows
 Needed by: GIT-21
 
 
@@ -632,11 +632,11 @@ Needed by: GIT-21
 | --- | --- | --- | --- |
 | GIT-20.03.01 | My first contribution | 51.1 | GIT-19.01.02, GIT-20.02.02 |
 | GIT-20.03.02 | Submitting patches and review | 51.2 | GIT-20.03.01 |
-| GIT-20.03.03 | How git evolves | 51.3 | GIT-06.03.01, GIT-20.03.02 |
+| GIT-20.03.03 | How git evolves | 51.3 | GIT-05.03.01, GIT-20.03.02 |
 
 ### GIT-21 Capstones
 
-Needs: GIT-07 The object model, GIT-09 References, GIT-10 Rewriting and recovery, GIT-12 Remotes in depth, GIT-13 Transfer protocols, GIT-15 Partial data and large repositories, GIT-17 Automation: hooks, plumbing and metadata, GIT-18 Trust and security, GIT-20 Inside git: the codebase and contributing
+Needs: GIT-06 The object model, GIT-09 References, GIT-10 Rewriting and recovery, GIT-12 Remotes in depth, GIT-13 Transfer protocols, GIT-15 Partial data and large repositories, GIT-17 Automation: hooks, plumbing and metadata, GIT-18 Trust and security, GIT-20 Inside git: the codebase and contributing
 Needed by: nothing (leaf)
 
 
@@ -646,23 +646,23 @@ Needed by: nothing (leaf)
 | --- | --- | --- | --- |
 | GIT-21.01.01 | Life of a commit | 52.1 | GIT-12.02.03, GIT-13.01.08, GIT-17.01.01 |
 | GIT-21.01.02 | Life of a clone at scale | 52.2 | GIT-13.01.08, GIT-15.04.04 |
-| GIT-21.01.03 | Git 3.0, derived | 52.3 | GIT-07.03.01, GIT-09.02.02, GIT-18.03.01, GIT-20.03.03 |
+| GIT-21.01.03 | Git 3.0, derived | 52.3 | GIT-06.03.01, GIT-09.02.02, GIT-18.03.01, GIT-20.03.03 |
 | GIT-21.01.04 | Diagnosing any git situation | 52.4 | GIT-10.02.03, GIT-18.01.01, GIT-21.01.01 |
 
 ## What the prototype shows
 
 ### Format version 1 holds it
 
-- The core is an ordinary Part. A shallow unit and its deep counterpart are two Subsections joined by a Prereqs edge, as in `GIT-01.04.06 Resolving a conflict` → `GIT-08.02.01` (index stages). No new term was needed.
+- The core is an ordinary Part. A shallow unit and its deep counterpart are two Subsections joined by a Prereqs edge, as in `GIT-01.04.06 Resolving a conflict` → `GIT-08.01.01` (index stages). No new term was needed.
 - Forward pointers at the cut fit in Scope, which may name later units as previews (`GIT-01.03.02` → `GIT-03.03.04`).
 - Nothing here needs a Format version 2. Closure under Prereqs holds for the core and could become a `check` rule without changing how docs parse.
 
 ### Where it strains
 
 1. **The old Prereqs encode model-first order, so moving units isn't enough.** `GIT-11 The repository, configuration and attributes` needs seven Parts, because configuration (25.1) needs `.git` layout (24.1), which needs the files ref backend (7.5) and the index file (5.1). A practical-first outline has to re-ask "which fact does this Goal really need?" for each Prereq, not carry the old edges over. The outline prompt needs that instruction.
-2. **Mechanism, not topic, decides which branch a deep unit joins.** Merge-conflict tools (17.4) and stages (17.3) moved into `GIT-08 The index`, and the hand-built commit and merging without a working tree (6.1, 17.7) moved with them. A learner who wants "more merging" finds half of it under the index. Bisect went the other way, from Part XVI up to `GIT-03 Inspecting history`, because it needs only the DAG and ranges.
+2. **Deep units sit under their topic, so topic Parts wait on internals Parts.** (Decided on review: topic, not mechanism.) Conflict stages and tools (17.3, 17.4) and merging without a working tree (17.7) stay in `GIT-08 Merging in depth`, so that Part comes after `GIT-06 The object model` and `GIT-07 The index`. Only 2 of its 7 units need them, but Part-level Needs makes the whole Part wait. Placing them by mechanism instead had put them in the index Part and created a cycle between the merging, object-model and index Parts. Bisect stays in `GIT-03 Inspecting history` (from Part XVI), since finding a regression is a history question.
 3. **The old map already broke "never retract".** 7.1 ("a file containing a commit ID … about 41 bytes") and 7.2 (`ref: refs/heads/main`) are storage-level claims that 7.6 (reftable) contradicts. The core restates them at model level, and the storage detail moves to 7.5. This is the Pro Git 1.3 tension the research found, so the rule "core claims are about the model, not storage" also applies to fill agents writing Key concepts and Scope.
-4. **The graph is dense past the first tier.** Only GIT-02 to GIT-07 need just the core and `GIT-03 Inspecting history`. From GIT-08 on, 11 of the 14 Parts need four or more others (the core counted), and only `GIT-21 Capstones` is a leaf. "Branches in the order you need" really holds for the first tier; deeper down it's one topological order with some slack.
+4. **The graph is dense past the first tier.** Only GIT-02 to GIT-06 need just the core and `GIT-03 Inspecting history`. From GIT-07 on, 10 of the 15 Parts need four or more others (the core counted), and only `GIT-21 Capstones` is a leaf. "Branches in the order you need" really holds for the first tier; deeper down it's one topological order with some slack.
 5. **Prev and Next on the nav line follow ID order.** After `GIT-01.07.07`, Next is `GIT-02.01.01`, which is just the first Part numbered after the core, not necessarily the branch this learner needs. The nav line implies a linear read that the structure no longer means.
 6. **Optional can't mark depth.** Optional means "nothing outside depends on it", and only the capstones qualify. Beyond the core boundary, nothing tells "needed day to day" from "depth", and the boundary itself is all the structure has.
 7. **Split remainders need real titles, and some are thin.** The ten "(beyond the core)" units need titles of their own. A few, such as the remainders of 22.2 (stash) and 48.1 (pull requests), may be too thin for one session and better merged into a neighbour.
@@ -670,8 +670,8 @@ Needed by: nothing (leaf)
 
 ### What a learner needs to see
 
-- At Part level, a Needs line per Part, derived as the script does. In this prototype it's computable and short enough to read.
-- A tier view: which branches open right after the core (GIT-02 to GIT-07) and which wait on others. Without it, twenty Parts read as one long sequence.
+- At Part level, a Needs line per Part, derived as the script does. It's computable and short enough to read, but coarse: it can't say that only two units of `GIT-08 Merging in depth` need the index.
+- A tier view: which branches open right after the core (GIT-02 to GIT-06) and which wait on others. Without it, twenty Parts read as one long sequence.
 - Per unit, nothing new: Prereqs already show the shallow unit a deep one extends.
 
 ### Where practice attaches

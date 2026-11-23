@@ -96,8 +96,6 @@ BRANCHES = [
     ("Recording and stashing in depth", [
         ("Staging and status in depth", ["11.4", "11.6"]),
         ("Stash in depth", ["22.1", "22.2d"])]),
-    ("Merging in depth", [
-        ("Conflicts and strategies", ["17.8", "17.5", "17.6", "17.9"])]),
     ("Rebasing, cherry-pick and revert", [
         ("Rebase in depth", ["18.2", "18.3d", "18.4", "18.5", "18.6", "18.7", "18.8d"]),
         ("Cherry-pick and revert", ["19.1", "19.2d", "19.4"]),
@@ -108,8 +106,10 @@ BRANCHES = [
         ("The hash-function transition", ["4.4"])]),
     ("The index", [
         ("The index file", ["5.1", "5.2", "5.3", "5.4"]),
-        ("The index during a merge", ["17.3d", "17.4"]),
-        ("Commits and merges from plumbing", ["6.1", "6.2", "17.7"])]),
+        ("Commits from plumbing", ["6.1", "6.2"])]),
+    ("Merging in depth", [
+        ("Conflicts in depth", ["17.3d", "17.4", "17.8"]),
+        ("Strategies", ["17.5", "17.6", "17.7", "17.9"])]),
     ("References", [
         ("Refs and their names", ["7.3", "7.4", "10.3", "10.4"]),
         ("Ref storage", ["7.5", "7.6", "7.7", "8.2"])]),
