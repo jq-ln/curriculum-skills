@@ -252,7 +252,7 @@ class Gate(TempDirTestCase):
         (gen / "gate.json").write_text(json.dumps(gate_json), encoding="utf-8")
         return exercise, gen
 
-    def test_passes_a_check_that_fails_the_starter_and_each_near_miss_and_passes_the_reference(self):
+    def test_passes_an_exercise_check_that_fails_the_starter_and_each_near_miss_and_passes_the_reference(self):
         exercise, gen = self.generation([(1, lines("FAIL", "FAIL"))])
         result = run("gate", exercise, gen)
         self.assertEqual(
@@ -422,6 +422,34 @@ class Gate(TempDirTestCase):
         result = run("gate", exercise, gen)
         self.assertEqual((result.returncode, result.stdout), (1, ""))
         self.assertTrue(result.stderr.startswith("gate: "), result.stderr)
+
+    def test_fails_an_automated_line_gate_json_doesnt_name(self):
+        exercise, gen = self.generation([(1, lines("FAIL", "FAIL") + ["PASS It hums. (440 Hz)"])])
+        result = run("gate", exercise, gen)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertTrue(
+            result.stdout.endswith("\nBroken: printed on the starter but not in gate.json: It hums.\nVerdict: fail\n"), result.stdout
+        )
+
+    def test_tells_apart_a_line_whose_text_starts_with_another_lines_text(self):
+        longer = f"{WALKS} (on flat ground) and up the ramp."
+        gate_json = {
+            "lines": GATE_JSON["lines"] + [{"text": longer, "kind": "outcome"}],
+            "near_misses": {**GATE_JSON["near_misses"], "stops-at-ramp": longer},
+        }
+        printed = lambda walks, ramp, ticks="PASS": lines(walks, ticks)[:1] + [f"{ramp} {longer} (2.00 m)"] + lines(walks, ticks)[1:]
+        exercise, gen = self.generation(
+            [(1, printed("FAIL", "FAIL", "FAIL"))],
+            reference=(0, printed("PASS", "PASS")),
+            near_misses={
+                "too-slow": [(1, printed("FAIL", "PASS"))],
+                "moves-in-process": [(1, printed("PASS", "PASS", "FAIL"))],
+                "stops-at-ramp": [(1, printed("PASS", "FAIL"))],
+            },
+            gate_json=gate_json,
+        )
+        result = run("gate", exercise, gen)
+        self.assertEqual((result.returncode, result.stdout.splitlines()[-1]), (0, "Verdict: pass"), result.stdout)
 
 
 class FormatVersion(TempDirTestCase):

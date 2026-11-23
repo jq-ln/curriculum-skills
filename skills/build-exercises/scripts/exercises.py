@@ -206,7 +206,7 @@ def gate_cases(gen):
 def run_case(exercise, swap):
     """Each rerun's (exit code, stdout, stderr), from a copy of the Exercise with swap's files laid over it.
 
-    The copy keeps the Exercise directory untouched, whatever the check or the swap writes.
+    The copy keeps the Exercise directory untouched, whatever the Exercise check or the swap writes.
     """
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / exercise.name
@@ -221,17 +221,20 @@ def run_case(exercise, swap):
 
 
 def statuses(stdout, texts):
-    """{text: "P" or "F"} for each automated line the run printed."""
-    found = {}
+    """({text: "P" or "F"} for each automated line the run printed, [texts it printed that gate.json doesn't name])."""
+    found, undeclared = {}, []
     for line in stdout.splitlines():
         status, _, rest = line.partition(" ")
         if status not in STATUS:
             continue
-        for text in texts:
-            # Matched on the known text, so a text holding parentheses still splits from its measured value.
-            if rest.startswith(text + " (") and rest.endswith(")"):
-                found[text] = STATUS[status]
-    return found
+        # Matched on the known texts, longest first, so a text holding parentheses still splits from its measured
+        # value, and a text that starts with another's isn't counted as both.
+        matches = [text for text in texts if rest.startswith(text + " (") and rest.endswith(")")]
+        if matches:
+            found[max(matches, key=len)] = STATUS[status]
+        else:
+            undeclared.append(rest.rpartition(" (")[0] or rest)
+    return found, undeclared
 
 
 def environment_problems(case, runs):
@@ -286,11 +289,14 @@ def gate(exercise, gen):
     manifest, cases = gate_cases(gen)
     automated = [line for line in manifest["lines"] if line["kind"] != "self-check"]
     texts = [line["text"] for line in automated]
-    results, environment = {}, []
+    results, environment, undeclared = {}, [], []
     for name, swap in cases:
         runs = run_case(exercise, swap)
         # A run exiting other than 0 or 1 couldn't measure, so it holds no line's result.
-        results[name] = [statuses(out, texts) if code in (0, 1) else None for code, out, _ in runs]
+        measured = [statuses(out, texts) if code in (0, 1) else (None, []) for code, out, _ in runs]
+        results[name] = [found for found, _ in measured]
+        printed = dict.fromkeys(text for _, extra in measured for text in extra)
+        undeclared += [f"Broken: printed on {describe(name)} but not in gate.json: {text}" for text in printed]
         environment += environment_problems(name, runs)
     out = ["Cases: " + ", ".join(name for name, _ in cases)]
     width = max((len(line["kind"]) for line in automated), default=0) + 2
@@ -301,6 +307,7 @@ def gate(exercise, gen):
         out.append(f"{line['kind']:<{width}}{cells}  {line['text']}")
     out.append("")
     problems = [f"Broken: {reason}: {line['text']}" for line in automated for reason in broken(line, results, manifest)]
+    problems += undeclared
     out += environment + problems
     if environment:
         # Named apart from a line failure, so the author fixes the setup instead of revising lines.
