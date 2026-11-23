@@ -2,7 +2,7 @@
 
 # Outline: {{subject}}
 
-Write a structured, progressive topic list for learning {{subject}} in depth: the table of contents of an exhaustive textbook on the subject. Cover the subject as fully as that textbook would, within the Brief, and let the subject set the number of units.
+Write a structured, progressive topic list for learning {{subject}} in depth: the table of contents of an exhaustive textbook on the subject. Cover the subject as fully as that textbook would, within the Brief, and let the subject set the number of units. Order it the way a learner meets the subject: first a core of what day-to-day work with it needs, then each topic in the order a learner reaches for it, practical use before internals. The core and the order decide where a unit sits, never whether it's there: internals, protocols, scaling and the subject's own development get units in later Parts, just as that textbook would cover them.
 
 You write the Outline, the skeleton of a Curriculum that later agents fill in, one Part each and in parallel. They can't change what you fix here: the units, their IDs, titles, Goals and Prereqs, and the tags.
 
@@ -43,14 +43,37 @@ Every claim the Curriculum makes is traced to the source that owns it:
 - If it's `none given`, establish the subject's current stable release from its primary sources, write it in the index's Target version, and say in Methodology how you established it. A subject with no releases, such as a branch of mathematics, has no Target version: leave the Field out.
 - If the subject is software installed on this machine, run its version command and record the installed versions in Methodology, with any difference from the Target version that matters to a learner.
 
+## The core
+
+The first Part is the core: what day-to-day practice of {{subject}} needs. Every later Part builds on it. Draw the core by this criterion:
+
+1. **Capability target.** Write one sentence saying what the learner the Brief describes can do once they've finished the core. When the Brief describes no learner, the target is what a typical practitioner of {{subject}} does day to day. A Brief that describes an experienced learner moves the target, and the core moves with it.
+2. **Frequency.** Keep the units that capability uses most often. Keep a rarely used unit too when the capability can't do without it, such as recovering a lost commit in git.
+3. **Load-bearing model.** Admit a fact about how {{subject}} works internally only when a core Goal depends on it.
+4. **Record the cut.** Write the capability target sentence and where the core cut falls in the overview's Ordering rationale.
+
+Draw exactly one core Part, whatever the subject and the Brief. Grow it by Sections as the capability needs, and name it for what it holds, such as Essentials.
+
+## Order
+
+Order the Curriculum by what each unit needs, so a learner can stop at the depth they need:
+
+- Within a Part, units run shallow to deep.
+- A deep unit sits in the Part of the topic it deepens, not in a Part about the mechanism underneath, so no two Parts need each other.
+- The Parts that need only the core come straight after it, ordered by how soon a practitioner reaches for them.
+- Each later Part comes after every Part it needs.
+- The overview's Ordering rationale names the Parts that open straight after the core, and says why the rest fall where they do.
+
 ## Units
 
 Goals, Generators, Prereqs, IDs and tags follow the Curriculum format's Subsection, IDs and Standard tags sections. On top of those:
 
-- Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a unit that needs more into several Subsections. Merge a unit too thin to carry its own Goal into its neighbour.
+- Size each Subsection to about 5–15 reasoning steps: the chain a learner follows from what they already hold to its Goal. Split a unit that needs more into several Subsections. Merge a unit too thin to carry its own Goal, such as the thin remainder of a split topic, into its neighbour.
+- When a topic has a core slice and a deeper remainder, split it into two Subsections, each titled for what it teaches and with its own Goal, the deep one listing the shallow one in Prereqs.
+- State core Goals at the model level, saying what a thing is and does, never how it's represented or implemented, so no later unit has to retract them.
 - Add a Synthesis Subsection wherever loose facts collapse into a structure, such as at the end of a Section.
 - Teaching material a textbook would put in an appendix becomes a Part tagged `Optional`. Reference material that teaches nothing, such as a coverage table, stays out of the Outline.
-- Keep Prereqs direct and backward-only, so the fill agents inherit a sound dependency graph.
+- A Prereq is a unit whose Goal this unit's Goal can't be reached without. Ask that of every Prereq you list, so each later Part opens as early as its content allows.
 - Fix the tag vocabulary now, because fill agents can't add tags.
 
 ## Notes
@@ -68,7 +91,8 @@ You're done when `outline.md.partial` is written and:
 - every Part has at least one Section and every Section at least one Subsection;
 - every Subsection has a Goal and a Prereqs Field, and every Prereq is an earlier Subsection's ID or another Curriculum's three-level ID, and no unit outside an Optional Part, Section or Subsection lists a unit inside one;
 - every tag used is defined in the tags doc;
-- the overview's Methodology states the primary-source standard and how the Target version was established.
+- the overview's Methodology states the primary-source standard and how the Target version was established;
+- the overview's Ordering rationale states the capability target sentence, where the core cut falls and the Parts that open straight after the core.
 
 Then, as your last step, rename `outline.md.partial` to `outline.md`. An `outline.md` tells the orchestrator you finished, so rename it only once every item above holds.
 

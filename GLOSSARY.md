@@ -11,6 +11,10 @@ _Avoid_: Session Map
 **Part**:
 A top-level portion of a Curriculum. Its doc lists its Sections.
 
+**Core**:
+The first Part of a Curriculum, holding what day-to-day practice of the subject needs; every later Part builds on it. It's marked only by its position, and it's drawn to a capability target that the overview's Ordering rationale states.
+_Avoid_: Tier, foundation Part
+
 **Section**:
 A portion of a Part. Its doc holds its Generators and lists its Subsections.
 
