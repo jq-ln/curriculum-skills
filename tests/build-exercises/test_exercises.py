@@ -452,6 +452,52 @@ class Gate(TempDirTestCase):
         self.assertEqual((result.returncode, result.stdout.splitlines()[-1]), (0, "Verdict: pass"), result.stdout)
 
 
+    def test_fails_a_case_whose_exit_code_disagrees_with_its_lines(self):
+        exercise, gen = self.generation(
+            [(0, lines("FAIL", "FAIL"))],
+            reference=(1, lines("PASS", "PASS")),
+        )
+        result = run("gate", exercise, gen)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertTrue(
+            result.stdout.endswith(
+                "\n"
+                "Broken: the starter exits 0 on runs 1, 2, 3 though a line failed\n"
+                "Broken: the reference exits 1 on runs 1, 2, 3 though every line passed\n"
+                "Verdict: fail\n"
+            ),
+            result.stdout,
+        )
+
+    def test_reports_a_declared_line_printed_without_its_measured_value(self):
+        exercise, gen = self.generation([(1, lines("FAIL", "FAIL"))], reference=(0, lines("PASS", "PASS")[:2] + [f"PASS {ERRORS}"]))
+        result = run("gate", exercise, gen)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertTrue(
+            result.stdout.endswith(
+                f"guard    PPP PPP PPP PPP  {ERRORS}\n"
+                "\n"
+                f"Broken: printed without a measured value in parentheses on the reference: {ERRORS}\n"
+                "Verdict: fail\n"
+            ),
+            result.stdout,
+        )
+
+    def test_runs_an_exercise_named_by_a_relative_path(self):
+        exercise, gen = self.generation([(1, lines("FAIL", "FAIL"))])
+        for path in (".", "sub/.."):
+            with self.subTest(path):
+                (exercise / "sub").mkdir(exist_ok=True)
+                result = run("gate", path, gen.resolve(), cwd=exercise)
+                self.assertEqual((result.returncode, result.stdout.endswith("Verdict: pass\n")), (0, True), result.stdout + result.stderr)
+
+    def test_stops_on_a_generation_directory_with_no_reference(self):
+        exercise, gen = self.generation([(1, lines("FAIL", "FAIL"))])
+        shutil.rmtree(gen / "reference")
+        result = run("gate", exercise, gen)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (1, "", "gate: the Reference solution has no directory reference/\n"))
+
+
 class FormatVersion(TempDirTestCase):
     def test_refuses_to_run_when_build_py_reads_another_format_version(self):
         skills = self.tmp / "skills"

@@ -192,6 +192,8 @@ def read_manifest(gen):
         raise BuildError(f"the Near-miss {missing[0]} has no directory under near-misses/")
     if untargeted := [text for text in outcomes if text not in manifest["near_misses"].values()]:
         raise BuildError(f"no Near-miss targets the outcome line {untargeted[0]!r}")
+    if not (gen / "reference").is_dir():
+        raise BuildError("the Reference solution has no directory reference/")
     return manifest
 
 
@@ -209,7 +211,7 @@ def run_case(exercise, swap):
     The copy keeps the Exercise directory untouched, whatever the Exercise check or the swap writes.
     """
     with tempfile.TemporaryDirectory() as tmp:
-        work = Path(tmp) / exercise.name
+        work = Path(tmp) / exercise.resolve().name  # resolved, since "." or ".." has no name of its own
         shutil.copytree(exercise, work, symlinks=True)
         if swap:
             shutil.copytree(swap, work, symlinks=True, dirs_exist_ok=True)
@@ -221,8 +223,9 @@ def run_case(exercise, swap):
 
 
 def statuses(stdout, texts):
-    """({text: "P" or "F"} for each automated line the run printed, [texts it printed that gate.json doesn't name])."""
-    found, undeclared = {}, []
+    """({text: "P" or "F"} for each automated line the run printed, [texts it printed that gate.json doesn't name],
+    [known texts it printed without a measured value])."""
+    found, undeclared, unmeasured = {}, [], []
     for line in stdout.splitlines():
         status, _, rest = line.partition(" ")
         if status not in STATUS:
@@ -232,9 +235,12 @@ def statuses(stdout, texts):
         matches = [text for text in texts if rest.startswith(text + " (") and rest.endswith(")")]
         if matches:
             found[max(matches, key=len)] = STATUS[status]
+        elif rest in texts:
+            found[rest] = STATUS[status]
+            unmeasured.append(rest)
         else:
             undeclared.append(rest.rpartition(" (")[0] or rest)
-    return found, undeclared
+    return found, undeclared, unmeasured
 
 
 def environment_problems(case, runs):
@@ -243,9 +249,28 @@ def environment_problems(case, runs):
     for code in sorted({code for code, _, _ in runs} - {0, 1}):
         numbers = [i for i, (c, _, _) in enumerate(runs, 1) if c == code]
         said = [line for line in runs[numbers[0] - 1][2].splitlines() if line.strip()]
-        which = f"run {numbers[0]}" if len(numbers) == 1 else "runs " + ", ".join(map(str, numbers))
-        out.append(f"Environment problem: {describe(case)} exits {code} on {which}" + (f": {said[-1]}" if said else ""))
+        out.append(f"Environment problem: {describe(case)} exits {code} on {which_runs(numbers)}" + (f": {said[-1]}" if said else ""))
     return out
+
+
+def exit_mismatches(case, runs, found):
+    """One line per exit code, 0 or 1, that the run's printed lines contradict, as exercise-format.md's exit table defines.
+
+    A learner reads the exit code alone, so an Exercise check exiting 0 on a failed line passes an unsolved Exercise.
+    """
+    out = []
+    for code, reason in ((0, "though a line failed"), (1, "though every line passed")):
+        numbers = [
+            i for i, ((c, _, _), lines) in enumerate(zip(runs, found), 1)
+            if c == code and lines and ("F" in lines.values()) == (code == 0)
+        ]
+        if numbers:
+            out.append(f"Broken: {describe(case)} exits {code} on {which_runs(numbers)} {reason}")
+    return out
+
+
+def which_runs(numbers):
+    return f"run {numbers[0]}" if len(numbers) == 1 else "runs " + ", ".join(map(str, numbers))
 
 
 def expected(line, case, manifest):
@@ -289,14 +314,17 @@ def gate(exercise, gen):
     manifest, cases = gate_cases(gen)
     automated = [line for line in manifest["lines"] if line["kind"] != "self-check"]
     texts = [line["text"] for line in automated]
-    results, environment, undeclared = {}, [], []
+    results, environment, case_problems = {}, [], []
     for name, swap in cases:
         runs = run_case(exercise, swap)
         # A run exiting other than 0 or 1 couldn't measure, so it holds no line's result.
-        measured = [statuses(out, texts) if code in (0, 1) else (None, []) for code, out, _ in runs]
-        results[name] = [found for found, _ in measured]
-        printed = dict.fromkeys(text for _, extra in measured for text in extra)
-        undeclared += [f"Broken: printed on {describe(name)} but not in gate.json: {text}" for text in printed]
+        measured = [statuses(out, texts) if code in (0, 1) else (None, [], []) for code, out, _ in runs]
+        results[name] = [found for found, _, _ in measured]
+        printed = dict.fromkeys(text for _, extra, _ in measured for text in extra)
+        bare = dict.fromkeys(text for _, _, unmeasured in measured for text in unmeasured)
+        case_problems += [f"Broken: printed without a measured value in parentheses on {describe(name)}: {text}" for text in bare]
+        case_problems += [f"Broken: printed on {describe(name)} but not in gate.json: {text}" for text in printed]
+        case_problems += exit_mismatches(name, runs, results[name])
         environment += environment_problems(name, runs)
     out = ["Cases: " + ", ".join(name for name, _ in cases)]
     width = max((len(line["kind"]) for line in automated), default=0) + 2
@@ -307,7 +335,7 @@ def gate(exercise, gen):
         out.append(f"{line['kind']:<{width}}{cells}  {line['text']}")
     out.append("")
     problems = [f"Broken: {reason}: {line['text']}" for line in automated for reason in broken(line, results, manifest)]
-    problems += undeclared
+    problems += case_problems
     out += environment + problems
     if environment:
         # Named apart from a line failure, so the author fixes the setup instead of revising lines.
