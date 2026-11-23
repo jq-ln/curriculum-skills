@@ -1264,5 +1264,76 @@ class Derive(TempDirTestCase):
         self.assertEqual({name: (doc_set / name).read_bytes() for name in tree(doc_set)}, before)
 
 
+class Dependants(TempDirTestCase):
+    COUNTS = (
+        f"3 GIT-01.01.01 {SUBSECTION_TITLE}\n"
+        "1 GIT-01.01.02 Refs\n"
+        "1 GIT-01.02.01 The index as a staging snapshot\n"
+        "0 GIT-02.01.01 Ancestry\n"
+        "0 GIT-03.01.01 cat-file\n"
+    )
+
+    def test_lists_each_subsection_of_a_draft_most_dependants_first(self):
+        result = run("dependants", DRAFT)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, self.COUNTS, ""))
+
+    def test_shows_a_units_fields_beside_its_dependants_goals(self):
+        result = run("dependants", DRAFT, "GIT-01.01.01")
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(
+            result.stdout,
+            f"# GIT-01.01.01 {SUBSECTION_TITLE}\n\n"
+            "## Goal\n\n"
+            "A commit pins a whole project state, because it names a tree whose hash covers every file below it.\n\n"
+            "## Foundations\n\n"
+            "- A cryptographic hash gives different content different names in practice.\n\n"
+            "## Scope\n\n"
+            "Blobs, trees and commits, how each names the next, and why changing one file changes the commit's hash. "
+            "Stops before tags and packfiles.\n\n"
+            "## Key concepts\n\n"
+            "object ID; blob; tree; commit\n\n"
+            "## Dependants\n\n"
+            "- GIT-01.01.02 Refs: A branch is a movable name for a commit, so moving it rewrites no object.\n"
+            "- GIT-01.02.01 The index as a staging snapshot: "
+            "The next commit's tree is built from the index, not from the working tree.\n"
+            "- GIT-03.01.01 cat-file: `git cat-file -p` prints any object by its ID, as checked against {2.46}.\n",
+        )
+        self.assertEqual(result.returncode, 0)
+
+    def test_shows_only_the_goal_of_a_unit_not_yet_filled(self):
+        draft = self.copy(DRAFT)
+        (draft / "part-03.md").unlink()
+        result = run("dependants", draft, "GIT-03.01.01")
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (
+                0,
+                "# GIT-03.01.01 cat-file\n\n"
+                "## Goal\n\n`git cat-file -p` prints any object by its ID, as checked against {2.46}.\n\n"
+                "## Dependants\n\nNone\n",
+                "",
+            ),
+        )
+
+    def test_stops_on_an_id_naming_no_subsection(self):
+        for token in ("GIT-01.01", "GIT-09.01.01", "refs"):
+            with self.subTest(token=token):
+                result = run("dependants", DRAFT, "GIT-01.01.02", token)
+                self.assertEqual(
+                    (result.returncode, result.stdout, result.stderr),
+                    (1, "", f"dependants: {token} names no Subsection\n"),
+                )
+
+    def test_lists_the_same_from_a_built_doc_set(self):
+        result = run("dependants", GOLDEN)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, self.COUNTS, ""))
+
+    def test_shows_a_built_doc_sets_links_as_their_text(self):
+        result = run("dependants", GOLDEN, "GIT-01.01.02")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Stops before history, which GIT-02.01.01 Ancestry covers.\n", result.stdout)
+        self.assertIn("## Dependants\n\n- GIT-02.01.01 Ancestry: A commit's history is every commit", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

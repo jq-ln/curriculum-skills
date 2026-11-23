@@ -5,6 +5,8 @@ Subcommands:
   split <draft-dir> <output-dir>  write the doc set from a Draft
   derive <doc-set-dir>            rewrite derived content and filenames in place
   check <doc-set-dir>             print one line per error; exit 1 if any
+  dependants <dir> [<id>...]      show each Subsection beside its dependants' Goals, from a
+                                  Draft or doc set; with no IDs, count each one's dependants
 
 Follows the curriculum format in ../references/curriculum-format.md, which this
 script never reads: FORMAT_VERSION and the rules below are kept in step with it,
@@ -1739,6 +1741,97 @@ def bullets_only(body):
     return all(re.match(r"[-+*] |[ \t]", line) or not line.strip() for line in body.split("\n"))
 
 
+# --- dependants --------------------------------------------------------------
+
+
+def draft_subsections(draft_dir):
+    """{UnitId: (title, {Field name: body})} for each Subsection of a Draft, its Fields merged across files."""
+    out = {}
+    for path, _, _ in draft_files(draft_dir):
+        try:
+            docs = split_draft(read(path))
+        except BuildError as e:
+            raise BuildError(f"{path.name}: {e}") from None
+        for doc in docs:
+            unit = split_unit_h1(doc.h1)
+            if unit and len(unit[0].levels) == 3:
+                _, fields = out.setdefault(unit[0], (unit[1], {}))
+                fields.update((b.name, b.body()) for b in doc.blocks)
+    return out
+
+
+def doc_set_subsections(root):
+    """{UnitId: (title, {Field name: body})} for each readable Subsection of a doc set."""
+    ds = load(root)
+    if not ds.code:
+        raise BuildError("\n".join(f"{n}: {m}" for n, m in ds.errors))
+    out = {}
+    for uid in ds.units:
+        if len(uid.levels) == 3:
+            out[uid] = (ds.title(uid), {b.name: b.body() for b in ds.doc(uid).blocks})
+    return out
+
+
+def subsections(root):
+    """A Draft's Subsections when root holds outline.md, else a doc set's."""
+    return draft_subsections(root) if (root / "outline.md").is_file() else doc_set_subsections(root)
+
+
+def direct_prereqs(fields):
+    """The UnitIds a Subsection's Prereqs Field names, from a Draft or a doc set."""
+    out = []
+    for entry in entries(fields.get("Prereqs", "")) or []:
+        words = entry_text(entry).split()
+        uid = parse_id(words[0]) if words else None
+        if uid:
+            out.append(uid)
+    return out
+
+
+def dependants(root):
+    """Each Subsection's dependants, by UnitId: the Subsections that list it directly in Prereqs, in ID order."""
+    units = subsections(Path(root))
+    out = {uid: [] for uid in units}
+    for uid in sorted(units, key=lambda u: u.levels):
+        for prereq in direct_prereqs(units[uid][1]):
+            if prereq in out and uid not in out[prereq]:
+                out[prereq].append(uid)
+    return units, out
+
+
+def dependant_counts(root):
+    units, deps = dependants(root)
+    ranked = sorted(units, key=lambda u: (-len(deps[u]), u.levels))
+    return "".join(f"{len(deps[uid])} {uid} {units[uid][0]}\n" for uid in ranked)
+
+
+# The Fields a unit's dependants' Goals can contradict, in the format's order.
+DEPENDANT_FIELDS = ["Goal", "Foundations", "Scope", "Key concepts"]
+
+
+def dependant_report(root, ids):
+    """Each unit's Goal, Foundations, Scope and Key concepts, then each dependant's ID, title and Goal.
+
+    Links are replaced by their text, so a Draft and the doc set built from it read alike.
+    """
+    units, deps = dependants(root)
+    for token in ids:
+        if parse_id(token) not in units:
+            raise BuildError(f"{token} names no Subsection")
+    reports = []
+    for token in ids:
+        uid = parse_id(token)
+        title, fields = units[uid]
+        out = [f"# {uid} {title}\n"]
+        for name in DEPENDANT_FIELDS:
+            if fields.get(name):
+                out.append(f"## {name}\n\n{strip_links(fields[name])}\n")
+        lines = [f"- {d} {units[d][0]}: {strip_links(one_line(units[d][1].get('Goal', '')))}" for d in deps[uid]]
+        out.append("## Dependants\n\n" + ("\n".join(lines) or "None") + "\n")
+        reports.append("\n".join(out))
+    return "\n".join(reports)
+
+
 # --- CLI ---------------------------------------------------------------------
 
 
@@ -1752,11 +1845,16 @@ def main(argv=None):
     p.add_argument("doc_set_dir")
     p = sub.add_parser("check", help="print one line per error; exit 1 if any")
     p.add_argument("doc_set_dir")
+    p = sub.add_parser("dependants", help="show units beside the Goals of the units that list them in Prereqs")
+    p.add_argument("dir")
+    p.add_argument("ids", nargs="*")
     args = parser.parse_args(argv)
 
     try:
         if args.command == "split":
             split(args.draft_dir, args.output_dir)
+        elif args.command == "dependants":
+            sys.stdout.write(dependant_report(args.dir, args.ids) if args.ids else dependant_counts(args.dir))
         elif args.command == "derive":
             derive(args.doc_set_dir)
         else:
