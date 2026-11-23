@@ -96,6 +96,10 @@ _Avoid_: Answer key, model solution
 A solution the solver writes to fail one Done-when outcome the way a learner plausibly would, so the Exercise check's line for that outcome can be shown to fail. It never ships with the Exercise.
 _Avoid_: Mutant, wrong answer
 
+**Generation directory**:
+The temporary directory where `build-exercises` builds one Exercise, with its Reference solution, Near-misses and gate manifest beside it. Only the shipped files move into the Practice workspace, once the Exercise check passes the gate.
+_Avoid_: Scratch directory, build directory
+
 **Domain reference**:
 The swappable part of `build-exercises` for one subject's environment: a `domain.md` the prompts read and an `assets/` tree copied into each Exercise, chosen by its Applies-to line.
 _Avoid_: Plugin, adapter, backend

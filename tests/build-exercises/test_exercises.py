@@ -1,4 +1,4 @@
-"""Tests for skills/build-exercises/scripts/exercises.py, driven only through its CLI."""
+"""Tests for skills/build-exercises/scripts/exercises.py, driven only through its CLI, and for the Domain references it reads."""
 
 import os
 import re
@@ -176,6 +176,10 @@ class DomainReferences(unittest.TestCase):
         text = (DOMAINS / "toy" / "domain.md").read_text(encoding="utf-8")
         swapped = text.replace("### Harness", "### HOLD").replace("### Check lines", "### Harness").replace("### HOLD", "### Check lines")
         self.assertEqual(len(domain_md_errors(swapped)), 1)
+        self.assertTrue(domain_md_errors(swapped)[0].startswith("has headings "), domain_md_errors(swapped))
+
+    def test_the_heading_check_catches_a_missing_applies_to_line(self):
+        text = (DOMAINS / "toy" / "domain.md").read_text(encoding="utf-8")
         self.assertEqual(domain_md_errors(text.replace("Applies to: ", "For: ")), ["the line after the H1 isn't an Applies to: line"])
 
 
@@ -210,6 +214,15 @@ class Assets(TempDirTestCase):
                 self.assertEqual((gen / rel).read_bytes(), (source / rel).read_bytes())
         self.assertIn(b"\xff{{exercise_name}}\xfe", (gen / "icon.png").read_bytes())  # left unfilled: not a template
 
+    def test_keeps_a_templates_line_endings_and_mirrors_empty_directories(self):
+        shutil.copytree(DOMAINS / "toy", self.tmp / "domains" / "toy")
+        assets = self.tmp / "domains" / "toy" / "assets"
+        (assets / "run.bat.tmpl").write_bytes(b"echo {{exercise_name}}\r\nexit\r\n")
+        (assets / "levels").mkdir()
+        self.assertEqual(self.assets("GIT-01.02.01-03-stage-a-file", domains=self.tmp / "domains").returncode, 0)
+        self.assertEqual((self.tmp / "gen" / "run.bat").read_bytes(), b"echo GIT-01.02.01-03-stage-a-file\r\nexit\r\n")
+        self.assertTrue((self.tmp / "gen" / "levels").is_dir())
+
     def test_keeps_a_templates_mode_so_check_sh_stays_executable(self):
         self.assertEqual(self.assets("GIT-01.02.01-03-stage-a-file").returncode, 0)
         self.assertTrue(os.access(self.tmp / "gen" / "check.sh", os.X_OK))
@@ -235,8 +248,8 @@ class Assets(TempDirTestCase):
         cases = [
             ("toy", "GIT-01.02.01-stage-a-file", "assets: GIT-01.02.01-stage-a-file isn't an Exercise name, <ID>-<NN>-<slug>\n"),
             ("toy", "GIT-01.02.09-01-stage-a-file", "assets: GIT-01.02.09 names no Subsection in git\n"),
-            ("rust", "GIT-01.02.01-03-stage-a-file", f"assets: no domain reference rust in {DOMAINS}; found: toy\n"),
-            ("toy", "GIT-01.02.01-03-stage-a-file", f"assets: {self.tmp / 'gen'} isn't an empty directory; assets fills a fresh generation directory\n"),
+            ("rust", "GIT-01.02.01-03-stage-a-file", f"assets: no Domain reference rust in {DOMAINS}; found: toy\n"),
+            ("toy", "GIT-01.02.01-03-stage-a-file", f"assets: {self.tmp / 'gen'} isn't an empty directory; assets fills a fresh Generation directory\n"),
         ]
         for domain, name, message in cases:
             with self.subTest(message):
@@ -250,7 +263,7 @@ class Assets(TempDirTestCase):
         result = self.assets("GIT-01.02.01-03-stage-a-file", domains=self.tmp / "domains")
         self.assertEqual(
             (result.returncode, result.stdout, result.stderr),
-            (1, "", "assets: toy: assets/check.sh.tmpl is missing; every domain reference needs it\n"),
+            (1, "", "assets: toy: assets/check.sh.tmpl is missing; every Domain reference needs it\n"),
         )
 
 

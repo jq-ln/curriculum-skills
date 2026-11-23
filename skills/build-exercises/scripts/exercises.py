@@ -4,7 +4,7 @@
 Subcommands:
   context <ID> [--curriculums <dir>]  print the Subsection and its Prereq closure
   assets <domain> <gen-dir> --exercise-name <ID>-<NN>-<slug> [--curriculums <dir>] [--domains <dir>]
-                                      fill a domain reference's assets/ into a generation directory
+                                      fill a Domain reference's assets/ into a Generation directory
 
 Reads doc sets through build-curriculum's build.py, so both skills parse a
 Curriculum one way. FORMAT_VERSION is kept in step with ../references/curriculum-format.md,
@@ -32,7 +32,7 @@ LINKS_KEPT = {"Sources"}
 DOMAINS = Path(__file__).resolve().parents[1] / "references" / "domains"
 TEMPLATE_SUFFIX = ".tmpl"
 PLACEHOLDER_RE = re.compile(r"\{\{(.*?)\}\}")
-EXERCISE_NAME_RE = re.compile(rf"(?P<id>{build.CODE}-[0-9.]+)-(?P<nn>[0-9]{{2,}})-(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)")
+EXERCISE_NAME_RE = re.compile(rf"(?P<id>{build.CODE}-[0-9.]+)-[0-9]{{2,}}-[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
 # --- Finding Curriculums -----------------------------------------------------
@@ -68,7 +68,7 @@ def subsections_by_code(directory):
 
 
 def anchor_units(directory, token):
-    """(UnitId, {UnitId: Unit}) for the anchor's Curriculum. Raises BuildError when the anchor can't be read."""
+    """(UnitId, {UnitId: Unit}, its Curriculum's directory). Raises BuildError when the anchor can't be read."""
     uid = build.parse_id(token)
     if not uid:
         raise BuildError(f"{token} isn't an ID")
@@ -80,7 +80,7 @@ def anchor_units(directory, token):
     units = build.doc_set_subsections(root)  # its errors are printed in full: this run can't go on without them fixed
     if uid not in units:
         raise BuildError(f"{token} names no Subsection in {root.name}")
-    return uid, units
+    return uid, units, root
 
 
 # --- context -----------------------------------------------------------------
@@ -107,7 +107,7 @@ def closure(anchor, units, find):
 
 def context(directory, token):
     """The anchor's Fields, then its Prereq closure, own code first, each in ID order."""
-    anchor, units = anchor_units(directory, token)
+    anchor, units, _ = anchor_units(directory, token)
     unit = units[anchor]
     out = [f"# {anchor} {unit.title}\n"]
     for name, body in unit.fields.items():
@@ -141,7 +141,7 @@ def target_version(root):
 def fill(path, rel, values):
     """A template's text with each placeholder filled. Raises BuildError on any placeholder not in values."""
     try:
-        text = path.read_text(encoding="utf-8")
+        text = path.read_bytes().decode("utf-8")  # bytes, so CRLF line endings survive filling
     except UnicodeDecodeError:
         raise BuildError(f"{rel}: a template must be UTF-8 text")
     for n, line in enumerate(text.split("\n"), 1):
@@ -160,19 +160,17 @@ def assets(domains, domain, gen_dir, exercise_name, directory):
     m = EXERCISE_NAME_RE.fullmatch(exercise_name)
     if not m:
         raise BuildError(f"{exercise_name} isn't an Exercise name, <ID>-<NN>-<slug>")
-    uid, _ = anchor_units(directory, m.group("id"))
-    root = curriculum_dir(directory, uid.code)
+    _, _, root = anchor_units(directory, m.group("id"))
     values = {"target_version": target_version(root), "exercise_name": exercise_name}
 
-    source = Path(domains) / domain / "assets"
+    source = domains / domain / "assets"
     if not source.is_dir():
-        found = sorted(d.name for d in Path(domains).iterdir() if (d / "assets").is_dir()) if Path(domains).is_dir() else []
-        raise BuildError(f"no domain reference {domain} in {Path(domains).resolve()}; found: {', '.join(found) or 'none'}")
+        found = sorted(d.name for d in domains.iterdir() if (d / "assets").is_dir()) if domains.is_dir() else []
+        raise BuildError(f"no Domain reference {domain} in {domains.resolve()}; found: {', '.join(found) or 'none'}")
     if not (source / f"check.sh{TEMPLATE_SUFFIX}").is_file():
-        raise BuildError(f"{domain}: assets/check.sh{TEMPLATE_SUFFIX} is missing; every domain reference needs it")
-    gen_dir = Path(gen_dir)
+        raise BuildError(f"{domain}: assets/check.sh{TEMPLATE_SUFFIX} is missing; every Domain reference needs it")
     if gen_dir.exists() and (not gen_dir.is_dir() or any(gen_dir.iterdir())):
-        raise BuildError(f"{gen_dir} isn't an empty directory; assets fills a fresh generation directory")
+        raise BuildError(f"{gen_dir} isn't an empty directory; assets fills a fresh Generation directory")
 
     planned = {}  # destination, relative to gen_dir -> (source file, filled text or None for a byte-for-byte copy)
     for path in sorted(p for p in source.rglob("*") if p.is_file()):
@@ -185,13 +183,15 @@ def assets(domains, domain, gen_dir, exercise_name, directory):
             raise BuildError(f"{rel}: fills {dest}, which {planned[dest][0].relative_to(source)} also writes")
         planned[dest] = (path, content)
 
+    for rel in sorted(p.relative_to(source) for p in source.rglob("*") if p.is_dir()):
+        (gen_dir / rel).mkdir(parents=True, exist_ok=True)  # an empty directory may be where a starter's files go
     for dest, (path, content) in planned.items():
         out = gen_dir / dest
         out.parent.mkdir(parents=True, exist_ok=True)
         if content is None:
             shutil.copyfile(path, out)
         else:
-            out.write_text(content, encoding="utf-8", newline="")
+            out.write_bytes(content.encode("utf-8"))
         shutil.copymode(path, out)  # keeps check.sh executable
     return sorted(planned, key=lambda p: p.as_posix())  # as `LC_ALL=C sort` orders them
 
@@ -212,12 +212,12 @@ def main(argv=None):
     p = sub.add_parser("context", help="print the Subsection and its Prereq closure")
     p.add_argument("id")
     p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
-    p = sub.add_parser("assets", help="fill a domain reference's assets/ into a generation directory")
+    p = sub.add_parser("assets", help="fill a Domain reference's assets/ into a Generation directory")
     p.add_argument("domain")
     p.add_argument("gen_dir")
     p.add_argument("--exercise-name", required=True, help="<ID>-<NN>-<slug>, filled as {{exercise_name}}")
     p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
-    p.add_argument("--domains", default=DOMAINS, help="the directory holding the domain references (default: the skill's)")
+    p.add_argument("--domains", default=DOMAINS, help="the directory holding the Domain references (default: the skill's)")
     args = parser.parse_args(argv)
 
     try:

@@ -1,12 +1,12 @@
 # Domain reference contract
 
-What a domain author writes so `build-exercises` can build Exercises in a new subject's environment. A [Domain reference](../GLOSSARY.md#exercises) is the only part of the skill that knows a subject's tool; the core, `exercises.py` and the prompts, stays domain-neutral, so adding a domain touches no core code. Godot is the worked example throughout.
+What a domain author writes so `build-exercises` can build Exercises in a new subject's environment. A [Domain reference](../GLOSSARY.md#exercises) is the only part of the skill that knows a subject's tool; the rest of the skill, `exercises.py` and the prompts, stays domain-neutral, so adding a domain touches no other code. Godot is the worked example throughout.
 
-There's no contract version. Every domain ships with the core in one plugin, so a PR that changes this contract updates every domain reference with it.
+There's no contract version. Every domain ships with the rest of the skill in one plugin, so a PR that changes this contract updates every Domain reference with it.
 
 ## Layout
 
-A domain reference is one directory in the skill, named for the domain in kebab-case:
+A Domain reference is one directory in the skill, named for the domain in kebab-case:
 
 ```text
 skills/build-exercises/references/domains/<domain>/
@@ -60,7 +60,7 @@ What it takes to run the subject's tool and lay out a project in it. Both subage
 - **Tool**: what must be on PATH, how to check it's there, the version command, and how to compare its output with the Curriculum's Target version. Godot: `godot` on PATH; `godot --version` prints `4.7.2.stable.arch_linux`, which matches a Target version that is a dotted prefix of it, such as `4.7.2` or `4.7`.
 - **Self-contained**: what one Exercise is in the tool, so that nothing in one Exercise can break another. Godot: one Godot project per Exercise, because `class_name` globals, autoloads and the input map are project-wide.
 - **Project layout**: the file types, where given code and learner code go, and the `Your code goes here.` marker's comment syntax for each file type. Godot: scenes are `.tscn` and scripts `.gd` at the project root; the marker is `# Your code goes here.` in `.gd` files.
-- **Building the starter**: ways to produce starter files that are hard to write as text, or `None.` Only their output ships. Godot: authoring-time scripts run with `godot --headless -s` in the generation directory, such as one that builds rotated level geometry and saves it as a `.tscn`.
+- **Building the starter**: ways to produce starter files that are hard to write as text, or `None.` Only their output ships. Godot: authoring-time scripts run with `godot --headless -s` in the Generation directory, such as one that builds rotated level geometry and saves it as a `.tscn`.
 
 ### Checking
 
@@ -80,9 +80,9 @@ How the Exercise check measures. Only the author subagent gets this section, so 
 
 ## assets/
 
-`exercises.py assets <domain> <gen-dir> --exercise-name <ID>-<NN>-<slug>` copies `assets/` into a fresh generation directory, mirroring its paths, hidden files included:
+`exercises.py assets <domain> <gen-dir> --exercise-name <ID>-<NN>-<slug>` copies `assets/` into a fresh [Generation directory](../GLOSSARY.md#exercises), mirroring its paths, hidden files and empty directories included:
 
-- A file whose name ends `.tmpl` is a template. It's read as UTF-8, filled, and written without the suffix, keeping its file mode, so `check.sh.tmpl` becomes an executable `check.sh`.
+- A file whose name ends `.tmpl` is a template. It's read as UTF-8, filled, and written without the suffix, keeping its line endings and file mode, so `check.sh.tmpl` becomes an executable `check.sh`.
 - Every other file is copied byte for byte, so binaries, and text that happens to hold `{{`, are safe.
 
 A template may use exactly two placeholders:
@@ -94,7 +94,12 @@ A template may use exactly two placeholders:
 
 Any other `{{...}}` in a template is an error naming the file and line, and `assets` writes nothing, so a typo fails before the author starts.
 
-`check.sh.tmpl` is the only required asset. It becomes the Exercise check's one command, whose contract the gate relies on unchanged for every domain: it warns on a version mismatch and still runs; each automated line prints `PASS` or `FAIL`, the bullet and the measured value; Self-check bullets print last under `CHECK YOURSELF` and don't affect the exit code; it exits 0 when every automated line passes, 1 when one fails, and 2 for an environment problem such as a missing tool. A runtime error in learner code fails a guard line rather than exiting 2.
+`check.sh.tmpl` is the only required asset. It becomes the Exercise check's one command. Before an Exercise ships, `exercises.py gate` runs that command on the starter, the Reference solution and each Near-miss, relying only on this contract, so it works for every domain unchanged:
+
+- On a version mismatch with `{{target_version}}`, it warns and still runs.
+- Each automated line prints `PASS` or `FAIL`, the bullet and the measured value.
+- Self-check bullets print last, under `CHECK YOURSELF`, and don't affect the exit code.
+- It exits 0 when every automated line passes, 1 when one fails, and 2 for an environment problem such as a missing tool. A runtime error in learner code fails a guard line rather than exiting 2.
 
 The Godot domain's `assets/`:
 
