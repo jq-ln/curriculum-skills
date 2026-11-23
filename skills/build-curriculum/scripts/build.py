@@ -1756,13 +1756,18 @@ def draft_subsections(draft_dir):
     """{UnitId: Unit} for each Subsection of the Outline, with the Fields of a part file whose H1 matches.
 
     Lenient where split isn't, so fill agents can run it on a Draft that's part filled.
+    A part file that doesn't parse is skipped with a warning: every Goal comes from the
+    Outline, so one malformed file doesn't stop the agents filling the others.
     """
     out = {}
     for path, part, _ in draft_files(draft_dir):
         try:
             docs = split_draft(read(path))
         except BuildError as e:
-            raise BuildError(f"{path.name}: {e}") from None
+            if part is None:
+                raise BuildError(f"{path.name}: {e}") from None
+            print(f"dependants: {path.name}: {e}; its units show only their Goal", file=sys.stderr)
+            continue
         for doc in docs:
             unit = split_unit_h1(doc.h1)
             if not unit or len(unit[0].levels) != 3:

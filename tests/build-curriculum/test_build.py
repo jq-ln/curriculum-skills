@@ -1322,6 +1322,16 @@ class Dependants(TempDirTestCase):
                     (1, "", f"dependants: {token} names no Subsection\n"),
                 )
 
+    def test_warns_of_a_part_file_it_cant_read_and_shows_its_units_goals(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "part-01.md", "# GIT-01.01.01", "Stray text.\n\n# GIT-01.01.01")
+        result = run("dependants", draft)
+        warning = "dependants: part-01.md: doesn't start with an H1; its units show only their Goal\n"
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, self.COUNTS, warning))
+        result = run("dependants", draft, "GIT-01.01.02")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("## Scope", result.stdout)
+
     def test_stops_on_a_subsection_the_outline_holds_twice(self):
         draft = self.copy(DRAFT)
         replace(draft / "outline.md", "# GIT-01.02.01 The index as a staging snapshot", "# GIT-01.01.02 Refs")
