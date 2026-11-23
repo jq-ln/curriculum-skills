@@ -1,5 +1,6 @@
 """Tests for skills/build-exercises/scripts/exercises.py, driven only through its CLI."""
 
+import os
 import shutil
 import subprocess
 import sys
@@ -24,8 +25,9 @@ def run(*args, cwd=None, script=SCRIPT):
     )
 
 
-def golden(name):
-    return (GOLDEN / f"{name}.txt").read_text(encoding="utf-8")
+def golden(name, curriculums=CURRICULUMS):
+    """The golden output, with {curriculums} standing for the resolved Curriculums directory the run searched."""
+    return (GOLDEN / f"{name}.txt").read_text(encoding="utf-8").replace("{curriculums}", str(Path(curriculums).resolve()))
 
 
 class TempDirTestCase(unittest.TestCase):
@@ -49,7 +51,7 @@ class Context(TempDirTestCase):
     def test_reports_a_prereq_whose_curriculum_is_missing_and_carries_on(self):
         shutil.copytree(CURRICULUMS / "git", self.tmp / "git")
         result = run("context", "GIT-02.01.01", "--curriculums", self.tmp)
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, golden("missing"), ""))
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, golden("missing", self.tmp), ""))
 
     def test_reads_the_curriculums_in_the_working_directory_by_default(self):
         result = run("context", "GIT-01.02.01", cwd=CURRICULUMS)
@@ -64,7 +66,7 @@ class Context(TempDirTestCase):
         self.assertTrue(
             result.stdout.endswith(
                 "## MATH-03.01.02\n\n"
-                "Unresolved: several Curriculums in the Curriculums directory have code MATH: math, math-old\n"
+                f"Unresolved: several Curriculums in {self.tmp.resolve()} have code MATH: math, math-old\n"
             ),
             result.stdout,
         )
@@ -73,6 +75,19 @@ class Context(TempDirTestCase):
         for name in ("git", "math"):
             shutil.copytree(CURRICULUMS / name, self.tmp / name)
         (self.tmp / "math" / ".marksman.toml").unlink()
+        result = run("context", "GIT-02.01.01", "--curriculums", self.tmp)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(
+            result.stdout.endswith("## MATH-03.01.02\n\nUnresolved: MATH doesn't load; run build.py check on math\n"),
+            result.stdout,
+        )
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root reads a file whatever its mode")
+    def test_reports_a_prereq_whose_curriculum_has_an_unreadable_file(self):
+        for name in ("git", "math"):
+            shutil.copytree(CURRICULUMS / name, self.tmp / name)
+        unreadable = next((self.tmp / "math").glob("MATH-03.01.01-*.md"))
+        unreadable.chmod(0)
         result = run("context", "GIT-02.01.01", "--curriculums", self.tmp)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(
@@ -103,7 +118,7 @@ class Context(TempDirTestCase):
         result = run("context", "RUST-01.01.01", "--curriculums", CURRICULUMS)
         self.assertEqual(
             (result.returncode, result.stdout, result.stderr),
-            (1, "", "context: no Curriculum in the Curriculums directory has code RUST\n"),
+            (1, "", f"context: no Curriculum in {CURRICULUMS} has code RUST\n"),
         )
 
     def test_stops_when_the_anchors_curriculum_doesnt_load(self):

@@ -75,4 +75,4 @@ The index file, how `git add` updates it, and how `git commit` writes a tree fro
 
 ## MATH-03.01.02
 
-Unresolved: no Curriculum in the Curriculums directory has code MATH
+Unresolved: no Curriculum in {curriculums} has code MATH

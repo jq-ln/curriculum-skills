@@ -32,11 +32,12 @@ LINKS_KEPT = {"Sources"}
 def curriculum_dir(directory, code):
     """The one Curriculum in directory with this code, or a string saying why there isn't one."""
     matches = build.curricula_with_code(directory, code)
+    searched = Path(directory).resolve()  # named in full, because running from inside a Curriculum is the likely mistake
     if not matches:
-        return f"no Curriculum in the Curriculums directory has code {code}"
+        return f"no Curriculum in {searched} has code {code}"
     if len(matches) > 1:
         names = ", ".join(d.name for d in matches)
-        return f"several Curriculums in the Curriculums directory have code {code}: {names}"
+        return f"several Curriculums in {searched} have code {code}: {names}"
     return matches[0]
 
 
@@ -50,7 +51,7 @@ def subsections_by_code(directory):
             if isinstance(found[code], Path):
                 try:
                     found[code] = build.doc_set_subsections(found[code])
-                except BuildError:
+                except (BuildError, OSError):
                     found[code] = f"{code} doesn't load; run build.py check on {found[code].name}"
         return found[code]
 
