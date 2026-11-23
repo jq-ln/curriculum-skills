@@ -32,6 +32,10 @@ When touching releases (the Release PR, `CHANGELOG.md`, `version.txt`, or the re
 
 When a check fails on a PR, or before you edit a workflow, read `docs/workflow/ci.md`.
 
+## Domain references
+
+When adding or changing a Domain reference under `skills/build-exercises/references/domains/`, read `docs/domain-reference.md`.
+
 ## Glossary and ADRs
 
 When naming a domain concept in an issue, PR, test or code, editing `GLOSSARY.md` or `docs/adr/`, or changing code or docs in an area an ADR in `docs/adr/` covers, read `docs/workflow/domain.md`.
