@@ -11,10 +11,6 @@ _Avoid_: Session Map
 **Part**:
 A top-level portion of a Curriculum. Its doc lists its Sections.
 
-**Needs**:
-The derived Part Field listing the other Parts of the Curriculum its Subsections' Prereqs land in. The index's Parts table repeats it as a column.
-_Avoid_: Part Prereqs
-
 **Section**:
 A portion of a Part. Its doc holds its Generators and lists its Subsections.
 
@@ -34,6 +30,10 @@ _Avoid_: Click
 
 **Context**:
 The derived Field that copies a Subsection's surrounding facts into it: the Curriculum's name and code, Target version, Snapshot, Part, Section and the Section's Generators.
+
+**Needs**:
+The derived Part Field listing the other Parts of the Curriculum its Subsections' Prereqs land in. The index's Parts table repeats it as a column.
+_Avoid_: Part Prereqs
 
 **Appendix**:
 An optional, repeatable doc of non-teaching reference material, named `<CODE>-appendix-<description>.md`. It never holds Subsections: teaching material that would go in an appendix becomes a Part tagged Optional.
