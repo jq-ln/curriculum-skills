@@ -1332,6 +1332,19 @@ class Dependants(TempDirTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("## Scope", result.stdout)
 
+    def test_ignores_a_field_the_outline_fixes_in_a_part_file(self):
+        draft = self.copy(DRAFT)
+        replace(draft / "part-03.md", "# GIT-03.01.01 cat-file\n", "# GIT-03.01.01 cat-file\n\n## Prereqs\n\n- GIT-02.01.01\n")
+        result = run("dependants", draft)
+        warning = "dependants: part-03.md: GIT-03.01.01: Prereqs is fixed by outline.md; ignored\n"
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, self.COUNTS, warning))
+
+    def test_skips_appendices(self):
+        draft = self.copy(DRAFT)
+        (draft / "appendix-stray.md").write_text("Stray text.\n\n# GIT-09.01.01 Stray\n")
+        result = run("dependants", draft)
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, self.COUNTS, ""))
+
     def test_stops_on_a_subsection_the_outline_holds_twice(self):
         draft = self.copy(DRAFT)
         replace(draft / "outline.md", "# GIT-01.02.01 The index as a staging snapshot", "# GIT-01.01.02 Refs")

@@ -1756,11 +1756,14 @@ def draft_subsections(draft_dir):
     """{UnitId: Unit} for each Subsection of the Outline, with the Fields of a part file whose H1 matches.
 
     Lenient where split isn't, so fill agents can run it on a Draft that's part filled.
-    A part file that doesn't parse is skipped with a warning: every Goal comes from the
-    Outline, so one malformed file doesn't stop the agents filling the others.
+    A part file that doesn't parse is skipped with a warning, and so is a Field the Outline
+    fixes: every Goal and Prereq comes from the Outline, so one malformed file doesn't skew
+    the view of the agents filling the others.
     """
     out = {}
-    for path, part, _ in draft_files(draft_dir):
+    for path, part, appendix in draft_files(draft_dir):
+        if appendix:
+            continue  # no Subsection lives in an Appendix
         try:
             docs = split_draft(read(path))
         except BuildError as e:
@@ -1779,7 +1782,11 @@ def draft_subsections(draft_dir):
                 out[uid] = Unit(title, {})
             elif uid not in out or out[uid].title != title:
                 continue  # split reports a part file's unit the Outline lacks
-            out[uid].fields.update((b.name, b.body()) for b in doc.blocks)
+            for b in doc.blocks:
+                if part is not None and b.name in OUTLINE_FIELDS:
+                    print(f"dependants: {path.name}: {uid}: {b.name} is fixed by outline.md; ignored", file=sys.stderr)
+                    continue
+                out[uid].fields[b.name] = b.body()
     return out
 
 
