@@ -130,7 +130,7 @@ class Context(TempDirTestCase):
 
 class Existing(TempDirTestCase):
     def workspace(self, *names):
-        """A Practice workspace in the temp dir holding an Exercise directory for each <CODE>/<name>."""
+        """A Practice workspace in the temp dir holding an Exercise at each <CODE>/<name>."""
         practice = self.tmp / "practice"
         practice.mkdir()
         for name in names:

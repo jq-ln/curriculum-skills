@@ -133,19 +133,19 @@ def context(directory, token):
 
 
 def existing(practice, token):
-    """The anchor's Exercise directories in name order, then the next <NN>."""
+    """The anchor's Exercises, lowest <NN> first, then the next <NN>."""
     uid = subsection_id(token)
-    name = re.compile(rf"{re.escape(token)}-([0-9]{{2,}})-.+")
+    exercise = re.compile(rf"{re.escape(str(uid))}-([0-9]{{2,}})-.+")
     code_dir = Path(practice) / uid.code
-    found = {}
+    numbers = {}
     if code_dir.is_dir():
         for d in code_dir.iterdir():
-            m = name.fullmatch(d.name)
+            m = exercise.fullmatch(d.name)
             if m and d.is_dir():
-                found[d.name] = int(m[1])
+                numbers[d.name] = int(m[1])
     # The highest plus one, never a gap's number, so a deleted Exercise's number isn't reused.
-    after = max(found.values(), default=0) + 1
-    return "\n".join(sorted(found, key=found.get) or ["None"]) + f"\nNext: {after:02d}\n"
+    next_nn = max(numbers.values(), default=0) + 1
+    return "\n".join(sorted(numbers, key=numbers.get) or ["None"]) + f"\nNext: {next_nn:02d}\n"
 
 
 # --- CLI ---------------------------------------------------------------------

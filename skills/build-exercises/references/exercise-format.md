@@ -69,7 +69,7 @@ Each PASS means that bullet's outcome held when measured, as the line prints. Yo
 `hints/` holds three hints, each more direct than the last. Open `hints/1.md` first, and the next only if you're still stuck.
 ````
 
-- **Anchor record**: the four bullets under the H1, in that order, before anything else. Curriculum is the anchor's code, Anchor its ID, and Anchor title its title as the Subsection's H1 has it when the Exercise is written. Target version is the Curriculum's Target version; leave the line out when the Curriculum has none. The record keeps the Exercise traceable after the Curriculum changes.
+- **Anchor record**: the four bullets under the H1, in that order, before anything else. Curriculum is the anchor's code, Anchor its ID, and Anchor title the Subsection's title, the text after the ID in its H1, as it reads when the Exercise is written. Target version is the Curriculum's Target version; leave the line out when the Curriculum has none. The record keeps the Exercise traceable after the Curriculum changes.
 - **Task** states the outcome, not the steps to it: the route is the learner's. An outcome the anchor's Goal names, including a method such as "moves only on physics ticks", is the outcome the Task sets.
 - **Done when** maps one to one onto the Exercise check's lines, in the order the check prints them: each automated bullet is exactly one outcome line, and each Self-check bullet is exactly one line under `CHECK YOURSELF`. A Self-check bullet ends with **(check by eye)** and names a concrete run and what to see, such as "Run `main.tscn` and press F5: the colony reappears where it was. **(check by eye)**". Guard lines, such as "no script errors", have no bullet.
 - **Given** says what stays as given, so the learner spends their effort on the anchor's material.
@@ -90,9 +90,9 @@ The hints are hidden by convention: the learner opens them only when stuck.
 
 ### The Exercise check
 
-`check.sh` is the Exercise check's one command. The learner runs it from the Exercise directory with no arguments. It runs the domain's tool headless and measures what the learner's code does, never its source text, so a valid route written differently still passes. It records nothing.
+`check.sh` is the Exercise check's one command. The learner runs it with no arguments from the folder `EXERCISE.md` is in. It runs the domain's tool headless and measures what the learner's code does, never its source text, so a valid route written differently still passes. It records nothing.
 
-When the installed tool's version differs from the record's Target version, it prints a warning and runs anyway.
+When the installed tool's version differs from the Curriculum's Target version, filled in when the Exercise is written, it prints a warning and runs anyway. With no Target version, it compares nothing.
 
 It prints, in this order:
 
@@ -106,7 +106,7 @@ It prints, in this order:
 
 2. When the Exercise has Self-check bullets, the line `CHECK YOURSELF`, then one line per Self-check bullet: `-`, a space, and its text as Done when has it, without **(check by eye)**.
 
-Other lines, such as section headings and a summary, may appear among them, as long as none starts with `PASS` or `FAIL` and a space, and none after `CHECK YOURSELF` starts with `-` and a space.
+The Self-check lines are the last lines printed. Other lines, such as section headings and a summary, may come before `CHECK YOURSELF`, as long as none starts with `PASS` or `FAIL` and a space.
 
 Its exit code:
 
@@ -154,4 +154,4 @@ near-misses/<name>/      one directory per Near-miss
   - `outcome`: an automated line for a Done-when bullet. The gate holds it to four rules: it fails on the starter, passes on the Reference solution, fails on each Near-miss targeting it, and gives the same result on every rerun of a case.
   - `guard`: an automated line with no bullet, which catches accidents such as a script error or a changed given file. The gate doesn't hold it to the four rules.
   - `self-check`: a Self-check bullet, printed under `CHECK YOURSELF`. The gate doesn't run it.
-- **`near_misses`** maps each Near-miss's `<name>` to the `text` of the one `outcome` line it targets. Every directory under `near-misses/` has an entry, and every entry has a directory.
+- **`near_misses`** maps each Near-miss's `<name>` to the `text` of the one `outcome` line it targets. Every `outcome` line is targeted by at least one Near-miss. Every directory under `near-misses/` has an entry, and every entry has a directory.
