@@ -7,7 +7,7 @@
 
 ## Task
 
-Open this folder as a project in Godot and run `main.tscn`. A small colony appears: villagers (capsules) and fields (flat boxes) under `World`, plus a few rocks for decoration. While it runs, F2 scrambles the colony: villagers move, get hungrier and drop wheat, fields reset, one villager leaves and a newcomer arrives. F5 calls `save_game()` and F9 calls `load_game()`, and both are empty.
+Open this folder as a project in Godot and run `main.tscn`. A small colony appears: villagers (capsules) and fields (flat boxes) under `World`, plus a few rocks for decoration. While it runs, F2 scrambles the colony: villagers move, get hungrier and pick up wheat, fields reset, a field and a villager disappear and a newcomer arrives. F5 calls `save_game()` and F9 calls `load_game()`, and both are empty.
 
 Make F5 save the colony to `user://savegame.save` and F9 bring back exactly the colony that was saved, using the save pattern from the manual. Write your code in `main.gd`, `villager.gd` and `field.gd`, where they say `# Your code goes here.`
 

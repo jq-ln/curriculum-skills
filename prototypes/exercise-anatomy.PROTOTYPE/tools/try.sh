@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs an Exercise's check with reference files swapped in, then restores the starter.
+# Runs an Exercise's check on a temporary copy with reference files swapped in, so the starter stays untouched.
 # Usage: tools/try.sh <exercise dir> <file in exercise>=<replacement> ...
 ex=$1; shift
 tmp=$(mktemp -d)

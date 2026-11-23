@@ -38,8 +38,8 @@ func populate() -> void:
 
 
 ## Given: changes the colony so a load has something to undo. Moves and
-## feeds every villager, regrows every field, removes one villager and adds
-## a newcomer.
+## feeds every villager, regrows every field, removes one villager and one
+## field, and adds a newcomer.
 func scramble() -> void:
 	for villager in $World/Villagers.get_children():
 		villager.position += Vector3(rng.randf_range(-2, 2), 0, rng.randf_range(-2, 2))
@@ -48,6 +48,7 @@ func scramble() -> void:
 	for field in $World/Fields.get_children():
 		field.growth = 0.0
 	$World/Villagers.get_child(0).free()
+	$World/Fields.get_child(0).free()
 	var newcomer := VILLAGER.instantiate()
 	newcomer.display_name = "Newcomer"
 	$World/Villagers.add_child(newcomer)

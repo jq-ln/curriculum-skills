@@ -24,12 +24,12 @@ The call needed the Goal, the Scope and the closure together, and the format hel
 
 - **Instruction doc** `EXERCISE.md`: the anchor record first (Curriculum code, anchor ID, anchor title, Target version), which settles #80's open "which file holds the record". Then Task, a "Done when" list, what stays as given, how to run the check, and where the hints are. "Done when" maps one to one onto the check's lines, so a failing line points at a bullet.
 - **Setup**: a committed starter project, not a script that builds one. Stub files carry a `# Your code goes here.` marker. Given helpers carry everything outside the closure: `heading()` in the well, and `populate()`, `scramble()` and the F2/F5/F9 keys in the colony. Building the well's level with rotated slabs still needed an authoring-time script (`tools/gen_well.gd`), so the skill will write some scenes through Godot rather than as hand-typed `.tscn`.
-- **Check**: `check.sh` warns on a Godot version mismatch, imports, then runs `godot --headless [--fixed-fps 60] --path . -s check/check.gd`, as [#76](https://github.com/jq-ln/curriculum-skills/issues/76#issuecomment-7111968304) found. `check.gd` lives inside the project, keeping each Exercise self-contained, and a `.gdignore` keeps it out of the import and the FileSystem dock. Each line prints PASS or FAIL with the measured value, and a `Logger` catches runtime errors.
-- **Hints**: `hints/1.md` to `3.md`, hidden by convention only, and out of the editor's FileSystem dock through `.gdignore`. Tier 1 asks a question that points at the concept, tier 2 gives the recipe, and tier 3 names the likely failures and their fixes.
+- **Check**: `check.sh` warns on a Godot version mismatch, imports, then runs `godot --headless [--fixed-fps 60] --path . -s check/check.gd`, as [#76](https://github.com/jq-ln/curriculum-skills/issues/76#issuecomment-7111968304) found. `check.gd` lives inside the project, keeping each Exercise self-contained, and a `.gdignore` keeps it out of the import and the FileSystem dock. Each line prints PASS or FAIL with the measured value, and a `Logger` catches runtime errors. Outcome lines fail on the untouched starter. Guard lines, such as "no script errors" and "the rocks were left alone", may pass on it.
+- **Hints**: `hints/1.md` to `3.md`, hidden by convention only, and out of the editor's FileSystem dock through `.gdignore`. Tier 1 asks a question that points at the concept, tier 2 gives the recipe, and tier 3 names the likely failures, by symptom, and their fixes.
 
 ## Findings
 
-- **A check needs a reference solution and near-misses to be trusted.** The first well check passed 3 of its lines on the untouched starter, such as "climbed onto the plateau at y = 2" for a villager that never moved from y = 2. The first colony check failed one mistake on 3 lines. The fix is a generation step: run the check on the starter, where every outcome line must fail, on a reference, where all must pass, and on each near-miss, which must fail its own line. The reference has to exist at generation time even if it never ships.
+- **A check needs a reference solution and near-misses to be trusted.** Twice, a check's lines passed on the untouched starter. First, "climbed onto the plateau at y = 2" passed for a villager that never moved from y = 2. Later review found lines that hold vacuously, such as "moves only on physics ticks" for a villager that never moves and "inventory counts are ints" when nothing was loaded. The first colony check also failed one mistake on 3 lines. The fix is a generation step: run the check on the starter, where every outcome line must fail; on a reference, where all must pass; and on each near-miss, which must fail its own line. The reference has to exist at generation time even if it never ships. A property line, such as "only on physics ticks", needs the thing it qualifies to have happened.
 - **The Subsection's Check field supplies the near-misses.** GD-01.08.02's Check names `* delta` and `_process()`. GD-06.03.01's names the skipped free that duplicates the colony. Each became a check line and a tier 3 hint.
 - **Scope supplies the numbers a headless check needs.** `floor_max_angle` at 45° by default set the ramp at 30° and the slope at 60°. "Every number comes back as a float" became the inventory check.
 - **Strict Prereq closures are narrow, and the Goal can outrun them.**
@@ -48,7 +48,7 @@ The call needed the Goal, the Scope and the closure together, and the format hel
 | Scope | Concrete targets, numbers, edge cases and limits; in-bounds APIs |
 | Prereqs, through the closure | The scaffold line: what's given and what the learner writes |
 | Check | Near-misses, a check line each, and tier 3 hints |
-| Key concepts | A checklist that the Exercise touches the unit's terms |
+| Key concepts | A loose checklist. The Exercises skip some terms: `is_on_ceiling()` and `up_direction` in the well, and nested persistent nodes and skipping lines `JSON.parse()` rejects in the colony |
 | Context | Curriculum code and Target version for the anchor record and the version warning |
 | Title (H1) | The anchor record and the directory slug |
 | Sources, Tags, Generators, Foundations, Section Generators | Not used. Running Godot verified behaviour, not the sources. |
@@ -61,3 +61,5 @@ The call needed the Goal, the Scope and the closure together, and the format hel
 2. Should the reference solution ship, such as behind a fourth hint tier, or stay generation-only?
 3. Are hint files hidden only by convention enough?
 4. Is the "no Exercise" verdict for GD-01.02.01 right, and is its wording what the skill should print?
+5. The colony's "Done when" says each line names its scene file and parent, which is the manual's method, not only the outcome. It mirrors the Subsection's Goal. Should a Goal that names a method set the target, or only the outcome it achieves?
+6. Should an Exercise cover every Key concept, or only those its task naturally needs?

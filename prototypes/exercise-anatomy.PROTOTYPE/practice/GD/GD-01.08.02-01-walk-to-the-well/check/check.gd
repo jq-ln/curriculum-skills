@@ -85,9 +85,11 @@ func _run() -> void:
 	expect(p.z < -7.0 and p.z > -8.5, "it stopped at the foot of the 60-degree slope (z = %.2f)" % p.z)
 	expect(villager.is_on_wall(), "it reports is_on_wall() against the 60-degree slope")
 	expect(villager.is_on_floor(), "it still reports is_on_floor() on the plateau")
-	expect(flat(villager.velocity).length() < 0.5, "its velocity lost the part going into the slope (horizontal %.2f m/s)" % flat(villager.velocity).length())
+	var pressing := p.z < -7.0 and p.z > -8.5
+	expect(pressing and flat(villager.velocity).length() < 0.5, "against the slope, its velocity lost the part going into it (horizontal %.2f m/s)" % flat(villager.velocity).length())
 
-	expect(not moved_in_process, "it moves only on physics ticks")
+	var moved := flat(villager.global_position - start).length() > 1.0
+	expect(moved and not moved_in_process, "it moves, and only on physics ticks%s" % ("" if moved else " (it never moved)"))
 	expect(catcher.errors.is_empty(), "no script errors%s" % ("" if catcher.errors.is_empty() else ":\n        " + "\n        ".join(catcher.errors)))
 
 	print("")

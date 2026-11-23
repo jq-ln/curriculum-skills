@@ -93,7 +93,8 @@ func _run() -> void:
 
 	main.scramble()
 	await frames(1)
-	expect(snapshot() != before, "(scrambling the colony changed it)")
+	var scrambled := snapshot()
+	expect(scrambled != before, "(scrambling the colony changed it)")
 
 	print("Loading")
 	main.load_game()
@@ -103,7 +104,7 @@ func _run() -> void:
 		"the same villagers are back, no more and no fewer (%d: %s)" % [after.villager_nodes, ", ".join(after.villagers.keys())])
 	expect(after.fields.size() == before.fields.size(), "the same number of fields is back (%d)" % after.fields.size())
 	expect(after == before, "every villager's position, hunger and inventory, and every field's crop, growth and position, are as saved")
-	expect(inventory_types_ok(), "inventory counts came back as whole numbers (int), as they were saved")
+	expect(after != scrambled and inventory_types_ok(), "inventory counts came back as whole numbers (int), as they were saved")
 	expect(main.get_node("World/Decor").get_child_count() == rocks, "the rocks, which aren't saved, were left alone")
 
 	print("Loading again")
