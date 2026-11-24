@@ -1,0 +1,6 @@
+exit 2
+PASS It moves 60 pixels in one second. (60.00 px)
+The Exercise check itself didn't finish (godot exited 12). Godot said:
+...
+The Exercise check crashed in its own code:
+  res://check/check.gd:10 Invalid access to property or key 'position' on a base object of type 'Nil'.

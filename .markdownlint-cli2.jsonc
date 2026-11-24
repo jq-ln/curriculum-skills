@@ -1,7 +1,9 @@
 {
   "config": {
     // Body lines aren't wrapped, so line length isn't linted.
-    "MD013": false
+    "MD013": false,
+    // GDScript is indented with tabs, so its examples keep them.
+    "MD010": { "ignore_code_languages": ["gdscript"] }
   },
   "gitignore": true,
   "ignores": [

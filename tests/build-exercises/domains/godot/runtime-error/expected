@@ -1,0 +1,4 @@
+exit 1
+PASS It moves 60 pixels in one second. (60.00 px)
+FAIL No script errors. (2 errors: res://mover.gd:11 Can't take value from empty array. (x60); res://mover.gd:11 Invalid call. Nonexistent function 'queue_free' in base 'Nil'. (x60))
+1 of 2 lines failed.
