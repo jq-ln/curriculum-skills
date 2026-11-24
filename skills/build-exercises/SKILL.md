@@ -145,6 +145,8 @@ The step is done when `<gen-dir>/reference/` and a directory under `<gen-dir>/ne
 exercises.py gate <gen-dir>/<name> <gen-dir>
 ```
 
+Run it in the background and wait for it to exit: it runs `check.sh` 3 times per case, each run for up to `--timeout` seconds (120 by default), so with two Near-misses it can take 24 minutes, longer than a shell tool's usual limit.
+
 It prints a matrix of each automated line against the starter, the Reference solution and each Near-miss, then a verdict. Exit 0 is a pass: go to step 10. Otherwise run a revision round:
 
 1. Fill the author prompt as in step 7, with `{{gate_report}}` set to the gate's whole output, and hand it to a new author subagent. It revises the Exercise and replies with the cases the solver must redo, as `<case>: <line text>`, or `none`.
@@ -152,7 +154,7 @@ It prints a matrix of each automated line against the starter, the Reference sol
 3. When there's a case to redo, refresh `<solver-dir>/exercise/` from the revised Exercise as in step 8, and fill the solver prompt again with `{{near_misses}}` from the revised `gate.json` and `{{redo}}` with one line per case, as `<case>: <line text> (measured: <value>)`. The solver gets only the line's text and its measured value, never the rest of the gate report. A Near-miss that's new in `gate.json` goes in `{{redo}}` too, with no measured value. Hand it to a new solver subagent.
 4. Sync the cases as in step 8, so a Near-miss the author dropped from `gate.json` leaves `near-misses/` too, and run the gate again.
 
-An `Environment problem:` line, exit 2, means a case couldn't run at all, such as a starter that fails to import; it goes to the author like any other failing round.
+An `Environment problem:` line, exit 2, means a case couldn't run at all, such as a starter that fails to import or a run that outlasts the gate's `--timeout`; it goes to the author like any other failing round.
 
 After 3 revision rounds, when the gate still fails:
 
