@@ -5,7 +5,7 @@ description: Write a gated practice Exercise for one Subsection of a Curriculum,
 
 # Build an Exercise
 
-You orchestrate: the script does every deterministic job, an author agent writes the Exercise, a solver agent solves it blind, and the Exercise gate tests the Exercise check against both before anything ships. An Exercise has the shape [the Exercise format](references/exercise-format.md) defines. Paths below are relative to this skill's directory; give subagents absolute paths. `exercises.py` below is `python3 <skill-dir>/scripts/exercises.py`, run with absolute paths.
+You orchestrate: `exercises.py` reads the Curriculum, fills the domain's assets and runs the Exercise gate, an author agent writes the Exercise, a solver agent solves it blind, and the Exercise gate tests the Exercise check against both before anything ships. An Exercise has the shape [the Exercise format](references/exercise-format.md) defines. Paths below are relative to this skill's directory; give subagents absolute paths. `exercises.py` below is `python3 <skill-dir>/scripts/exercises.py`, run with absolute paths.
 
 ## 1. Inputs and domain
 
@@ -17,7 +17,7 @@ Take from the learner's request:
 
 Pass both directories to every `exercises.py` call as `--curriculums` and, where it takes one, `--practice`.
 
-Find the Curriculum: the one directory in the Curriculums directory whose `index.md` H1 ends `(<CODE>)`. Its H1 names the subject, its Intro Field describes the scope the Brief set, and its Target version Field, when present, is the Target version. A Curriculum doesn't keep its Brief verbatim, so the Intro stands for it.
+Find the Curriculum: the one directory in the Curriculums directory whose `index.md` H1 ends `(<CODE>)`. Its H1 names the subject, its Intro Field describes the scope the Brief set, and its Target version Field, when present, is the Target version.
 
 Pick the domain: read the `Applies to:` line of each `references/domains/*/domain.md`, and match it against the subject and Intro. With no match, tell the learner no Domain reference applies to the Curriculum, name the domains there are, and stop. With more than one, ask the learner which applies, and take their answer.
 
@@ -86,7 +86,7 @@ exercises.py assets <domain> <gen-dir>/<name> --exercise-name <name> --curriculu
 
 Write `context`'s output to `<gen-dir>/context.md`. The Exercise is built in `<gen-dir>/<name>/`, with `gate.json`, `reference/` and `near-misses/` beside it in `<gen-dir>`, as the Exercise format's [What the gate reads](references/exercise-format.md#what-the-gate-reads) lays out.
 
-From here until step 9, a stop is a failed run: tell the learner why, and give them the Generation directory's path, kept for inspection; nothing is in the Practice workspace, so they can simply run the skill again.
+From here until step 9, a stop is a failed run: tell the learner why, and give them the Generation directory's path, kept for inspection; nothing is in the Practice workspace, so they can run the skill again.
 
 ## 6. Author
 
@@ -117,16 +117,16 @@ It prints a matrix of each automated line against the starter, the Reference sol
 
 An `Environment problem:` line, exit 2, means a case couldn't run at all, such as a starter that fails to import; it goes to the author like any other failing round.
 
-After 3 revision rounds, when the gate still fails, run one last round with `Failed 3 rounds: <line text>` at the top of `{{gate_report}}` for each line it still reports. The author turns each into a Self-check bullet or cuts it, and the gate runs once more. The run fails, and you stop as a failed run, when:
+After 3 revision rounds, when the gate still fails:
 
-- the Goal's main outcome line is among those lines: give a reasoned no Exercise as step 4 does, naming that line and why it couldn't be measured;
-- the last round leaves no automated outcome line, or the gate still doesn't exit 0: show the learner the gate's last output.
+- If the Goal's main outcome line is among the lines it reports, the Exercise can't ship. Give a reasoned no Exercise as step 4 does, naming that line and why it couldn't be measured, and give the learner the Generation directory's path, kept for inspection. Stop.
+- Otherwise run one last revision round, steps 1 to 4, with `Failed 3 rounds: <line text>` at the top of `{{gate_report}}` for each line the gate reports. The author turns each into a Self-check bullet or cuts it. When that leaves no automated outcome line, or the gate still doesn't exit 0, stop as a failed run, showing the learner the gate's last output.
 
 The step is done when the gate exits 0.
 
 ## 9. Ship
 
-Check that `<Practice workspace>/<CODE>/<name>/` doesn't exist; if it does, another run took the number, so stop as a failed run. Then move `<gen-dir>/<name>/` there, creating `<Practice workspace>/<CODE>/` when it's missing. Only the Exercise moves: `gate.json`, `reference/`, `near-misses/`, `solver-view/` and `context.md` stay behind. Delete the Generation directory.
+Check that `<Practice workspace>/<CODE>/<name>/` doesn't exist; if it does, another run took the number, so stop as a failed run. Then remove from `<gen-dir>/<name>/` anything that isn't `EXERCISE.md`, `check.sh`, `check/`, `hints/` or a file of the starter, such as a cache the domain's tool wrote while an authoring-time script ran. Move `<gen-dir>/<name>/` there, creating `<Practice workspace>/<CODE>/` when it's missing. Only the Exercise moves: `gate.json`, `reference/`, `near-misses/`, `solver-view/` and `context.md` stay behind. Delete the Generation directory.
 
 Tell the learner the Exercise's path and title, the Done-when bullets, and to start from `EXERCISE.md`. The step is done when the Exercise is in the Practice workspace and the Generation directory is gone.
 
