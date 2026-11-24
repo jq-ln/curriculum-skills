@@ -117,7 +117,7 @@ It prints a matrix of each automated line against the starter, the Reference sol
 3. When there's a case to redo, refresh `<solver-dir>/exercise/` from the revised Exercise as in step 7, and fill the solver prompt again with `{{near_misses}}` from the revised `gate.json` and `{{redo}}` with one line per case, as `<case>: <line text> (measured: <value>)`. The solver gets only the line's text and its measured value, never the rest of the gate report. A Near-miss that's new in `gate.json` goes in `{{redo}}` too, with no measured value. Hand it to a new solver subagent.
 4. Sync the cases as in step 7, so a Near-miss the author dropped from `gate.json` leaves `near-misses/` too, and run the gate again.
 
-An `Environment problem:` line, exit 2, means a case couldn't run at all, such as a starter that fails to import or a run that outlasts the gate's 120-second timeout; it goes to the author like any other failing round.
+An `Environment problem:` line, exit 2, means a case couldn't run at all, such as a starter that fails to import or a run that outlasts the gate's `--timeout`; it goes to the author like any other failing round.
 
 After 3 revision rounds, when the gate still fails:
 

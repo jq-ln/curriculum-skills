@@ -382,9 +382,11 @@ def rename(directory, exercise_dir, token):
 
 # Each case runs this often, so a line that flakes across reruns shows before it ships.
 RERUNS = 3
-# Seconds one run of the Exercise check may take before the gate kills it, so a check that never exits can't hang
-# the gate. A headless tool run takes seconds; the first import of a fresh project takes longest.
+# Seconds one run of the Exercise check may take before the gate kills it, so an Exercise check that never
+# exits can't hang the gate. A headless tool run takes seconds; the first import of a fresh project takes longest.
 TIMEOUT = 120
+# Seconds to wait for a killed Exercise check's output.
+KILLED_GRACE = 5
 STATUS = {"PASS": "P", "FAIL": "F"}
 KINDS = ("outcome", "guard", "self-check")
 
@@ -462,10 +464,13 @@ def run_check(work, timeout):
         return proc.returncode, out, err
     except subprocess.TimeoutExpired:
         kill_group(proc)
-        out, err = proc.communicate()  # what it printed before it was killed
+        try:
+            out, err = proc.communicate(timeout=KILLED_GRACE)  # what it printed before it was killed
+        except subprocess.TimeoutExpired:
+            return None, "", ""  # a process that left the group still holds the pipes; stop waiting for it
         return None, out, err
     except BaseException:
-        kill_group(proc)  # such as on Ctrl-C, which no longer reaches a check in its own session
+        kill_group(proc)  # such as on Ctrl-C, which no longer reaches an Exercise check in its own session
         raise
 
 
@@ -564,7 +569,7 @@ def describe(case):
     return f"the {case}" if case in ("starter", "reference") else f"the Near-miss {case}"
 
 
-def gate(exercise, gen, timeout=TIMEOUT):
+def gate(exercise, gen, timeout):
     """The per-line matrix and the verdict, and the exit code: 0 pass, 1 a rule broken, 2 an environment problem.
 
     Each automated line gets one row: its kind, then one cell per case in the Cases order, holding one letter per
