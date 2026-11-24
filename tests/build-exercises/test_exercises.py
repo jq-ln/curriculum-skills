@@ -289,6 +289,10 @@ Stage `a.txt` and nothing else.
 
 The repository with `a.txt` and `b.txt`.
 
+```text
+## not a heading
+```
+
 `lib/helpers.sh`, except `helper`.
 
 ## Check
@@ -372,6 +376,10 @@ class Existing(TempDirTestCase):
                 "  Given:\n"
                 "    The repository with `a.txt` and `b.txt`.\n"
                 "\n"
+                "    ```text\n"
+                "    ## not a heading\n"
+                "    ```\n"
+                "\n"
                 "    `lib/helpers.sh`, except `helper`.\n"
                 "  Markers:\n"
                 "    lib/helpers.sh:2\n"
@@ -390,6 +398,8 @@ class Existing(TempDirTestCase):
             (exercise / rel).parent.mkdir()
             (exercise / rel).write_text("Your code goes here.\n", encoding="utf-8")
         (exercise / "stage.sh").write_text("git add a.txt\n", encoding="utf-8")  # the learner replaced the marker
+        (exercise / ".godot").mkdir()  # the tool's cache, which may copy a starter file
+        (exercise / ".godot" / "stage.sh").write_text("# Your code goes here.\n", encoding="utf-8")
         (exercise / "icon.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe")
         result = run("existing", "GIT-01.02.01", "--practice", practice)
         self.assertEqual((result.returncode, result.stderr), (0, ""))

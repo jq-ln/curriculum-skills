@@ -242,22 +242,38 @@ def next_number(code_dir, uid):
     return max(exercise_numbers(code_dir, uid).values(), default=0) + 1
 
 
+EXERCISE = "EXERCISE.md"
 MARKER = "Your code goes here."
-COVERED_SECTIONS = ["Done when", "Given"]  # with the markers, what the ramp reads an earlier Exercise covered from
-NOT_STARTER = {"EXERCISE.md", "check.sh", "check", "hints"}  # what an Exercise ships besides its starter
+# The sections that, with the markers, say what an Exercise covered, so the ramp needs no record of its own.
+COVERED_SECTIONS = ["Done when", "Given"]
+# The rest of what an Exercise ships, so a marker quoted in a hint or the Exercise check isn't counted as the starter's.
+NOT_STARTER = {EXERCISE, "check.sh", "check", "hints"}
+
+
+def read_exercise_md(exercise_dir):
+    """(EXERCISE.md's text, None), or (None, why) when the Exercise has none or it can't be read."""
+    path = Path(exercise_dir) / EXERCISE
+    if not path.is_file():
+        return None, f"no {EXERCISE}"
+    try:
+        return build.read(path), None
+    except (BuildError, OSError):
+        return None, f"{EXERCISE} can't be read"
 
 
 def sections(text):
     """(H1 text, {H2 heading: body lines, blank lines at either end dropped})."""
-    title, out, body = None, {}, None
+    title, out, body, fenced = None, {}, None, False
     for line in text.split("\n"):
-        if line.startswith("# ") and title is None and not out:
+        if line.startswith("```"):
+            fenced = not fenced  # a `## ` line in a fenced block, such as a sample in Given, isn't a heading
+        if not fenced and line.startswith("# ") and title is None and not out:
             title = line[2:].strip()
-        elif line.startswith("## "):
+        elif not fenced and line.startswith("## "):
             body = out.setdefault(line[3:].strip(), [])
         elif body is not None:
             body.append(line.rstrip())
-    for heading, lines in out.items():
+    for lines in out.values():
         while lines and not lines[-1]:
             lines.pop()
         while lines and not lines[0]:
@@ -270,7 +286,8 @@ def markers(exercise_dir):
     out = []
     for path in sorted(p for p in Path(exercise_dir).rglob("*") if p.is_file()):
         rel = path.relative_to(exercise_dir)
-        if rel.parts[0] in NOT_STARTER:
+        # A hidden path is the tool's or the learner's, such as Godot's .godot/ cache, never the starter's.
+        if rel.parts[0] in NOT_STARTER or any(part.startswith(".") for part in rel.parts):
             continue
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
@@ -282,13 +299,10 @@ def markers(exercise_dir):
 
 def covered(exercise_dir):
     """The indented lines existing prints under an Exercise: what it covered, read from its files."""
-    path = Path(exercise_dir) / EXERCISE
-    if not path.is_file():
-        return [f"  no {EXERCISE}"]
-    try:
-        title, found = sections(build.read(path))
-    except (BuildError, OSError):
-        return [f"  {EXERCISE} can't be read"]
+    text, why = read_exercise_md(exercise_dir)
+    if why:
+        return [f"  {why}"]
+    title, found = sections(text)
     out = [f"  Title: {title}" if title else "  Title: none"]
     for heading in COVERED_SECTIONS:
         body = found.get(heading)
@@ -308,7 +322,6 @@ def existing(practice, token):
 
 # --- renumber ----------------------------------------------------------------
 
-EXERCISE = "EXERCISE.md"
 RECORD_KEYS = ["Curriculum", "Anchor", "Anchor title"]  # the anchor record's bullets renumber needs
 
 
@@ -331,13 +344,9 @@ def record_lines(text):
 
 def anchor_record(exercise_dir, code):
     """(UnitId, anchor title) from an Exercise's anchor record, or a string saying why it can't be read."""
-    path = Path(exercise_dir) / EXERCISE
-    if not path.is_file():
-        return f"no {EXERCISE}"
-    try:
-        text = build.read(path)
-    except (BuildError, OSError):
-        return f"{EXERCISE} can't be read"
+    text, why = read_exercise_md(exercise_dir)
+    if why:
+        return why
     lines = text.split("\n")
     record = {key: lines[i].partition(": ")[2] for key, i in record_lines(text).items()}
     uid = build.parse_id(record.get("Anchor", ""))

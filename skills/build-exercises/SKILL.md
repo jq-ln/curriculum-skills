@@ -82,18 +82,18 @@ Tell the learner the anchor gets no Exercise and why, naming what's missing, and
 
 - **Scaffold line**: the learner writes only what uses the anchor's material. They may be expected to use anything in its Prereq closure and any API the anchor's own Scope names. Everything else is given, already built.
 - **The Goal sets the target**, including a method it names, such as "moves only on physics ticks". The route beyond it is the learner's.
-- **The gate**: at least one automated outcome, with the Goal's main outcome among them; every outcome bullet measurable, a Scope edge case included only when it's observable; and no filler, so every outcome bullet needs the anchor's material or closure code the learner writes in this Exercise.
+- **Minimum to ship**: at least one automated outcome, with the Goal's main outcome among them. A Scope edge case becomes an outcome only when it's observable, and every outcome needs the anchor's material or closure code the learner writes in this Exercise, so the Exercise gate can hold each one to its rules.
 
-**What earlier Exercises covered** comes from `existing`'s output only: each one's Done when says which outcomes, Key concepts and Scope edge cases it reached, and its Given and markers say how much of the Prereq closure it gave. Leave pass state out: run no earlier Exercise's check, and ask the learner nothing about how one went.
+**What earlier Exercises covered** comes from `existing`'s output only: each one's Done when says which outcomes, Key concepts and Scope edge cases it reached, and its Given and markers say how much of the Prereq closure it gave. Pass state stays out of it: the ramp reads only those files, never an earlier Exercise's Exercise check result or the learner's account of how one went. An Exercise printed with `no EXERCISE.md` or `EXERCISE.md can't be read` counts as covering nothing; still pick a situation other than its name's.
 
 **The ramp.** Each Exercise turns one knob at most one notch from the latest Exercise, the one with the highest `<NN>`, and keeps the Goal's main outcome in a fresh situation: a scenario none of the earlier Exercises used, not a re-skin of one. Each covers only the Key concepts its task needs. Take the first rung that applies:
 
 1. **First**: with no earlier Exercise, the Goal's main outcome in the plainest situation that shows it, with the most of the Prereq closure given.
 2. **Coverage**: while a Key concept or observable Scope edge case is one no earlier Exercise reached, reach one of them, giving as much of the closure as the latest Exercise did.
 3. **Composition**: once coverage is done, give one closure unit's code less than the latest Exercise gave, so the learner writes it alongside the anchor's material. The scaffold line is the ceiling: only closure code moves from given to written.
-4. **Past the top rung**: once the learner writes all the closure code the task uses, write the next Exercise in a fresh situation with no knob turned. Tell the learner once that coverage and composition are exhausted: when the Exercises before the latest one still left coverage or composition to do. Later runs past the top rung skip the note.
+4. **Past the top rung**: once coverage is done and the latest Exercise gave none of the Prereq closure its task used, write the next Exercise in a fresh situation with no knob turned, the learner again writing all the closure code its task uses. Tell the learner that coverage and composition are exhausted, unless the latest Exercise was itself past the top rung, as it was when the Exercises before it had already exhausted both; that keeps the note to the first run past the top.
 
-**The steer**, when the learner gave one, replaces the default pick of knob, direction and focus: "easier" turns a knob back a notch or picks a plainer situation, and "focus on `is_on_wall()`" makes that API the Key concept in play. When the steer would break the scaffold line or the gate, the rule wins: plan the closest Exercise within it, and tell the learner which rule the steer lost to and why, such as "Floor snapping is GD-12.01.02, outside GD-01.08.02's Prereq closure and Scope, so the scaffold line keeps `apply_floor_snap()` out of what you write". Go on without asking.
+**The steer**, when the learner gave one, replaces the default pick of knob, direction and focus: "easier" turns a knob back a notch or picks a plainer situation, and "focus on `is_on_wall()`" makes that API the Key concept in play. When the steer would break the scaffold line or Minimum to ship, the rule wins: plan the closest Exercise within it, and tell the learner which rule the steer lost to and why, such as "Floor snapping is GD-12.01.02, outside GD-01.08.02's Prereq closure and Scope, so the scaffold line keeps `apply_floor_snap()` out of what you write". Go on without asking.
 
 Write the plan as a few lines:
 
@@ -166,7 +166,7 @@ The step is done when the gate exits 0.
 
 Check that `<Practice workspace>/<CODE>/` has no `<ID>-<NN>-*` directory, whatever its slug; if it has one, another run took the number, so stop as a failed run. Then remove from `<gen-dir>/<name>/` anything that isn't `EXERCISE.md`, `check.sh`, `check/`, `hints/` or a file of the starter, such as a cache the domain's tool wrote while an authoring-time script ran. Move `<gen-dir>/<name>/` there, creating `<Practice workspace>/<CODE>/` when it's missing. Only the Exercise moves: `gate.json`, `reference/`, `near-misses/` and `context.md` stay behind. Delete the Generation directory and the solver's directory.
 
-Tell the learner the Exercise's path and title, the Done-when bullets, and to start from `EXERCISE.md`. The step is done when the Exercise is in the Practice workspace and both temporary directories are gone.
+Tell the learner the Exercise's path and title, the Done-when bullets, and to start from `EXERCISE.md`. When the gate turned a line the steer asked for into a Self-check bullet or cut it, tell the learner the steer lost to the Exercise gate there, naming the line. The step is done when the Exercise is in the Practice workspace and both temporary directories are gone.
 
 ## Without subagents
 
