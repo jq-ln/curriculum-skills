@@ -1,6 +1,6 @@
 {
   "name": "curriculum-skills",
-  "description": "Skills that research a subject and write it as a Curriculum: a flat directory of wiki-linked Markdown docs built to a versioned format.",
+  "description": "Skills that research a subject and write it as a Curriculum, a flat directory of wiki-linked Markdown docs built to a versioned format, and that write gated practice Exercises for its Subsections in the subject's real tool.",
   "author": {
     "name": "jq-ln",
     "url": "https://github.com/jq-ln"
@@ -10,6 +10,7 @@
     "curriculum",
     "learning",
     "research",
-    "markdown"
+    "markdown",
+    "exercises"
   ]
 }
