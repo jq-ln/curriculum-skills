@@ -517,6 +517,35 @@ class Gate(TempDirTestCase):
             result.stdout,
         )
 
+    def test_reports_a_run_that_outlasts_the_timeout_as_an_environment_problem(self):
+        exercise, gen = self.generation([(1, lines("FAIL", "FAIL"))])
+        check = exercise / "check.sh"
+        # The sleep is a child of check.sh, as Godot is, so it holds the output open after check.sh itself is killed.
+        script = check.read_text(encoding="utf-8").split("\n")
+        script.insert(2, 'if [ "$n" -eq 2 ]; then sleep 60; fi')  # after the line counting the runs
+        check.write_text("\n".join(script), encoding="utf-8")
+        try:
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "gate", "--timeout", "1", exercise, gen],
+                capture_output=True, text=True, encoding="utf-8", timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            self.fail("gate hung on a run that outlasted --timeout")
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (
+                2,
+                "Cases: starter, reference, too-slow, moves-in-process\n"
+                f"outcome  FEF PPP FFF PPP  {WALKS}\n"
+                f"outcome  FEF PPP PPP FFF  {TICKS}\n"
+                f"guard    PEP PPP PPP PPP  {ERRORS}\n"
+                "\n"
+                "Environment problem: the starter didn't finish within 1 s on run 2\n"
+                "Verdict: environment problem\n",
+                "",
+            ),
+        )
+
     def test_leaves_the_exercise_directory_as_it_was(self):
         exercise, gen = self.generation([(1, lines("FAIL", "FAIL"))])
         (exercise / "main.gd").write_text("# Your code goes here.\n", encoding="utf-8")
