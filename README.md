@@ -32,6 +32,7 @@ Humans and agents follow the same docs. Agents start from [`AGENTS.md`](AGENTS.m
 - [`docs/workflow/ci.md`](docs/workflow/ci.md): the `ci` check, what each job enforces and how to run it locally
 - [`docs/workflow/domain.md`](docs/workflow/domain.md): the glossary and Architecture Decision Records
 - [`GLOSSARY.md`](GLOSSARY.md): the project's terms and the workflow's terms
+- [`docs/domain-reference.md`](docs/domain-reference.md): what a Domain reference for `build-exercises` holds, for adding a subject's environment
 
 ## Agent setup
 
