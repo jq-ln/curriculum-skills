@@ -1,0 +1,4 @@
+exit 1
+Your code's errors stopped the Exercise check before every line ran.
+FAIL No script errors. (2 errors: res://mover.gd:8 Parse Error: Expected ":" after "if" condition.; res://check/check.gd:5 Failed to load script "res://mover.gd" with error "Parse error".)
+1 of 1 lines failed.

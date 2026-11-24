@@ -1,0 +1,41 @@
+#!/bin/sh
+# The Exercise check for {{exercise_name}}. Run it from this folder: ./check.sh
+# Exit 0: every automated line passed. 1: a line failed. 2: an environment problem, not your code.
+cd "$(dirname "$0")" || exit 2
+target="{{target_version}}"
+
+if ! command -v godot >/dev/null 2>&1; then
+	echo "godot isn't on PATH. Install Godot${target:+ $target} and make sure \`godot --version\` runs." >&2
+	exit 2
+fi
+
+# A Target version matches the installed Godot when it's a dotted prefix of `godot --version`, so 4.7 matches 4.7.2.
+if [ -n "$target" ]; then
+	have=$(godot --version 2>/dev/null)
+	case "$have" in
+		"$target" | "$target".*) ;;
+		*) echo "warning: this Exercise targets Godot $target, and \`godot --version\` says $have. Running it anyway." >&2 ;;
+	esac
+fi
+
+log=$(mktemp) || exit 2
+trap 'rm -f "$log"' EXIT
+
+# Import first, so class_name globals exist even if the project was never opened in the editor.
+if ! godot --headless --no-header --path . --import >"$log" 2>&1; then
+	echo "The project didn't import, so the Exercise check can't run. Godot said:" >&2
+	cat "$log" >&2
+	exit 2
+fi
+
+# check/harness.gd quits with 10 when every line passed and 11 when one failed. Anything else means the Exercise
+# check itself didn't finish: Godot exits 1 when check/check.gd doesn't parse, and the harness 12 when it crashes.
+godot --headless --no-header --fixed-fps 60 --path . -s check/check.gd 2>"$log"
+code=$?
+case $code in
+	10) exit 0 ;;
+	11) exit 1 ;;
+esac
+echo "The Exercise check itself didn't finish (godot exited $code). Godot said:" >&2
+cat "$log" >&2
+exit 2

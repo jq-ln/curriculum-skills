@@ -17,6 +17,7 @@ Each check except `pr-title` and `issue-link` runs over the whole repo, not just
 | `init-test` | That `.github/scripts/init` still removes the content this repo was created without, using `.template/test-init`. Init deletes both when it runs, so from then on the job passes without checking anything. |
 | `format-drift` | Every skill directory under `skills/`, shipped or not yet, carries a `references/curriculum-format.md` identical to `docs/curriculum-format.md`, each skill with `.py` files under `scripts/` defines a top-level `FORMAT_VERSION`, and every `FORMAT_VERSION` in any `.py` under `skills/*/scripts/` is a top-level assignment of the doc's `Format version`, using [`check-format-drift`](../../.github/scripts/check-format-drift). |
 | `script-test` | The skills' scripts pass their `unittest` tests, using the runner's `python3`: `skills/build-curriculum/scripts/build.py` passes those in `tests/build-curriculum/`, and `skills/build-exercises/scripts/exercises.py` passes those in `tests/build-exercises/`. |
+| `domain-godot` | The Godot Domain reference's `check.sh` gives each fixture case's expected exit code and lines, with the Godot Linux binary at `GODOT_VERSION`, pinned by `GODOT_SHA256`. `script-test` skips these cases, as it has no `godot`. See [`domain-reference.md`](../domain-reference.md#testing-a-domain). |
 
 To reproduce a check locally, run its command from the repo root with the version CI uses:
 
@@ -27,6 +28,7 @@ To reproduce a check locally, run its command from the repo root with the versio
 | markdownlint-cli2 | The one bundled with the pinned `markdownlint-cli2-action`. The job log's first line names it. |
 | shellcheck | The one on the runner image. The job log prints it. |
 | python3 | The one on the runner image. The scripts and their tests need only the standard library. |
+| godot | `GODOT_VERSION` in `ci.yml` |
 
 ```sh
 # markdownlint (add --fix to fix what it can)
@@ -45,6 +47,9 @@ actionlint
 python3 -m unittest discover -s tests/build-curriculum -v
 python3 -m unittest discover -s tests/build-exercises -v
 
+# domain-godot (needs godot on PATH)
+REQUIRE_DOMAINS=godot python3 -m unittest discover -s tests/build-exercises -p test_domain_checks.py -v
+
 # shellcheck (needs GNU xargs; the same pipeline as in ci.yml)
 git ls-files -z \
   | xargs -0 -r awk 'FNR == 1 { if (FILENAME ~ /\.(ba)?sh$/ || /^#!.*[\/ ](ba|da|k)?sh( |$)/) print FILENAME; nextfile }' \
@@ -58,7 +63,7 @@ Every workflow in `.github/workflows/`:
 - Declares `permissions: {}` at the top level and grants each job only what it needs.
 - Pins each action to a full commit SHA, with the version in a trailing comment (`uses: owner/action@<sha> # v1.2.3`).
 
-[Dependabot](../../.github/dependabot.yml) updates pinned actions monthly. It doesn't track lychee (`LYCHEE_VERSION`), actionlint (`ACTIONLINT_VERSION` and `ACTIONLINT_SHA256`) or shellcheck, which comes preinstalled on the runner.
+[Dependabot](../../.github/dependabot.yml) updates pinned actions monthly. It doesn't track lychee (`LYCHEE_VERSION`), actionlint (`ACTIONLINT_VERSION` and `ACTIONLINT_SHA256`), Godot (`GODOT_VERSION` and `GODOT_SHA256`, bumped in a deliberate PR) or shellcheck, which comes preinstalled on the runner.
 
 ## Adding a job
 

@@ -1,0 +1,8 @@
+exit 0
+PASS It moves 60 pixels in one second. (60.00 px)
+PASS It stays on its row. (y = 0.00)
+PASS No script errors. (0 errors)
+All 3 lines passed.
+CHECK YOURSELF
+- Run the scene: the mover glides to the right.
+- Run the scene and watch it for a second: it never stutters.

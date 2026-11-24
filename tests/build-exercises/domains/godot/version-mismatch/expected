@@ -1,0 +1,5 @@
+exit 0
+warning: this Exercise targets Godot 4.6, and `godot --version` says 4.7.*. Running it anyway.
+PASS It moves 60 pixels in one second. (60.00 px)
+PASS No script errors. (0 errors)
+All 2 lines passed.

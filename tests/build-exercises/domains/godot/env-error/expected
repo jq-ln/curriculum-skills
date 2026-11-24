@@ -1,0 +1,2 @@
+exit 2
+godot isn't on PATH. Install Godot 4.7 and make sure `godot --version` runs.

@@ -183,10 +183,40 @@ jobs:
         if: ${{ !cancelled() }} # still runs when the build script's tests fail, so one run reports both
         run: python3 -m unittest discover -s tests/build-exercises -v
 
+  domain-godot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Bump both together, in a deliberate PR: the checksum is sha256 of the release's
+      # Godot_v<version>-stable_linux.x86_64.zip, whose sha512 is in the release's SHA512-SUMS.txt.
+      GODOT_VERSION: 4.7.2
+      GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Godot
+        working-directory: ${{ runner.temp }}
+        run: |
+          zip="Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -sSfLO "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${zip}"
+          echo "${GODOT_SHA256}  ${zip}" | sha256sum -c -
+          unzip -q "$zip"
+          mkdir bin
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" bin/godot
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Run the Godot Domain reference's check cases
+        env:
+          REQUIRE_DOMAINS: godot # fail, rather than skip, if godot isn't on PATH
+        run: |
+          godot --version
+          python3 -m unittest discover -s tests/build-exercises -p test_domain_checks.py -v
+
   # The only required check. Add new jobs to `needs:`; leave the ruleset alone.
   ci:
     if: always()
-    needs: [pr-title, issue-link, markdownlint, lychee, actionlint, shellcheck, init-test, format-drift, script-test]
+    needs: [pr-title, issue-link, markdownlint, lychee, actionlint, shellcheck, init-test, format-drift, script-test, domain-godot]
     runs-on: ubuntu-latest
     permissions: {}
     steps:

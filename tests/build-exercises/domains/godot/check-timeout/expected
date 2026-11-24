@@ -1,0 +1,3 @@
+exit 2
+The Exercise check itself didn't finish (godot exited 12). Godot said:
+The Exercise check didn't finish within 1.0 s of game time.

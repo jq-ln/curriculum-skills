@@ -1,0 +1,4 @@
+exit 1
+Your code's errors stopped the Exercise check before every line ran.
+FAIL No script errors. (2 errors: res://check/check.gd:5 Cannot open file 'res://main.tscn'.; res://check/check.gd:5 Failed loading resource: res://main.tscn.)
+1 of 1 lines failed.

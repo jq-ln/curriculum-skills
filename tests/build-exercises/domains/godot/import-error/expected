@@ -1,0 +1,3 @@
+exit 2
+The project didn't import, so the Exercise check can't run. Godot said:
+...

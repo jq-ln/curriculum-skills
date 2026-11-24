@@ -1,0 +1,4 @@
+exit 1
+FAIL It moves 60 pixels in one second. (30.00 px)
+PASS No script errors. (0 errors)
+1 of 2 lines failed.

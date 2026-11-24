@@ -1,0 +1,4 @@
+exit 1
+FAIL It moves 60 pixels in one second. (0.00 px)
+FAIL No script errors. (3 errors: res://check/check.gd:5 Attempt to open script 'res://renamed.gd' resulted in error 'File not found'.; res://check/check.gd:5 Failed loading resource: res://renamed.gd.; res://check/check.gd:5 res://main.tscn:8 - Parse Error: [ext_resource] referenced non-existent resource at: res://renamed.gd.)
+2 of 2 lines failed.
