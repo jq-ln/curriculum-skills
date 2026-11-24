@@ -17,7 +17,7 @@ One Godot project per Exercise: the Exercise's directory is the project, with it
 - Scenes are `.tscn` and scripts `.gd`, at the project root unless the Exercise has enough files to need folders. Refer to them by `res://` paths.
 - Given code and learner code share a script when the learner writes one function of a node; the learner's part sits where the marker is. A script the learner writes whole holds only `extends` and the marker.
 - The marker is `# Your code goes here.` in `.gd` files. A `.tscn` file holds no marker: when the learner builds a scene, the Task names the scene and the nodes it needs.
-- `check/` and `hints/` each hold an empty `.gdignore`, which hides them from the editor's FileSystem dock, so the learner's project shows only the starter.
+- `check/` and `hints/` each hold an empty `.gdignore`, from `assets/`, which hides them from the editor's FileSystem dock, so the learner's project shows only the starter.
 
 ### Building the starter
 
@@ -71,7 +71,7 @@ What the harness gives `run()`:
 - `self_check(text: String)` records a Self-check bullet. Every one prints last, under `CHECK YOURSELF`, wherever `run()` calls it.
 - `await ticks(n)` returns once `n` more physics ticks have run every `_physics_process`; `await frames(n)` waits `n` process frames. Use these to wait, rather than awaiting a signal the learner's code may never emit.
 - `time_limit`: set it in `_init()` when `run()` needs more than 60 s of game time.
-- Signals connected to the harness, such as `physics_frame.connect(...)` and `process_frame.connect(...)`, observe between ticks; the [#77 prototype](https://github.com/jq-ln/curriculum-skills/blob/prototype/77-exercise-anatomy/prototypes/exercise-anatomy.PROTOTYPE/practice/GD/GD-01.08.02-01-walk-to-the-well/check/check.gd) checks "moves only on physics ticks" by recording the position at each `process_frame` and comparing it at the next `physics_frame`.
+- Signals connected to the harness, such as `physics_frame.connect(...)` and `process_frame.connect(...)`, observe between ticks. To check "moves only on physics ticks", record the position at each `process_frame` and compare it at the next `physics_frame`: only `_process` runs between the two.
 
 `gate.json` lists the harness's guard line last among the automated lines, as `{ "text": "No script errors.", "kind": "guard" }`.
 

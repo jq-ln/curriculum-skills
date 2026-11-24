@@ -17,7 +17,7 @@ Each check except `pr-title` and `issue-link` runs over the whole repo, not just
 | `init-test` | That `.github/scripts/init` still removes the content this repo was created without, using `.template/test-init`. Init deletes both when it runs, so from then on the job passes without checking anything. |
 | `format-drift` | Every skill directory under `skills/`, shipped or not yet, carries a `references/curriculum-format.md` identical to `docs/curriculum-format.md`, each skill with `.py` files under `scripts/` defines a top-level `FORMAT_VERSION`, and every `FORMAT_VERSION` in any `.py` under `skills/*/scripts/` is a top-level assignment of the doc's `Format version`, using [`check-format-drift`](../../.github/scripts/check-format-drift). |
 | `script-test` | The skills' scripts pass their `unittest` tests, using the runner's `python3`: `skills/build-curriculum/scripts/build.py` passes those in `tests/build-curriculum/`, and `skills/build-exercises/scripts/exercises.py` passes those in `tests/build-exercises/`. |
-| `domain-godot` | The Godot Domain reference's `check.sh` gives each fixture case's expected exit code and lines, with the Godot 4.7.2 Linux binary pinned by sha256 (`GODOT_VERSION` and `GODOT_SHA256`). `script-test` skips these cases, as it has no `godot`. See [`domain-reference.md`](../domain-reference.md#testing-a-domain). |
+| `domain-godot` | The Godot Domain reference's `check.sh` gives each fixture case's expected exit code and lines, with the Godot Linux binary at `GODOT_VERSION`, pinned by `GODOT_SHA256`. `script-test` skips these cases, as it has no `godot`. See [`domain-reference.md`](../domain-reference.md#testing-a-domain). |
 
 To reproduce a check locally, run its command from the repo root with the version CI uses:
 

@@ -17,7 +17,7 @@ const ERRORS_LINE := "No script errors."
 const ERRORS_SHOWN := 3
 
 ## Seconds of game time run() may take before the Exercise check counts as crashed, such as when it awaits a
-## signal that never comes. A check that needs longer sets it in _init().
+## signal that never comes. An Exercise check that needs longer sets it in _init().
 var time_limit := 60.0
 
 var _catcher := Catcher.new()

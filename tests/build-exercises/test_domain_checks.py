@@ -22,7 +22,7 @@ ANCHOR = "MATH-01.01.01"
 REQUIRED_CASES = {"pass", "fail", "runtime-error", "self-check-last", "version-mismatch", "no-target-version", "env-error"}
 CASE_ONLY = {"expected", "target-version"}  # files that configure a case and aren't laid over the Exercise
 ELLIPSIS = "..."  # an `expected` line matching any number of printed lines, such as a tool's own error output
-TIMEOUT = 300  # seconds per case, so a hanging check fails its case instead of the job
+TIMEOUT = 300  # seconds per case, so a hanging Exercise check fails its case instead of the job
 
 
 def required_domains():
@@ -84,13 +84,12 @@ class DomainChecks(unittest.TestCase):
         for domain_dir in sorted(d for d in CASES.iterdir() if d.is_dir()):
             domain = domain_dir.name
             tool = (domain_dir / "requires").read_text(encoding="utf-8").strip()
-            if shutil.which(tool) is None:
-                if domain in required_domains():
-                    self.fail(f"{domain}: {tool} isn't on PATH, and REQUIRE_DOMAINS names {domain}")
-                print(f"\nskipped {domain}: {tool} isn't on PATH", file=sys.stderr)
-                continue
+            if shutil.which(tool) is None and domain in required_domains():
+                self.fail(f"{domain}: {tool} isn't on PATH, and REQUIRE_DOMAINS names {domain}")
             for case in sorted(c for c in domain_dir.iterdir() if c.is_dir()):
                 with self.subTest(f"{domain}/{case.name}"):
+                    if shutil.which(tool) is None:
+                        self.skipTest(f"{tool} isn't on PATH")
                     self.run_case(domain, tool, case)
 
     def run_case(self, domain, tool, case):

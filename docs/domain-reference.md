@@ -107,9 +107,11 @@ The Godot domain's `assets/`:
 assets/
 ├── check.sh.tmpl        # imports, then runs check/check.gd headless; compares {{target_version}}
 ├── project.godot.tmpl   # sets config/name to {{exercise_name}} and the physics engine to Jolt
-└── check/
-    ├── .gdignore        # hides check/ from the editor's FileSystem dock
-    └── harness.gd       # the Logger catcher, expect(), CHECK YOURSELF, the summary and exit codes
+├── check/
+│   ├── .gdignore        # hides check/ from the editor's FileSystem dock
+│   └── harness.gd       # the Logger catcher, expect(), CHECK YOURSELF, the summary and exit codes
+└── hints/
+    └── .gdignore        # hides hints/ from the editor's FileSystem dock
 ```
 
 A fix to a shared asset, such as `harness.gd`, reaches only Exercises written after it.
