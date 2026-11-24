@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.1](https://github.com/jq-ln/curriculum-skills/compare/v0.1.0...v0.1.1) (2026-11-24)
+
+
+### Features
+
+* **build-exercises:** add Domain reference contract and assets ([#97](https://github.com/jq-ln/curriculum-skills/issues/97)) ([7d33938](https://github.com/jq-ln/curriculum-skills/commit/7d3393821f84ffc2877769c284f1919a45760452))
+* **build-exercises:** add exercise format and existing ([#96](https://github.com/jq-ln/curriculum-skills/issues/96)) ([a9381cd](https://github.com/jq-ln/curriculum-skills/commit/a9381cd8e7db641c5caed46ff15013616b8eb536))
+* **build-exercises:** add exercises.py context ([#94](https://github.com/jq-ln/curriculum-skills/issues/94)) ([d0ae601](https://github.com/jq-ln/curriculum-skills/commit/d0ae60137cc4dfabd804660bb3bd6e5cb823a0df))
+* **build-exercises:** add exercises.py renumber and rename ([#98](https://github.com/jq-ln/curriculum-skills/issues/98)) ([7d1524a](https://github.com/jq-ln/curriculum-skills/commit/7d1524a4bb127a09a0aadf693dba6536a0fa7771))
+* **build-exercises:** add the gate subcommand ([#100](https://github.com/jq-ln/curriculum-skills/issues/100)) ([7d5aee5](https://github.com/jq-ln/curriculum-skills/commit/7d5aee5059186c77c67792396a6b3c5bfc405b97))
+* **build-exercises:** add the Godot Domain reference ([#101](https://github.com/jq-ln/curriculum-skills/issues/101)) ([4a94f2c](https://github.com/jq-ln/curriculum-skills/commit/4a94f2ce672680a75a0ba08df0cbef103879729c))
+* **build-exercises:** add the orchestrator and its prompts ([#102](https://github.com/jq-ln/curriculum-skills/issues/102)) ([93b3b69](https://github.com/jq-ln/curriculum-skills/commit/93b3b6938026859416b2de05092b0507d18bea53))
+* **build-exercises:** ramp, steer and renumber on re-runs ([#103](https://github.com/jq-ln/curriculum-skills/issues/103)) ([2037444](https://github.com/jq-ln/curriculum-skills/commit/2037444b94f2e276d9fef7d5b6d62b6818240758))
+
+
+### Bug Fixes
+
+* **build-exercises:** time out each gate run of check.sh ([#105](https://github.com/jq-ln/curriculum-skills/issues/105)) ([0df4fd7](https://github.com/jq-ln/curriculum-skills/commit/0df4fd76adc52eac076741b48ae9b79f84636e9d))
+
 ## [0.1.0](https://github.com/jq-ln/curriculum-skills/compare/v0.0.1...v0.1.0) (2026-11-23)
 
 
