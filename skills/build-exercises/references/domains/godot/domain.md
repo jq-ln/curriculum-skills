@@ -42,7 +42,7 @@ godot --headless --no-header --fixed-fps 60 --path . -s check/check.gd
 
 - Importing first builds the global class cache, so `class_name` globals resolve even when the learner never opened the project in the editor. A project that fails to import, such as a broken `project.godot`, exits 2.
 - `--fixed-fps 60` gives every frame a 1/60 s delta, so a run is repeatable and runs faster than real time. Each process frame comes with one physics tick.
-- `check/harness.gd`, copied verbatim into every Exercise, is the `SceneTree` the lines run in. It registers a `Logger` with `OS.add_logger` that collects every error the engine reports. An error raised in a file under `res://check/` is the Exercise check's own; every other error counts against the learner's code.
+- `check/harness.gd`, copied verbatim into every Exercise, is the `SceneTree` the lines run in. It registers a `Logger` with `OS.add_logger` that collects every error the engine reports. An error raised in a file under `res://check/` is the Exercise check's own, and so is an engine error whose innermost GDScript frame is there, such as `get_node()` on a missing node; every other error counts against the learner's code.
 - After `run()` returns, the harness prints the guard line `No script errors.`, which fails on any of the learner's errors and measures them, then the summary, then the Self-check bullets under `CHECK YOURSELF`. A runtime error in the learner's code carries on: the function that raised it returns, and the lines still run.
 - When the Exercise check's own code raises an error, it stops. If the learner's code had already raised one, that error is the likely cause, such as a script that didn't parse, so the guard line fails and the Exercise check exits 1. Otherwise it crashed and exits 2, as it does when `run()` takes longer than `time_limit` seconds of game time, 60 by default.
 
@@ -57,7 +57,10 @@ extends "res://check/harness.gd"
 func run() -> void:
 	var main: Node = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
-	var villager: CharacterBody3D = main.get_node("Villager")
+	var villager: CharacterBody3D = main.get_node_or_null("Villager")
+	if villager == null:
+		expect(false, "It walks toward the well at `speed`, 3 meters per second.", "no node named Villager")
+		return
 	var start := villager.global_position
 	await ticks(60)
 	var walked := Vector2(villager.global_position.x - start.x, villager.global_position.z - start.z).length()
@@ -75,7 +78,7 @@ What the harness gives `run()`:
 
 `gate.json` lists the harness's guard line last among the automated lines, as `{ "text": "No script errors.", "kind": "guard" }`.
 
-Read the learner's nodes defensively: a node the learner renamed comes back null from `get_node()`, so check it with `expect()` before reading its properties, and a later line depends on that line's result. Use `Input.parse_input_event()` to press keys or click, so `_input` and `is_action_just_pressed` see the event; `Input.action_press()` holds an action but reaches no `_input`. The headless root viewport is 64 by 64 pixels, so set `root.size` before checking a layout that depends on window size.
+Read the learner's nodes defensively, with `get_node_or_null()`: a node the learner renamed comes back null, so check it for null before reading its properties and fail the line with what's missing as its measured value, as the example does. `get_node()` on a missing node also logs `Node not found`, which the harness counts as the Exercise check's own error, so it exits 2. Use `Input.parse_input_event()` to press keys or click, so `_input` and `is_action_just_pressed` see the event; `Input.action_press()` holds an action but reaches no `_input`. The headless root viewport is 64 by 64 pixels, so set `root.size` before checking a layout that depends on window size.
 
 ### Stand-ins
 

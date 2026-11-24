@@ -40,17 +40,20 @@ class Catcher extends Logger:
 		if error_type == ERROR_TYPE_WARNING:
 			return
 		# An engine error, such as reading an empty array, names its C++ source. It's shown at the script line that
-		# caused it instead: the first frame of its GDScript backtrace outside check/, or else the top frame. Which
-		# side it counts against still follows the reported file.
+		# caused it instead: the first frame of its GDScript backtrace outside check/, or else the top frame. It
+		# counts against the side whose code made the call, the innermost frame, so the Exercise check's own
+		# get_node("Typo") is a crash, not the learner's error.
 		var at := "%s:%d" % [file, line]
+		var side := file
 		if not file.begins_with("res://"):
 			for backtrace in script_backtrace:
 				if backtrace.get_frame_count() > 0:
 					at = _script_line(backtrace)
+					side = backtrace.get_frame_file(0)
 					break
 		var what := "%s %s" % [at, (rationale if rationale != "" else code).strip_edges()]
 		_mutex.lock()
-		if file.begins_with("res://check/"):
+		if side.begins_with("res://check/"):
 			_check.append(what)
 		elif _counts.has(what):
 			_counts[what] += 1
