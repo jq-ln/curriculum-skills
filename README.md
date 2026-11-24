@@ -22,7 +22,7 @@ Both local routes load the working tree in place, so an edit shows up without a 
   ln -s "$PWD/skills/build-exercises" ~/.claude/skills/build-exercises
   ```
 
-  `build-exercises` reads Curriculums through `build-curriculum`'s script, so link both.
+  `build-exercises` works on a Curriculum that `build-curriculum` built, so link both.
 
   In Claude Code, use one route at a time, so the skill loads once.
 

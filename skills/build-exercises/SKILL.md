@@ -86,7 +86,7 @@ exercises.py assets <domain> <gen-dir>/<name> --exercise-name <name> --curriculu
 
 Write `context`'s output to `<gen-dir>/context.md`. The Exercise is built in `<gen-dir>/<name>/`, with `gate.json`, `reference/` and `near-misses/` beside it in `<gen-dir>`, as the Exercise format's [What the gate reads](references/exercise-format.md#what-the-gate-reads) lays out.
 
-From here until step 9, a stop is a failed run: tell the learner why, and give them the Generation directory's path, kept for inspection; nothing is in the Practice workspace, so they can run the skill again.
+From here until step 9, a stop is a failed run: tell the learner why, and give them the paths of the Generation directory and, once step 7 has made it, the solver's directory, kept for inspection; nothing is in the Practice workspace, so they can run the skill again.
 
 ## 6. Author
 
@@ -96,9 +96,11 @@ The step is done when `<gen-dir>/<name>/EXERCISE.md` and `<gen-dir>/gate.json` e
 
 ## 7. Solver
 
-Copy the Exercise to `<gen-dir>/solver-view/`, leaving out `check.sh`, `check/` and `hints/`, so the solver sees the task and the starter and never the Exercise check.
+Make a second fresh temporary directory, the solver's directory, outside the Generation directory: the Generation directory holds `check/`, so a solver given any path in it could read the Exercise check and tune the Reference solution to it. Copy the Exercise to `<solver-dir>/exercise/`, leaving out `check.sh`, `check/` and `hints/`, and copy `<gen-dir>/context.md` to `<solver-dir>/context.md`.
 
-Fill [`references/solver-prompt.md`](references/solver-prompt.md): `{{exercise_title}}` as in step 6; `{{near_misses}}` with one line per entry of `gate.json`'s `near_misses`, as `<name>: <line text>`; `{{redo}}` with `None.`; `{{domain_environment}}` as in step 6, and only that section of `domain.md`; and with absolute paths, `{{solver_view}}`, `{{context}}`, `{{gen_dir}}` and `{{exercise_format}}`. Hand it to one subagent.
+Fill [`references/solver-prompt.md`](references/solver-prompt.md): `{{exercise_title}}` as in step 6; `{{near_misses}}` with one line per entry of `gate.json`'s `near_misses`, as `<name>: <line text>`; `{{redo}}` with `None.`; `{{domain_environment}}` as in step 6, and only that section of `domain.md`; and with absolute paths, `{{solver_view}}` with `<solver-dir>/exercise`, `{{context}}` with `<solver-dir>/context.md`, `{{solver_dir}}` with the solver's directory and `{{exercise_format}}`. Hand it to one subagent.
+
+Then sync the cases: replace `<gen-dir>/reference/` and `<gen-dir>/near-misses/` with copies of the solver's, leaving out any Near-miss directory that `gate.json`'s `near_misses` doesn't name.
 
 The step is done when `<gen-dir>/reference/` and a directory under `<gen-dir>/near-misses/` for every Near-miss exist.
 
@@ -112,24 +114,25 @@ It prints a matrix of each automated line against the starter, the Reference sol
 
 1. Fill the author prompt as in step 6, with `{{gate_report}}` set to the gate's whole output, and hand it to a new author subagent. It revises the Exercise and replies with the cases the solver must redo, as `<case>: <line text>`, or `none`.
 2. For each case to redo, take the line's measured value: copy `<gen-dir>/<name>` to a new temporary directory, lay the case's files from `reference/` or `near-misses/<case>/` over it, run `./check.sh` there, and take that line's text in parentheses. Delete the temporary directory.
-3. When there's a case to redo, refresh `solver-view/` from the revised Exercise as in step 7, and fill the solver prompt again with `{{near_misses}}` from the revised `gate.json` and `{{redo}}` with one line per case, as `<case>: <line text> (measured: <value>)`. The solver gets only the line's text and its measured value, never the rest of the gate report. A Near-miss that's new in `gate.json` goes in `{{redo}}` too, with no measured value. Hand it to a new solver subagent.
-4. Run the gate again.
+3. When there's a case to redo, refresh `<solver-dir>/exercise/` from the revised Exercise as in step 7, and fill the solver prompt again with `{{near_misses}}` from the revised `gate.json` and `{{redo}}` with one line per case, as `<case>: <line text> (measured: <value>)`. The solver gets only the line's text and its measured value, never the rest of the gate report. A Near-miss that's new in `gate.json` goes in `{{redo}}` too, with no measured value. Hand it to a new solver subagent.
+4. Sync the cases as in step 7, so a Near-miss the author dropped from `gate.json` leaves `near-misses/` too, and run the gate again.
 
 An `Environment problem:` line, exit 2, means a case couldn't run at all, such as a starter that fails to import; it goes to the author like any other failing round.
 
 After 3 revision rounds, when the gate still fails:
 
-- If the Goal's main outcome line is among the lines it reports, the Exercise can't ship. Give a reasoned no Exercise as step 4 does, naming that line and why it couldn't be measured, and give the learner the Generation directory's path, kept for inspection. Stop.
+- If it reports only `Environment problem:` lines, and no line of the Exercise check, stop as a failed run, showing the learner the gate's last output.
+- If the Goal's main outcome line is among the lines it reports, the Exercise can't ship. Give a reasoned no Exercise as step 4 does, naming that line and why it couldn't be measured, and give the learner the paths of the Generation directory and the solver's directory, kept for inspection. Stop.
 - Otherwise run one last revision round, steps 1 to 4, with `Failed 3 rounds: <line text>` at the top of `{{gate_report}}` for each line the gate reports. The author turns each into a Self-check bullet or cuts it. When that leaves no automated outcome line, or the gate still doesn't exit 0, stop as a failed run, showing the learner the gate's last output.
 
 The step is done when the gate exits 0.
 
 ## 9. Ship
 
-Check that `<Practice workspace>/<CODE>/<name>/` doesn't exist; if it does, another run took the number, so stop as a failed run. Then remove from `<gen-dir>/<name>/` anything that isn't `EXERCISE.md`, `check.sh`, `check/`, `hints/` or a file of the starter, such as a cache the domain's tool wrote while an authoring-time script ran. Move `<gen-dir>/<name>/` there, creating `<Practice workspace>/<CODE>/` when it's missing. Only the Exercise moves: `gate.json`, `reference/`, `near-misses/`, `solver-view/` and `context.md` stay behind. Delete the Generation directory.
+Check that `<Practice workspace>/<CODE>/` has no `<ID>-<NN>-*` directory, whatever its slug; if it has one, another run took the number, so stop as a failed run. Then remove from `<gen-dir>/<name>/` anything that isn't `EXERCISE.md`, `check.sh`, `check/`, `hints/` or a file of the starter, such as a cache the domain's tool wrote while an authoring-time script ran. Move `<gen-dir>/<name>/` there, creating `<Practice workspace>/<CODE>/` when it's missing. Only the Exercise moves: `gate.json`, `reference/`, `near-misses/` and `context.md` stay behind. Delete the Generation directory and the solver's directory.
 
-Tell the learner the Exercise's path and title, the Done-when bullets, and to start from `EXERCISE.md`. The step is done when the Exercise is in the Practice workspace and the Generation directory is gone.
+Tell the learner the Exercise's path and title, the Done-when bullets, and to start from `EXERCISE.md`. The step is done when the Exercise is in the Practice workspace and both temporary directories are gone.
 
 ## Without subagents
 
-Where you can't start subagents, follow each filled prompt yourself, in the step that hands it off. When you follow the solver prompt, work from `solver-view/`, `context.md` and the prompt alone, and solve the Task as `EXERCISE.md` states it, not as the Exercise check you wrote measures it.
+Where you can't start subagents, follow each filled prompt yourself, in the step that hands it off. When you follow the solver prompt, work from the solver's directory and the prompt alone, and solve the Task as `EXERCISE.md` states it, not as the Exercise check you wrote measures it.

@@ -8,8 +8,8 @@ You solve an Exercise the way a learner would, twice over: once correctly, as it
 
 - The Exercise, as the learner gets it, without its Exercise check or hints: `{{solver_view}}`
 - The anchor Subsection and its Prereq closure: `{{context}}`
-- Write the Reference solution to: `{{gen_dir}}/reference/`
-- Write each Near-miss to: `{{gen_dir}}/near-misses/<name>/`
+- Write the Reference solution to: `{{solver_dir}}/reference/`
+- Write each Near-miss to: `{{solver_dir}}/near-misses/<name>/`
 - Exercise format: `{{exercise_format}}`
 
 The Near-misses to write, one per line as `<name>: <the Done-when bullet it fails>`:
@@ -37,7 +37,7 @@ Read `EXERCISE.md` in `{{solver_view}}`, then the starter project beside it, the
 
 Run the starter's project with your files laid over it, using the domain's tool as its environment describes, to see each case does what you meant. Write in the files above only; `{{solver_view}}` stays as it is.
 
-On a redo, rewrite only the cases listed: a Reference solution whose bullet measured as failing gets fixed so the bullet holds, and a Near-miss whose bullet measured as passing gets a mistake that breaks it.
+On a redo, rewrite only the cases listed: a Reference solution whose bullet measured as failing gets fixed so the bullet holds, and a Near-miss whose bullet measured as passing gets a mistake that breaks it. When `reference` is listed, rebuild every Near-miss on the new Reference solution too, listed or not, so each still differs from it only in its mistake.
 
 ## Done
 
