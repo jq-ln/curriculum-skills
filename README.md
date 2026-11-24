@@ -1,6 +1,9 @@
 # curriculum-skills
 
-A Claude Code plugin of skills for building Curriculums. Its first skill, [`build-curriculum`](skills/build-curriculum/), researches a subject and writes it as a [Curriculum](GLOSSARY.md#curriculums) in the format of [`docs/curriculum-format.md`](docs/curriculum-format.md).
+A Claude Code plugin of skills for building Curriculums and practising them:
+
+- [`build-curriculum`](skills/build-curriculum/) researches a subject and writes it as a [Curriculum](GLOSSARY.md#curriculums) in the format of [`docs/curriculum-format.md`](docs/curriculum-format.md).
+- [`build-exercises`](skills/build-exercises/) takes one Subsection ID and writes an [Exercise](GLOSSARY.md#exercises) for it in the subject's real tool, such as a Godot project, into the learner's Practice workspace. Its Exercise check is gated against the starter, a Reference solution and Near-misses before the Exercise ships. Each subject's tool comes from a Domain reference; Godot is the first.
 
 ## Install
 
@@ -15,7 +18,11 @@ Both local routes load the working tree in place, so an edit shows up without a 
   mkdir -p ~/.agents/skills ~/.claude/skills
   ln -s "$PWD/skills/build-curriculum" ~/.agents/skills/build-curriculum
   ln -s "$PWD/skills/build-curriculum" ~/.claude/skills/build-curriculum
+  ln -s "$PWD/skills/build-exercises" ~/.agents/skills/build-exercises
+  ln -s "$PWD/skills/build-exercises" ~/.claude/skills/build-exercises
   ```
+
+  `build-exercises` works on a Curriculum that `build-curriculum` built, so link both.
 
   In Claude Code, use one route at a time, so the skill loads once.
 

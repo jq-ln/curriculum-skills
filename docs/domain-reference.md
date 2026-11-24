@@ -45,7 +45,7 @@ H4 headings may follow inside any section. A test in `tests/build-exercises/test
 
 ### Applies to
 
-The orchestrator matches each `Applies to:` line against the Curriculum's subject and Brief to pick the domain. No match stops the run; more than one asks the learner. Name the subject and the tool, so a near-miss subject doesn't match:
+The orchestrator matches each `Applies to:` line against the Curriculum's subject and Brief to pick the domain. A doc set doesn't keep its Brief verbatim, so the orchestrator reads the subject from the H1 of `index.md` and the scope the Brief set from its Intro Field. No match stops the run; more than one asks the learner. Name the subject and the tool, so a near-miss subject doesn't match:
 
 ```markdown
 # Godot
