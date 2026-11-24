@@ -42,7 +42,9 @@ class Catcher extends Logger:
 		# An engine error, such as reading an empty array, names its C++ source. It's shown at the script line that
 		# caused it instead: the first frame of its GDScript backtrace outside check/, or else the top frame. It
 		# counts against the side whose code made the call, the innermost frame, so the Exercise check's own
-		# get_node("Typo") is a crash, not the learner's error.
+		# get_node("Typo") is a crash, not the learner's error. An error naming one of the learner's files, such as
+		# the check's load() of a missing main.tscn, counts against the learner wherever it was raised.
+		var text := (rationale if rationale != "" else code).strip_edges()
 		var at := "%s:%d" % [file, line]
 		var side := file
 		if not file.begins_with("res://"):
@@ -51,7 +53,9 @@ class Catcher extends Logger:
 					at = _script_line(backtrace)
 					side = backtrace.get_frame_file(0)
 					break
-		var what := "%s %s" % [at, (rationale if rationale != "" else code).strip_edges()]
+			if _names_learner_file(text):
+				side = "res://"
+		var what := "%s %s" % [at, text]
 		_mutex.lock()
 		if side.begins_with("res://check/"):
 			_check.append(what)
@@ -73,6 +77,14 @@ class Catcher extends Logger:
 				frame = i
 				break
 		return "%s:%d" % [backtrace.get_frame_file(frame), backtrace.get_frame_line(frame)]
+
+	## Whether text names a res:// path outside check/.
+	static func _names_learner_file(text: String) -> bool:
+		var parts := text.split("res://")
+		for i in range(1, parts.size()):
+			if not parts[i].begins_with("check/"):
+				return true
+		return false
 
 	func check_errors() -> Array[String]:
 		_mutex.lock()

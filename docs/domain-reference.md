@@ -148,6 +148,6 @@ Every domain covers these cases, each named for what it shows:
 | `no-target-version` | No Target version: nothing about versions. |
 | `env-error` | The tool is missing: exit 2. |
 
-A domain adds cases for its own ways to fail, such as Godot's `import-error`, `check-crash`, `check-node-not-found`, `check-timeout` and `parse-error`.
+A domain adds cases for its own ways to fail, such as Godot's `import-error`, `check-crash`, `check-node-not-found`, `check-timeout`, `parse-error`, `missing-scene` and `broken-scene`.
 
 Each domain gets its own CI job in [`ci.yml`](../.github/workflows/ci.yml) that installs its tool, pinned by sha256, and runs the cases; see [`ci.md`](workflow/ci.md#adding-a-job).
