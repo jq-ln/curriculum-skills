@@ -108,6 +108,14 @@ _Avoid_: Mutant, wrong answer
 The temporary directory where `build-exercises` builds one Exercise, with its Reference solution, Near-misses and gate manifest beside it. Only the shipped files move into the Practice workspace, once the Exercise check passes the gate.
 _Avoid_: Scratch directory, build directory
 
+**Ramp**:
+The order in which re-runs on one Subsection widen its Exercises: the Goal's main outcome first, then Key concepts and Scope edge cases earlier Exercises didn't reach, then less of the Prereq closure given. Each Exercise turns one knob at most one notch from the latest, in a fresh situation.
+_Avoid_: Difficulty curve, progression, level
+
+**Steer**:
+The optional free text a learner gives a `build-exercises` run, such as "easier" or "focus on `is_on_wall()`", which replaces the Ramp's default pick. It loses to the scaffold line and the Exercise gate, and the run names the rule it lost to.
+_Avoid_: Hint, prompt, preference
+
 **Domain reference**:
 The swappable part of `build-exercises` for one subject's environment: a `domain.md` the prompts read and an `assets/` tree copied into each Exercise, chosen by its Applies-to line.
 _Avoid_: Plugin, adapter, backend
