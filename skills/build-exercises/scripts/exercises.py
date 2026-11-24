@@ -242,17 +242,86 @@ def next_number(code_dir, uid):
     return max(exercise_numbers(code_dir, uid).values(), default=0) + 1
 
 
+EXERCISE = "EXERCISE.md"
+MARKER = "Your code goes here."
+# The sections that, with the markers, say what an Exercise covered, so the ramp needs no record of its own.
+COVERED_SECTIONS = ["Done when", "Given"]
+# The rest of what an Exercise ships, so a marker quoted in a hint or the Exercise check isn't counted as the starter's.
+NOT_STARTER = {EXERCISE, "check.sh", "check", "hints"}
+
+
+def read_exercise_md(exercise_dir):
+    """(EXERCISE.md's text, None), or (None, why) when the Exercise has none or it can't be read."""
+    path = Path(exercise_dir) / EXERCISE
+    if not path.is_file():
+        return None, f"no {EXERCISE}"
+    try:
+        return build.read(path), None
+    except (BuildError, OSError):
+        return None, f"{EXERCISE} can't be read"
+
+
+def sections(text):
+    """(H1 text, {H2 heading: body lines, blank lines at either end dropped})."""
+    title, out, body, fenced = None, {}, None, False
+    for line in text.split("\n"):
+        if line.startswith("```"):
+            fenced = not fenced  # a `## ` line in a fenced block, such as a sample in Given, isn't a heading
+        if not fenced and line.startswith("# ") and title is None and not out:
+            title = line[2:].strip()
+        elif not fenced and line.startswith("## "):
+            body = out.setdefault(line[3:].strip(), [])
+        elif body is not None:
+            body.append(line.rstrip())
+    for lines in out.values():
+        while lines and not lines[-1]:
+            lines.pop()
+        while lines and not lines[0]:
+            lines.pop(0)
+    return title, out
+
+
+def markers(exercise_dir):
+    """`<path>:<line>` of each marker in the starter, in path order. A learner may have removed some."""
+    out = []
+    for path in sorted(p for p in Path(exercise_dir).rglob("*") if p.is_file()):
+        rel = path.relative_to(exercise_dir)
+        # A hidden path is the tool's or the learner's, such as Godot's .godot/ cache, never the starter's.
+        if rel.parts[0] in NOT_STARTER or any(part.startswith(".") for part in rel.parts):
+            continue
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue  # a binary file, such as an image, holds no marker
+        out += [f"{rel.as_posix()}:{i}" for i, line in enumerate(lines, 1) if MARKER in line]
+    return out
+
+
+def covered(exercise_dir):
+    """The indented lines existing prints under an Exercise: what it covered, read from its files."""
+    text, why = read_exercise_md(exercise_dir)
+    if why:
+        return [f"  {why}"]
+    title, found = sections(text)
+    out = [f"  Title: {title}" if title else "  Title: none"]
+    for heading in COVERED_SECTIONS:
+        body = found.get(heading)
+        out += [f"  {heading}:"] + [f"    {line}" if line else "" for line in body] if body else [f"  {heading}: none"]
+    spots = markers(exercise_dir)
+    return out + (["  Markers:"] + [f"    {spot}" for spot in spots] if spots else ["  Markers: none"])
+
+
 def existing(practice, token):
-    """The anchor's Exercises, lowest <NN> first, then the next <NN>."""
+    """The anchor's Exercises, lowest <NN> first, each with what it covered, then the next <NN>."""
     uid = subsection_id(token)
     code_dir = Path(practice) / uid.code
     found = exercise_numbers(code_dir, uid)
-    return "\n".join(sorted(found, key=found.get) or ["None"]) + f"\nNext: {next_number(code_dir, uid):02d}\n"
+    lines = [line for name in sorted(found, key=found.get) for line in [name, *covered(code_dir / name)]]
+    return "\n".join(lines or ["None"]) + f"\nNext: {next_number(code_dir, uid):02d}\n"
 
 
 # --- renumber ----------------------------------------------------------------
 
-EXERCISE = "EXERCISE.md"
 RECORD_KEYS = ["Curriculum", "Anchor", "Anchor title"]  # the anchor record's bullets renumber needs
 
 
@@ -275,13 +344,9 @@ def record_lines(text):
 
 def anchor_record(exercise_dir, code):
     """(UnitId, anchor title) from an Exercise's anchor record, or a string saying why it can't be read."""
-    path = Path(exercise_dir) / EXERCISE
-    if not path.is_file():
-        return f"no {EXERCISE}"
-    try:
-        text = build.read(path)
-    except (BuildError, OSError):
-        return f"{EXERCISE} can't be read"
+    text, why = read_exercise_md(exercise_dir)
+    if why:
+        return why
     lines = text.split("\n")
     record = {key: lines[i].partition(": ")[2] for key, i in record_lines(text).items()}
     uid = build.parse_id(record.get("Anchor", ""))
@@ -580,7 +645,7 @@ def main(argv=None):
     p = sub.add_parser("context", help="print the Subsection and its Prereq closure")
     p.add_argument("id")
     p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
-    p = sub.add_parser("existing", help="list the Subsection's Exercises and the next <NN>")
+    p = sub.add_parser("existing", help="list the Subsection's Exercises, what each covered, and the next <NN>")
     p.add_argument("id")
     p.add_argument("--curriculums", default=".", help="the directory holding the Curriculums (default: the working directory)")
     p.add_argument("--practice", help="the Practice workspace (default: practice/ in the Curriculums directory)")

@@ -269,6 +269,44 @@ class Assets(TempDirTestCase):
         )
 
 
+COVERED_EXERCISE_MD = """# Stage one file
+
+- Curriculum: GIT
+- Anchor: GIT-01.02.01
+- Anchor title: The index as a staging snapshot
+
+## Task
+
+Stage `a.txt` and nothing else.
+
+## Done when
+
+- `a.txt` is staged.
+- `b.txt` stays unstaged.
+- Run `git status`: only `a.txt` is green. **(check by eye)**
+
+## Given
+
+The repository with `a.txt` and `b.txt`.
+
+```text
+## not a heading
+```
+
+`lib/helpers.sh`, except `helper`.
+
+## Check
+
+Run `./check.sh` from this folder.
+"""
+
+
+def listed(result):
+    """existing's exit code, its lines naming an Exercise or the next <NN>, and its stderr, leaving out what each Exercise covered."""
+    names = "".join(line for line in result.stdout.splitlines(keepends=True) if not line.startswith(" ") and line.strip())
+    return result.returncode, names, result.stderr
+
+
 class Existing(TempDirTestCase):
     def workspace(self, *names):
         """A Practice workspace in the temp dir holding an Exercise at each <CODE>/<name>."""
@@ -282,30 +320,30 @@ class Existing(TempDirTestCase):
     def test_an_anchor_with_no_exercises_starts_at_01(self):
         practice = self.workspace()
         result = run("existing", "GIT-01.02.01", "--practice", practice)
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "None\nNext: 01\n", ""))
+        self.assertEqual(listed(result), (0, "None\nNext: 01\n", ""))
 
     def test_next_follows_the_highest_number_and_never_fills_a_gap(self):
         practice = self.workspace("GIT/GIT-01.02.01-03-amend-a-snapshot", "GIT/GIT-01.02.01-01-stage-one-file")
         result = run("existing", "GIT-01.02.01", "--practice", practice)
         self.assertEqual(
-            (result.returncode, result.stdout, result.stderr),
+            listed(result),
             (0, "GIT-01.02.01-01-stage-one-file\nGIT-01.02.01-03-amend-a-snapshot\nNext: 04\n", ""),
         )
 
     def test_counts_an_exercise_with_an_empty_slug(self):
         practice = self.workspace("GIT/GIT-01.02.01-01-")
         result = run("existing", "GIT-01.02.01", "--practice", practice)
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "GIT-01.02.01-01-\nNext: 02\n", ""))
+        self.assertEqual(listed(result), (0, "GIT-01.02.01-01-\nNext: 02\n", ""))
 
     def test_skips_another_subsections_exercises(self):
         practice = self.workspace("GIT/GIT-01.01.01-04-hash-a-blob", "GIT/GIT-01.02.01-01-stage-one-file")
         result = run("existing", "GIT-01.02.01", "--practice", practice)
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", ""))
+        self.assertEqual(listed(result), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", ""))
 
     def test_skips_exercises_in_another_curriculums_directory(self):
         practice = self.workspace("MATH/GIT-01.02.01-05-misfiled", "GIT/GIT-01.02.01-01-stage-one-file")
         result = run("existing", "GIT-01.02.01", "--practice", practice)
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", ""))
+        self.assertEqual(listed(result), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", ""))
 
     def test_reads_practice_in_the_curriculums_directory_by_default(self):
         self.workspace("GIT/GIT-01.02.01-01-stage-one-file")
@@ -313,8 +351,79 @@ class Existing(TempDirTestCase):
             with self.subTest(args=args):
                 result = run("existing", "GIT-01.02.01", *args, cwd=cwd)
                 self.assertEqual(
-                    (result.returncode, result.stdout, result.stderr), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", "")
+                    listed(result), (0, "GIT-01.02.01-01-stage-one-file\nNext: 02\n", "")
                 )
+
+    def test_shows_what_each_exercise_covered_from_its_exercise_md_and_its_markers(self):
+        practice = self.workspace("GIT/GIT-01.02.01-01-stage-one-file")
+        exercise = practice / "GIT" / "GIT-01.02.01-01-stage-one-file"
+        (exercise / "EXERCISE.md").write_text(COVERED_EXERCISE_MD, encoding="utf-8")
+        (exercise / "stage.sh").write_text("#!/bin/sh\nset -e\n# Your code goes here.\n", encoding="utf-8")
+        (exercise / "lib").mkdir()
+        (exercise / "lib" / "helpers.sh").write_text("helper() {\n  # Your code goes here.\n}\n", encoding="utf-8")
+        (exercise / "repo.cfg").write_text("no marker here\n", encoding="utf-8")
+        result = run("existing", "GIT-01.02.01", "--practice", practice)
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (
+                0,
+                "GIT-01.02.01-01-stage-one-file\n"
+                "  Title: Stage one file\n"
+                "  Done when:\n"
+                "    - `a.txt` is staged.\n"
+                "    - `b.txt` stays unstaged.\n"
+                "    - Run `git status`: only `a.txt` is green. **(check by eye)**\n"
+                "  Given:\n"
+                "    The repository with `a.txt` and `b.txt`.\n"
+                "\n"
+                "    ```text\n"
+                "    ## not a heading\n"
+                "    ```\n"
+                "\n"
+                "    `lib/helpers.sh`, except `helper`.\n"
+                "  Markers:\n"
+                "    lib/helpers.sh:2\n"
+                "    stage.sh:3\n"
+                "Next: 02\n",
+                "",
+            ),
+        )
+
+    def test_finds_markers_only_in_the_starter_and_says_when_none_are_left(self):
+        practice = self.workspace("GIT/GIT-01.02.01-01-stage-one-file")
+        exercise = practice / "GIT" / "GIT-01.02.01-01-stage-one-file"
+        (exercise / "EXERCISE.md").write_text(COVERED_EXERCISE_MD, encoding="utf-8")
+        (exercise / "check.sh").write_text("# Your code goes here.\n", encoding="utf-8")
+        for rel in ["check/lines.sh", "hints/2.md"]:
+            (exercise / rel).parent.mkdir()
+            (exercise / rel).write_text("Your code goes here.\n", encoding="utf-8")
+        (exercise / "stage.sh").write_text("git add a.txt\n", encoding="utf-8")  # the learner replaced the marker
+        (exercise / ".godot").mkdir()  # the tool's cache, which may copy a starter file
+        (exercise / ".godot" / "stage.sh").write_text("# Your code goes here.\n", encoding="utf-8")
+        (exercise / "icon.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe")
+        result = run("existing", "GIT-01.02.01", "--practice", practice)
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        self.assertIn("\n  Markers: none\nNext: 02\n", result.stdout)
+
+    def test_says_what_it_cant_read_from_an_exercise(self):
+        practice = self.workspace("GIT/GIT-01.02.01-01-no-sections", "GIT/GIT-01.02.01-02-no-exercise-md")
+        (practice / "GIT" / "GIT-01.02.01-02-no-exercise-md" / "EXERCISE.md").unlink()
+        result = run("existing", "GIT-01.02.01", "--practice", practice)
+        self.assertEqual(
+            (result.returncode, result.stdout, result.stderr),
+            (
+                0,
+                "GIT-01.02.01-01-no-sections\n"
+                "  Title: An Exercise\n"
+                "  Done when: none\n"
+                "  Given: none\n"
+                "  Markers: none\n"
+                "GIT-01.02.01-02-no-exercise-md\n"
+                "  no EXERCISE.md\n"
+                "Next: 03\n",
+                "",
+            ),
+        )
 
     def test_stops_on_an_id_that_isnt_a_subsection(self):
         for token, message in [
