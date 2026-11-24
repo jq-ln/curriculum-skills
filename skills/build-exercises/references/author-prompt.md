@@ -53,7 +53,7 @@ When the gate report holds a matrix, read every `Broken:` and `Environment probl
 - **The line is wrong**: it passes on the starter, measures something the task doesn't ask, flakes, or crashes. Revise the line, the starter or `gate.json`, whichever is at fault.
 - **The case is wrong**: the Reference solution fails a bullet the task as written lets it meet, or a Near-miss passes the bullet it targets. Leave the case's files alone; the solver redoes it.
 
-When a revision changes the Task, a bullet or a given file, list the reference as a case to redo too, since it was written to the old task. For each `Failed 3 rounds:` line at the top of the gate report, turn its line into a Self-check bullet if a concrete run shows it, or cut it. Keep the bullet for what a coverage rung reaches as a Self-check bullet rather than cut it, so a later run still reads that target as reached instead of picking it again. Update `EXERCISE.md`, the Exercise check, the hints and `gate.json` together, and drop any Near-miss that targeted only that line from `gate.json`.
+When a revision changes the Task, a bullet or a given file, list the reference as a case to redo too, since it was written to the old task. For each `Failed 3 rounds:` line at the top of the gate report, turn its line into a Self-check bullet if a concrete run shows it, or cut it. When the line is what a coverage rung reaches and a concrete run shows it, keep it as a Self-check bullet rather than cut it, so a later run still reads that target as reached instead of picking it again. Update `EXERCISE.md`, the Exercise check, the hints and `gate.json` together, and drop any Near-miss that targeted only that line from `gate.json`.
 
 ## Done
 

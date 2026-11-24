@@ -166,7 +166,7 @@ The step is done when the gate exits 0.
 
 Check that `<Practice workspace>/<CODE>/` has no `<ID>-<NN>-*` directory, whatever its slug; if it has one, another run took the number, so stop as a failed run. Then remove from `<gen-dir>/<name>/` anything that isn't `EXERCISE.md`, `check.sh`, `check/`, `hints/` or a file of the starter, such as a cache the domain's tool wrote while an authoring-time script ran. Move `<gen-dir>/<name>/` there, creating `<Practice workspace>/<CODE>/` when it's missing. Only the Exercise moves: `gate.json`, `reference/`, `near-misses/` and `context.md` stay behind. Delete the Generation directory and the solver's directory.
 
-Tell the learner the Exercise's path and title, the Done-when bullets, and to start from `EXERCISE.md`. When the gate turned a line the steer asked for into a Self-check bullet or cut it, tell the learner the steer lost to the Exercise gate there, naming the line. The step is done when the Exercise is in the Practice workspace and both temporary directories are gone.
+Tell the learner the Exercise's path and title, the Done-when bullets, and to start from `EXERCISE.md`. When the gate turned a line the steer asked for into a Self-check bullet or cut it, tell the learner the steer lost to the Exercise gate there, naming the line. When the gate cut the line for what a coverage rung reaches, tell the learner that target is still unreached, so a later run may pick it again, and that a steer naming another Key concept or edge case moves past it. The step is done when the Exercise is in the Practice workspace and both temporary directories are gone.
 
 ## Without subagents
 
