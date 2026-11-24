@@ -452,6 +452,8 @@ RERUNS = 3
 TIMEOUT = 120
 # Seconds to wait for a killed Exercise check's output.
 KILLED_GRACE = 5
+# The exit code of a rerun the gate skipped because an earlier rerun of its case outlasted the timeout.
+SKIPPED = "skipped"
 STATUS = {"PASS": "P", "FAIL": "F"}
 KINDS = ("outcome", "guard", "self-check")
 
@@ -501,7 +503,7 @@ def gate_cases(gen):
 
 def run_case(exercise, swap, timeout):
     """Each rerun's (exit code, stdout, stderr), from a copy of the Exercise with swap's files laid over it.
-    The exit code is None for a rerun that outlasted timeout seconds.
+    The exit code is None for a rerun that outlasted timeout seconds, and SKIPPED for each rerun after it.
 
     The copy keeps the Exercise directory untouched, whatever the Exercise check or the swap writes.
     """
@@ -513,6 +515,10 @@ def run_case(exercise, swap, timeout):
         runs = []
         for _ in range(RERUNS):
             runs.append(run_check(work, timeout))
+            if runs[-1][0] is None:
+                # Reruns look for lines that flake, not for whether a hang recurs, and each would cost the whole timeout.
+                runs += [(SKIPPED, "", "")] * (RERUNS - len(runs))
+                break
         return runs
 
 
@@ -535,8 +541,14 @@ def run_check(work, timeout):
             return None, "", ""  # a process that left the group still holds the pipes; stop waiting for it
         return None, out, err
     except BaseException:
-        kill_group(proc)  # such as on Ctrl-C, which no longer reaches an Exercise check in its own session
+        # Such as on Ctrl-C, or SIGTERM or SIGHUP through main's handlers, none of which reaches an Exercise check in
+        # its own session.
+        kill_group(proc)
         raise
+
+
+def exit_on_signal(signum, frame):
+    raise SystemExit(128 + signum)
 
 
 def kill_group(proc):
@@ -568,17 +580,20 @@ def statuses(stdout, texts):
 
 
 def environment_problems(case, runs, timeout):
-    """One line for the reruns that outlasted the timeout, and one per exit code other than 0 or 1, each naming the
+    """One line for the rerun that outlasted the timeout, and one per exit code other than 0 or 1, each naming the
     reruns and the last thing the first of them said."""
-    groups = [(f"didn't finish within {timeout:g} s", None)]
-    groups += [(f"exits {code}", code) for code in sorted({code for code, _, _ in runs} - {0, 1, None})]
+    skipped = [i for i, (c, _, _) in enumerate(runs, 1) if c == SKIPPED]
+    timed_out = f"didn't finish within {timeout:g} s"
+    groups = [(timed_out, None)]
+    groups += [(f"exits {code}", code) for code in sorted({code for code, _, _ in runs} - {0, 1, None, SKIPPED})]
     out = []
     for what, code in groups:
         numbers = [i for i, (c, _, _) in enumerate(runs, 1) if c == code]
         if not numbers:
             continue
         said = [line for line in runs[numbers[0] - 1][2].splitlines() if line.strip()]
-        out.append(f"Environment problem: {describe(case)} {what} on {which_runs(numbers)}" + (f": {said[-1]}" if said else ""))
+        where = which_runs(numbers) + (f", so the gate skipped {which_runs(skipped)}" if what == timed_out and skipped else "")
+        out.append(f"Environment problem: {describe(case)} {what} on {where}" + (f": {said[-1]}" if said else ""))
     return out
 
 
@@ -639,7 +654,7 @@ def gate(exercise, gen, timeout):
 
     Each automated line gets one row: its kind, then one cell per case in the Cases order, holding one letter per
     rerun: P passed, F failed, - not printed, E the run had an environment problem, such as outlasting timeout seconds,
-    and isn't judged.
+    or was skipped after a run that did, and isn't judged.
     """
     manifest, cases = gate_cases(gen)
     automated = [line for line in manifest["lines"] if line["kind"] != "self-check"]
@@ -724,7 +739,16 @@ def main(argv=None):
         elif args.command == "gate":
             if args.timeout <= 0:
                 parser.error("--timeout must be more than 0 seconds")
-            report, code = gate(args.exercise, args.gen, args.timeout)
+            # Python dies on SIGTERM and SIGHUP without unwinding, which would leave the running Exercise check, in its
+            # own session, orphaned. Raising instead lets run_check kill its group, so a shell tool's timeout or a closed
+            # terminal stops the check along with the gate.
+            caught = (signal.SIGTERM, signal.SIGHUP)
+            previous = {sig: signal.signal(sig, exit_on_signal) for sig in caught}
+            try:
+                report, code = gate(args.exercise, args.gen, args.timeout)
+            finally:
+                for sig, handler in previous.items():
+                    signal.signal(sig, handler)
             sys.stdout.write(report)
             return code
         else:

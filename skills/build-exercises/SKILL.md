@@ -145,6 +145,8 @@ The step is done when `<gen-dir>/reference/` and a directory under `<gen-dir>/ne
 exercises.py gate <gen-dir>/<name> <gen-dir>
 ```
 
+Run it in the background and wait for it to exit: it runs `check.sh` 3 times per case, each run for up to `--timeout` seconds (120 by default), so with two Near-misses it can take 24 minutes, longer than a shell tool's usual limit.
+
 It prints a matrix of each automated line against the starter, the Reference solution and each Near-miss, then a verdict. Exit 0 is a pass: go to step 10. Otherwise run a revision round:
 
 1. Fill the author prompt as in step 7, with `{{gate_report}}` set to the gate's whole output, and hand it to a new author subagent. It revises the Exercise and replies with the cases the solver must redo, as `<case>: <line text>`, or `none`.

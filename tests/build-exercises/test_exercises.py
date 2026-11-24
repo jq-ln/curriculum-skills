@@ -5,9 +5,11 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -479,6 +481,30 @@ def lines(walks, ticks, errors="PASS"):
 PASSING = (0, lines("PASS", "PASS"))
 
 
+def wait_for_pid(path, seconds=10):
+    """The PID a process writes to path, once it has written it."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        text = path.read_text(encoding="utf-8").strip() if path.exists() else ""
+        if text:
+            return int(text)
+        time.sleep(0.05)
+    raise AssertionError(f"nothing wrote a PID to {path} within {seconds} s")
+
+
+def alive(pid, seconds=2):
+    """Whether pid still runs after up to seconds, which gives a killed process time to be reaped."""
+    deadline = time.monotonic() + seconds
+    while True:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        if time.monotonic() >= deadline:
+            return True
+        time.sleep(0.05)
+
+
 class Gate(TempDirTestCase):
     def generation(self, starter, reference=PASSING, near_misses=None, gate_json=GATE_JSON):
         """A generation directory holding an Exercise and its gate files, each case's check.sh faking its runs.
@@ -631,7 +657,8 @@ class Gate(TempDirTestCase):
         check = exercise / "check.sh"
         # The sleep is a child of check.sh, as Godot is, so it holds the output open after check.sh itself is killed.
         script = check.read_text(encoding="utf-8").split("\n")
-        script.insert(2, 'if [ "$n" -eq 2 ]; then sleep 60; fi')  # after the line counting the runs
+        starts = self.tmp / "starter-runs"  # outside the copy the gate runs, so it outlives the run
+        script.insert(2, f'echo "$n" > {shlex.quote(str(starts))}; if [ "$n" -eq 2 ]; then sleep 60; fi')  # after the line counting the runs
         check.write_text("\n".join(script), encoding="utf-8")
         try:
             result = subprocess.run(
@@ -645,15 +672,44 @@ class Gate(TempDirTestCase):
             (
                 2,
                 "Cases: starter, reference, too-slow, moves-in-process\n"
-                f"outcome  FEF PPP FFF PPP  {WALKS}\n"
-                f"outcome  FEF PPP PPP FFF  {TICKS}\n"
-                f"guard    PEP PPP PPP PPP  {ERRORS}\n"
+                f"outcome  FEE PPP FFF PPP  {WALKS}\n"
+                f"outcome  FEE PPP PPP FFF  {TICKS}\n"
+                f"guard    PEE PPP PPP PPP  {ERRORS}\n"
                 "\n"
-                "Environment problem: the starter didn't finish within 1 s on run 2\n"
+                "Environment problem: the starter didn't finish within 1 s on run 2, so the gate skipped run 3\n"
                 "Verdict: environment problem\n",
                 "",
             ),
         )
+        self.assertEqual(starts.read_text(encoding="utf-8"), "2\n")
+
+    def test_kills_the_running_exercise_check_when_the_gate_is_stopped(self):
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            with self.subTest(signal=sig.name):
+                shutil.rmtree(self.tmp / "gen", ignore_errors=True)
+                exercise, gen = self.generation([(1, lines("FAIL", "FAIL"))])
+                pid_file = self.tmp / "sleep-pid"
+                pid_file.unlink(missing_ok=True)
+                # The sleep is a child of check.sh, as Godot is; it writes its PID outside the copy the gate runs.
+                check = exercise / "check.sh"
+                check.write_text(f"#!/bin/sh\nsleep 4242 &\necho $! > {shlex.quote(str(pid_file))}\nwait\n", encoding="utf-8")
+                # A group of its own, as a shell tool gives the commands it runs, so the signal goes to the group.
+                gate = subprocess.Popen(
+                    [sys.executable, str(SCRIPT), "gate", exercise, gen],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
+                )
+                sleep_pid = None
+                try:
+                    sleep_pid = wait_for_pid(pid_file)
+                    os.killpg(gate.pid, sig)
+                    self.assertEqual(gate.wait(timeout=10), 128 + sig)
+                    self.assertFalse(alive(sleep_pid), "the Exercise check's child outlived the gate")
+                finally:
+                    if gate.poll() is None:
+                        gate.kill()
+                        gate.wait()
+                    if sleep_pid and alive(sleep_pid):
+                        os.kill(sleep_pid, signal.SIGKILL)
 
     def test_leaves_the_exercise_directory_as_it_was(self):
         exercise, gen = self.generation([(1, lines("FAIL", "FAIL"))])
